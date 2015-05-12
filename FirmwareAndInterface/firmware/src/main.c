@@ -40,7 +40,6 @@
 #define FLAG_UART_WISP_TX           0x0010 //!< Bytes transmitted on the WISP UART
 #define FLAG_LOGGING                0x0020 //!< Logging ADC conversion results to USB
 #define FLAG_RF_DATA				0x0040 //!< RF Rx activity ready to be logged
-#define FLAG_TIMER_OVERFLOW			0x0100 //!< Timer logging time has overflowed
 /** @} End MAIN_FLAG_DEFINES */
 
 /**
@@ -92,7 +91,7 @@ int main(void)
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
 
-    UCS_setup();
+    UCS_setup(); // set up unified clock system
     pin_init();
     PWM_setup();
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
@@ -350,7 +349,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	restartAdc();
     	PWM_start();
 
-    	PAUXIE |= pauxie; // restore interrupt
+    	PAUXIE = pauxie; // restore interrupt
 
     	// This next part could be better, but it'll work for now.
     	// Wait to timer1's maximum for Vcap to reach the target
@@ -359,7 +358,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
     }
 
     case USB_CMD_GET_WISP_PC:
-    	PLEDOUT &= ~LED4;
     	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_PC, 0, 0, UART_TX_FORCE); // send request
 
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
@@ -541,8 +539,6 @@ static void addAdcChannel(uint16_t channel, int8_t *pResults_index)
 
     // first check if the channel is already present
 	if(*pResults_index == -1) {
-//    if((channel != adc12.config.channels[*pResults_index]) ||
-//    		(adc12.config.num_channels <= *pResults_index)) {
         // channel isn't present in the configuration, so add it
         adc12.config.channels[adc12.config.num_channels] = channel;
         *pResults_index = adc12.config.num_channels++;
@@ -661,6 +657,4 @@ static void complete_active_debug_exit()
 {
 	PAUXOUT &= ~GPIO_AUX_1; // signal to the WISP that we're exiting active debug mode
 	release_power();
-
-//	PLEDOUT &= ~LED4;
 }

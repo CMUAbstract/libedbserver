@@ -37,4 +37,5 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #endif
 {
 	(*pCallbackFn)(); // call the callback
+	TA1CTL = 0; // stop the timer so the interrupt isn't triggered again
 }
