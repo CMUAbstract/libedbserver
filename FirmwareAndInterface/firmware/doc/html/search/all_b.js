@@ -34,7 +34,6 @@ var searchData=
   ['ptxie',['PTXIE',['../group___p_o_r_t1___d_e_f_i_n_e_s.html#ga2774ad50ae46ff3eefa7bcbe0ec85a87',1,'monitor.h']]],
   ['ptxies',['PTXIES',['../group___p_o_r_t1___d_e_f_i_n_e_s.html#gacda9252209d93e88267201e18bdfc167',1,'monitor.h']]],
   ['ptxifg',['PTXIFG',['../group___p_o_r_t1___d_e_f_i_n_e_s.html#gad3d988119e43130c63bda36905a770d2',1,'monitor.h']]],
-  ['pwm_5fchangedutycycle',['PWM_changeDutyCycle',['../group___p_w_m.html#ga4391199449d29301b4dfe79e53cf48df',1,'PWM_changeDutyCycle(uint8_t change):&#160;pwm.c'],['../group___p_w_m.html#ga4391199449d29301b4dfe79e53cf48df',1,'PWM_changeDutyCycle(uint8_t change):&#160;pwm.c']]],
   ['pwm_5fdecrease_5fduty_5fcycle',['PWM_DECREASE_DUTY_CYCLE',['../group___p_w_m___d_u_t_y___c_y_c_l_e.html#gaa3f6be30ce39b3379df133488b1f348a',1,'pwm.h']]],
   ['pwm_5fincrease_5fduty_5fcycle',['PWM_INCREASE_DUTY_CYCLE',['../group___p_w_m___d_u_t_y___c_y_c_l_e.html#gacce0ddc96254ff1917845b60845379a4',1,'pwm.h']]],
   ['pwm_5fsetup',['PWM_setup',['../group___p_w_m.html#gac59c22042fde1e5ce071b4c12c98954e',1,'PWM_setup():&#160;pwm.c'],['../group___p_w_m.html#gac59c22042fde1e5ce071b4c12c98954e',1,'PWM_setup():&#160;pwm.c']]],

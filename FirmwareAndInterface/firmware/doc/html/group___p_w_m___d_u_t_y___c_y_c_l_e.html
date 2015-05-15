@@ -82,26 +82,26 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div><!--header-->
 <div class="contents">
 
-<p>Used to indicate how to change the PWM duty cycle.  
+<p>Used to change the PWM duty cycle.  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="define-members"></a>
 Macros</h2></td></tr>
 <tr class="memitem:gacce0ddc96254ff1917845b60845379a4"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gacce0ddc96254ff1917845b60845379a4"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gacce0ddc96254ff1917845b60845379a4">PWM_INCREASE_DUTY_CYCLE</a>&#160;&#160;&#160;1</td></tr>
-<tr class="memdesc:gacce0ddc96254ff1917845b60845379a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Increase PWM duty cycle. <br /></td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gacce0ddc96254ff1917845b60845379a4">PWM_INCREASE_DUTY_CYCLE</a>&#160;&#160;&#160;TB0CCR1 = (TB0CCR1 &lt; TB0CCR0) ? TB0CCR1 + 1 : TB0CCR0</td></tr>
+<tr class="memdesc:gacce0ddc96254ff1917845b60845379a4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Increase PWM duty cycle by one SMCLK cycle. <br /></td></tr>
 <tr class="separator:gacce0ddc96254ff1917845b60845379a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gaa3f6be30ce39b3379df133488b1f348a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gaa3f6be30ce39b3379df133488b1f348a"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gaa3f6be30ce39b3379df133488b1f348a">PWM_DECREASE_DUTY_CYCLE</a>&#160;&#160;&#160;0</td></tr>
-<tr class="memdesc:gaa3f6be30ce39b3379df133488b1f348a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decrease PWM duty cycle. <br /></td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gaa3f6be30ce39b3379df133488b1f348a">PWM_DECREASE_DUTY_CYCLE</a>&#160;&#160;&#160;TB0CCR1 = (TB0CCR1 &gt; 0) ? TB0CCR1 - 1 : 0</td></tr>
+<tr class="memdesc:gaa3f6be30ce39b3379df133488b1f348a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Decrease PWM duty cycle by one SMCLK cycle. <br /></td></tr>
 <tr class="separator:gaa3f6be30ce39b3379df133488b1f348a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<p>Used to indicate how to change the PWM duty cycle. </p>
+<p>Used to change the PWM duty cycle. </p>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri May 8 2015 13:41:59 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri May 15 2015 11:18:27 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

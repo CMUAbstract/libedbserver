@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.9.1"/>
-<title>WISP Monitor: C:/Users/gharvey/Dropbox/wisp_monitor_v2/firmware/src/timers/pwm.h Source File</title>
+<title>WISP Monitor: C:/Users/gharvey/top-up-debugger/FirmwareAndInterface/firmware/src/timers/pwm.h Source File</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -102,27 +102,22 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00011"></a><span class="lineno">   11</span>&#160;<span class="preprocessor">#include &lt;msp430.h&gt;</span></div>
 <div class="line"><a name="l00012"></a><span class="lineno">   12</span>&#160;<span class="preprocessor">#include &lt;stdint.h&gt;</span></div>
 <div class="line"><a name="l00013"></a><span class="lineno">   13</span>&#160;</div>
-<div class="line"><a name="l00026"></a><span class="lineno"><a class="line" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gacce0ddc96254ff1917845b60845379a4">   26</a></span>&#160;<span class="preprocessor">#define PWM_INCREASE_DUTY_CYCLE             1 </span></div>
-<div class="line"><a name="l00027"></a><span class="lineno"><a class="line" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gaa3f6be30ce39b3379df133488b1f348a">   27</a></span>&#160;<span class="preprocessor">#define PWM_DECREASE_DUTY_CYCLE             0 </span></div>
-<div class="line"><a name="l00028"></a><span class="lineno">   28</span>&#160;<span class="preprocessor"></span></div>
-<div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;</div>
-<div class="line"><a name="l00034"></a><span class="lineno">   34</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___p_w_m.html#gac59c22042fde1e5ce071b4c12c98954e">PWM_setup</a>();</div>
-<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;</div>
-<div class="line"><a name="l00039"></a><span class="lineno">   39</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___p_w_m.html#ga4bfecb78dfd20525bf89b273d9674845">PWM_start</a>();</div>
-<div class="line"><a name="l00040"></a><span class="lineno">   40</span>&#160;</div>
-<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___p_w_m.html#gada2533698e19944594790a0de804dcaa">PWM_stop</a>();</div>
-<div class="line"><a name="l00045"></a><span class="lineno">   45</span>&#160;</div>
-<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___p_w_m.html#ga4391199449d29301b4dfe79e53cf48df">PWM_changeDutyCycle</a>(uint8_t change);</div>
-<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;</div>
-<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;<span class="preprocessor">#endif // PWM_H</span></div>
+<div class="line"><a name="l00025"></a><span class="lineno"><a class="line" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gacce0ddc96254ff1917845b60845379a4">   25</a></span>&#160;<span class="preprocessor">#define PWM_INCREASE_DUTY_CYCLE TB0CCR1 = (TB0CCR1 &lt; TB0CCR0) ? TB0CCR1 + 1 : TB0CCR0 </span></div>
+<div class="line"><a name="l00026"></a><span class="lineno"><a class="line" href="group___p_w_m___d_u_t_y___c_y_c_l_e.html#gaa3f6be30ce39b3379df133488b1f348a">   26</a></span>&#160;<span class="preprocessor">#define PWM_DECREASE_DUTY_CYCLE TB0CCR1 = (TB0CCR1 &gt; 0) ? TB0CCR1 - 1 : 0 </span></div>
+<div class="line"><a name="l00027"></a><span class="lineno">   27</span>&#160;<span class="preprocessor"></span></div>
+<div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;<span class="preprocessor">void PWM_setup();</span></div>
+<div class="line"><a name="l00033"></a><span class="lineno">   33</span>&#160;</div>
+<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___p_w_m.html#ga4bfecb78dfd20525bf89b273d9674845">PWM_start</a>();</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;</div>
+<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___p_w_m.html#gada2533698e19944594790a0de804dcaa">PWM_stop</a>();</div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;</div>
+<div class="line"><a name="l00046"></a><span class="lineno">   46</span>&#160;<span class="preprocessor">#endif // PWM_H</span></div>
 <div class="ttc" id="group___p_w_m_html_ga4bfecb78dfd20525bf89b273d9674845"><div class="ttname"><a href="group___p_w_m.html#ga4bfecb78dfd20525bf89b273d9674845">PWM_start</a></div><div class="ttdeci">void PWM_start()</div><div class="ttdoc">Start PWM. </div><div class="ttdef"><b>Definition:</b> pwm.c:20</div></div>
-<div class="ttc" id="group___p_w_m_html_gac59c22042fde1e5ce071b4c12c98954e"><div class="ttname"><a href="group___p_w_m.html#gac59c22042fde1e5ce071b4c12c98954e">PWM_setup</a></div><div class="ttdeci">void PWM_setup()</div><div class="ttdoc">Set up PWM for the WISP monitor. </div><div class="ttdef"><b>Definition:</b> pwm.c:13</div></div>
 <div class="ttc" id="group___p_w_m_html_gada2533698e19944594790a0de804dcaa"><div class="ttname"><a href="group___p_w_m.html#gada2533698e19944594790a0de804dcaa">PWM_stop</a></div><div class="ttdeci">void PWM_stop()</div><div class="ttdoc">Stop PWM. </div><div class="ttdef"><b>Definition:</b> pwm.c:28</div></div>
-<div class="ttc" id="group___p_w_m_html_ga4391199449d29301b4dfe79e53cf48df"><div class="ttname"><a href="group___p_w_m.html#ga4391199449d29301b4dfe79e53cf48df">PWM_changeDutyCycle</a></div><div class="ttdeci">void PWM_changeDutyCycle(uint8_t change)</div><div class="ttdoc">If possible, change PWM duty cycle. </div><div class="ttdef"><b>Definition:</b> pwm.c:36</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri May 8 2015 13:41:58 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri May 15 2015 11:18:27 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

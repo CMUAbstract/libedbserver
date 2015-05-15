@@ -89,19 +89,20 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 Functions</h2></td></tr>
 <tr class="memitem:ga59341c5e4835e0d234410306a6f625d3"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ga59341c5e4835e0d234410306a6f625d3"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_c_s.html#ga59341c5e4835e0d234410306a6f625d3">UCS_setup</a> (void)</td></tr>
-<tr class="memdesc:ga59341c5e4835e0d234410306a6f625d3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set up UCS for 25MHz operation with ACLK sourced from XT2CLK (12MHz crystal oscillator) <br /></td></tr>
+<tr class="memdesc:ga59341c5e4835e0d234410306a6f625d3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set up UCS for ~22MHz operation. <br /></td></tr>
 <tr class="separator:ga59341c5e4835e0d234410306a6f625d3"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gafa2ad8d6aacb01eeca75e0f09dba88da"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="gafa2ad8d6aacb01eeca75e0f09dba88da"></a>
-void&#160;</td><td class="memItemRight" valign="bottom"><b>UCS_setMainFreq</b> ()</td></tr>
+void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_c_s.html#gafa2ad8d6aacb01eeca75e0f09dba88da">UCS_setMainFreq</a> ()</td></tr>
+<tr class="memdesc:gafa2ad8d6aacb01eeca75e0f09dba88da"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set MCLK, SMCLK to (668 + 1) * 32768 Hz = 21921792 Hz (average) <br /></td></tr>
 <tr class="separator:gafa2ad8d6aacb01eeca75e0f09dba88da"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga111bfefc8edd92fc209139dd4459d0e4"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_c_s.html#ga111bfefc8edd92fc209139dd4459d0e4">UCS_set16MHz</a> ()</td></tr>
-<tr class="memdesc:ga111bfefc8edd92fc209139dd4459d0e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize MCLK, SMCLK to 16MHz.  <a href="#ga111bfefc8edd92fc209139dd4459d0e4">More...</a><br /></td></tr>
+<tr class="memdesc:ga111bfefc8edd92fc209139dd4459d0e4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set MCLK, SMCLK to 16MHz (average)  <a href="#ga111bfefc8edd92fc209139dd4459d0e4">More...</a><br /></td></tr>
 <tr class="separator:ga111bfefc8edd92fc209139dd4459d0e4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga5835a0db538642970d8699a8df11a868"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_c_s.html#ga5835a0db538642970d8699a8df11a868">UCS_set12MHz</a> ()</td></tr>
-<tr class="memdesc:ga5835a0db538642970d8699a8df11a868"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize MCLK, SMCLK to 12MHz.  <a href="#ga5835a0db538642970d8699a8df11a868">More...</a><br /></td></tr>
+<tr class="memdesc:ga5835a0db538642970d8699a8df11a868"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set MCLK, SMCLK to 12MHz (average)  <a href="#ga5835a0db538642970d8699a8df11a868">More...</a><br /></td></tr>
 <tr class="separator:ga5835a0db538642970d8699a8df11a868"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gad55b661d86ba229779afe22d3668fb9a"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_c_s.html#gad55b661d86ba229779afe22d3668fb9a">UCS_set8MHz</a> ()</td></tr>
-<tr class="memdesc:gad55b661d86ba229779afe22d3668fb9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize MCLK, SMCLK to 8MHz.  <a href="#gad55b661d86ba229779afe22d3668fb9a">More...</a><br /></td></tr>
+<tr class="memdesc:gad55b661d86ba229779afe22d3668fb9a"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set MCLK, SMCLK to 8MHz (average)  <a href="#gad55b661d86ba229779afe22d3668fb9a">More...</a><br /></td></tr>
 <tr class="separator:gad55b661d86ba229779afe22d3668fb9a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
@@ -120,7 +121,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>UCS_setMainFreq</b> (
       </table>
 </div><div class="memdoc">
 
-<p>Initialize MCLK, SMCLK to 12MHz. </p>
+<p>Set MCLK, SMCLK to 12MHz (average) </p>
 <dl class="section note"><dt>Note</dt><dd>Source: MSP430 example file MSP430F534x_UCS_03.c </dd></dl>
 
 </div>
@@ -138,7 +139,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>UCS_setMainFreq</b> (
       </table>
 </div><div class="memdoc">
 
-<p>Initialize MCLK, SMCLK to 16MHz. </p>
+<p>Set MCLK, SMCLK to 16MHz (average) </p>
 <dl class="section note"><dt>Note</dt><dd>Source: adapted from 12MHz example file MSP430F534x_UCS_03.c </dd></dl>
 
 </div>
@@ -156,7 +157,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>UCS_setMainFreq</b> (
       </table>
 </div><div class="memdoc">
 
-<p>Initialize MCLK, SMCLK to 8MHz. </p>
+<p>Set MCLK, SMCLK to 8MHz (average) </p>
 <dl class="section note"><dt>Note</dt><dd>Source: MSP430 example file MSP430534x_UCS_02.c </dd></dl>
 
 </div>
@@ -164,7 +165,7 @@ void&#160;</td><td class="memItemRight" valign="bottom"><b>UCS_setMainFreq</b> (
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri May 8 2015 13:41:59 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri May 15 2015 11:18:27 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

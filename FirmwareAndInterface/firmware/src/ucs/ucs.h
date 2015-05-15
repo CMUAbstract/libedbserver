@@ -15,27 +15,29 @@
  */
 
 /**
- * @brief       Set up UCS for 25MHz operation with ACLK
- *              sourced from XT2CLK (12MHz crystal oscillator)
+ * @brief	Set up UCS for ~22MHz operation
  */
 void UCS_setup(void);
 
+/**
+ * @brief	Set MCLK, SMCLK to (668 + 1) * 32768 Hz = 21921792 Hz (average)
+ */
 void UCS_setMainFreq();
 
 /**
- * @brief   Initialize MCLK, SMCLK to 16MHz
+ * @brief   Set MCLK, SMCLK to 16MHz (average)
  * @note    Source: adapted from 12MHz example file MSP430F534x_UCS_03.c
  */
 void UCS_set16MHz();
 
 /**
- * @brief   Initialize MCLK, SMCLK to 12MHz
+ * @brief   Set MCLK, SMCLK to 12MHz (average)
  * @note    Source: MSP430 example file MSP430F534x_UCS_03.c
  */
 void UCS_set12MHz();
 
 /**
- * @brief   Initialize MCLK, SMCLK to 8MHz
+ * @brief   Set MCLK, SMCLK to 8MHz (average)
  * @note    Source: MSP430 example file MSP430534x_UCS_02.c
  */
 void UCS_set8MHz();

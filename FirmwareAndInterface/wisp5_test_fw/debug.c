@@ -84,8 +84,8 @@ void debug_parseAndExecute(uint8_t *msg, uint8_t len)
 				// stick to the UART message structure
 				uint8_t txBuf[5] = { UART_IDENTIFIER_WISP, WISP_RSP_PC,
 									 sizeof(uint16_t), 0x00, 0x00 };
-				txBuf[3] = (wisp_pc >> 8) & 0xFF;
-				txBuf[4] = wisp_pc & 0xFF;
+				txBuf[3] = wisp_pc & 0xFF;
+				txBuf[4] = (wisp_pc >> 8) & 0xFF;
 				UART_send(txBuf, 6); // For some reason, UART_send seems to send size - 1 bytes.
 									 // This message is only 5 bytes long.
 
@@ -94,6 +94,7 @@ void debug_parseAndExecute(uint8_t *msg, uint8_t len)
 			}
 
 			case WISP_CMD_EXAMINE_MEMORY:
+				// not yet implemented
 				break;
 
 			case WISP_CMD_EXIT_ACTIVE_DEBUG:

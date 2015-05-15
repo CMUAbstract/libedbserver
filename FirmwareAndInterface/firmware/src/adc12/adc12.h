@@ -57,7 +57,7 @@ typedef struct {
     adc12Cfg_t config;              //!< channel configuration
     uint16_t results[5];            //!< ADC conversion results
     uint16_t *pFlags;               //!< pointer to a bit mask that will be set in the ISR - should be checked in main loop
-    uint16_t flag_adc12Complete;    //!< flag that will be set in pFlags
+    uint16_t flag_adc12Complete;    //!< flag that will be set in pFlags when conversion completes
 } adc12_t;
 
 /**

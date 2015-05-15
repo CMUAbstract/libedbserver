@@ -41,8 +41,8 @@ void pin_init()
     P6DIR = BIT0 | BIT6 | BIT7;             // output direction for P6.0,P6.6, P6.7
     P6OUT = 0x00;                           // output low
 
-    PLEDDIR = ~(GPIO_DISCHARGE | GPIO_LS_ENABLE);  // input for these pins
-    PLEDOUT = 0x00;                           // output low
+    PJDIR = ~(GPIO_DISCHARGE | GPIO_LS_ENABLE);  // input for these pins
+    PJOUT = 0x00;                           // output low
 }
 
 // Port 1 ISR

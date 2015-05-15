@@ -64,16 +64,16 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
 
 void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 {
-	volatile uint8_t *UCAXIE;
+	volatile uint8_t *pUCAXIE;
 	uartBuf_t *uartBuf;
     uint8_t uartBufLen, copyLen;
 
     if(interface == UART_INTERFACE_USB) {
     	uartBuf = &usbTx;
-    	UCAXIE = &UCA0IE;
+    	pUCAXIE = &UCA0IE;
     } else if(interface == UART_INTERFACE_WISP) {
     	uartBuf = &wispTx;
-    	UCAXIE = &UCA1IE;
+    	pUCAXIE = &UCA1IE;
     }
 
 	// loop until we have copied all of buf into the UART TX buffer
@@ -86,20 +86,20 @@ void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 	}
 
     // enable the correct interrupt to start sending data
-    *UCAXIE |= UCTXIE;
+    *pUCAXIE |= UCTXIE;
 }
 
 void UART_dropBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 {
-	volatile uint8_t *UCAXIE;
+	volatile uint8_t *pUCAXIE;
 	uartBuf_t *uartBuf;
 
 	if(interface == UART_INTERFACE_USB) {
 		uartBuf = &usbTx;
-		UCAXIE = &UCA0IE;
+		pUCAXIE = &UCA0IE;
 	} else if(interface == UART_INTERFACE_WISP) {
 		uartBuf = &wispTx;
-		UCAXIE = &UCA1IE;
+		pUCAXIE = &UCA1IE;
 	}
 
 	// if there isn't enough space in the software UART buffer, drop these bytes
@@ -107,7 +107,7 @@ void UART_dropBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 		// we have enough space in the software UART buffer
 		uartBuf_copyTo(uartBuf, buf, len);
 
-		*UCAXIE |= UCTXIE;
+		*pUCAXIE |= UCTXIE;
 	}
 }
 
@@ -237,7 +237,6 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_SEND_RF_TX_DATA:
 				case USB_CMD_SET_PWM_FREQUENCY:		// expecting 2 data bytes (TB0CCR0 register)
 				case USB_CMD_SET_PWM_DUTY_CYCLE:	// expecting 2 data bytes (TB0CCR1 register)
-				case USB_CMD_SET_ENERGY_BREAKPOINT:	// expecting 2 data bytes (ADC reading)
 					// additional data is needed
 					state = CONSTRUCT_STATE_DATA_LEN;
 					break;

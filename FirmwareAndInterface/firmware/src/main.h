@@ -1,7 +1,7 @@
 /**
  * @file
  * @author  Graham Harvey
- * @date    14 April 2015
+ * @date    13 May 2015
  * @brief   Prototypes and declarations for main.c.
  */
 
@@ -13,18 +13,6 @@
  * @param   pkt     UART packet containing message information
  */
 static void executeUSBCmd(uartPkt_t *pkt);
-
-/**
- * @brief   Adjust the PWM duty cycle according to the ADC result
- *          to try to reach the target power level.
- * @param   adc12Result     ADC12 conversion result to use for comparison to the target
- */
-static void adjust_power(uint16_t adc12Result);
-
-/**
- * @brief   Release the hold on WISP power, stopping PWM.
- */
-static void release_power();
 
 /**
  * @brief   Add an ADC channel to the adc12 configuration structure
@@ -56,6 +44,25 @@ static void restartAdc();
  */
 static uint16_t adc12Read_block(uint16_t channel);
 
-static void complete_active_debug_exit();
+/**
+ * @brief	Block until setting the voltage read at channel to the ADC reading target.
+ * @param	channel	ADC channel measuring the voltage at the node that is being set.
+ * @param	pResults_index	Pointer to any of vcap_index, vboost_index, vreg_index,
+ * 							or vrect_index.  Must correspond to the ADC channel
+ * 							represented by channel.
+ * @param	target			Target ADC reading when the voltage is set, from 0 to 4095
+ */
+static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target);
+
+/**
+ * @brief	Compare two unsigned 16-bit numbers.
+ * @param	n1	One number
+ * @param	n2	Another number
+ * @param	threshold	minimum difference between n1 and n2 to consider them different.
+ * @retval	1	n1 > n2 + threshold
+ * @retval	0	n1 and n2 are within threshold of one another
+ * @retval	-1	n1 < n2 - threshold
+ */
+static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold);
 
 #endif // MAIN_H

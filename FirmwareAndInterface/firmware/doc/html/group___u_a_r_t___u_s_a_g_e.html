@@ -146,12 +146,12 @@ Functions</h2></td></tr>
 <tr class="memitem:gab70f6c4a6c73c7366177124a0ce88505"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_a_r_t___u_s_a_g_e.html#gab70f6c4a6c73c7366177124a0ce88505">UART_setup</a> (uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)</td></tr>
 <tr class="memdesc:gab70f6c4a6c73c7366177124a0ce88505"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set up UART.  <a href="#gab70f6c4a6c73c7366177124a0ce88505">More...</a><br /></td></tr>
 <tr class="separator:gab70f6c4a6c73c7366177124a0ce88505"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga1af3b9117936ce13528f6af03df83ce3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_a_r_t___u_s_a_g_e.html#ga1af3b9117936ce13528f6af03df83ce3">UART_blockSendBytes</a> (uint8_t interface, uint8_t *buf, uint8_t len)</td></tr>
-<tr class="memdesc:ga1af3b9117936ce13528f6af03df83ce3"><td class="mdescLeft">&#160;</td><td class="mdescRight">Block until all bytes are queued in the UART TX buffer.  <a href="#ga1af3b9117936ce13528f6af03df83ce3">More...</a><br /></td></tr>
-<tr class="separator:ga1af3b9117936ce13528f6af03df83ce3"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ga7994060cfa5021aabac4c9e946864711"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_a_r_t___u_s_a_g_e.html#ga7994060cfa5021aabac4c9e946864711">UART_dropSendBytes</a> (uint8_t interface, uint8_t *buf, uint8_t len)</td></tr>
-<tr class="memdesc:ga7994060cfa5021aabac4c9e946864711"><td class="mdescLeft">&#160;</td><td class="mdescRight">Queue bytes in the UART TX buffer, but drop the bytes if there isn't enough space.  <a href="#ga7994060cfa5021aabac4c9e946864711">More...</a><br /></td></tr>
-<tr class="separator:ga7994060cfa5021aabac4c9e946864711"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ga7876b7e881f53b86ba18ad5879611e06"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_a_r_t___u_s_a_g_e.html#ga7876b7e881f53b86ba18ad5879611e06">UART_blockBufferBytes</a> (uint8_t interface, uint8_t *buf, uint8_t len)</td></tr>
+<tr class="memdesc:ga7876b7e881f53b86ba18ad5879611e06"><td class="mdescLeft">&#160;</td><td class="mdescRight">Block until all bytes are queued in the UART TX buffer.  <a href="#ga7876b7e881f53b86ba18ad5879611e06">More...</a><br /></td></tr>
+<tr class="separator:ga7876b7e881f53b86ba18ad5879611e06"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:gaeb15ff019d0188a52ea4b507c5a369b2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_a_r_t___u_s_a_g_e.html#gaeb15ff019d0188a52ea4b507c5a369b2">UART_dropBufferBytes</a> (uint8_t interface, uint8_t *buf, uint8_t len)</td></tr>
+<tr class="memdesc:gaeb15ff019d0188a52ea4b507c5a369b2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Queue bytes in the UART TX buffer, but drop the bytes if there isn't enough space.  <a href="#gaeb15ff019d0188a52ea4b507c5a369b2">More...</a><br /></td></tr>
+<tr class="separator:gaeb15ff019d0188a52ea4b507c5a369b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:gab4db31e5e1a7a122e69a36f0186763b7"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group___u_a_r_t___u_s_a_g_e.html#gab4db31e5e1a7a122e69a36f0186763b7">UART_buildRxPkt</a> (uint8_t interface, <a class="el" href="structuart_pkt__t.html">uartPkt_t</a> *pkt)</td></tr>
 <tr class="memdesc:gab4db31e5e1a7a122e69a36f0186763b7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Construct a UART packet from the UART buffer.  <a href="#gab4db31e5e1a7a122e69a36f0186763b7">More...</a><br /></td></tr>
 <tr class="separator:gab4db31e5e1a7a122e69a36f0186763b7"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -210,12 +210,12 @@ Functions</h2></td></tr>
 </div>
 </div>
 <h2 class="groupheader">Function Documentation</h2>
-<a class="anchor" id="ga1af3b9117936ce13528f6af03df83ce3"></a>
+<a class="anchor" id="ga7876b7e881f53b86ba18ad5879611e06"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void UART_blockSendBytes </td>
+          <td class="memname">void UART_blockBufferBytes </td>
           <td>(</td>
           <td class="paramtype">uint8_t&#160;</td>
           <td class="paramname"><em>interface</em>, </td>
@@ -295,12 +295,12 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="ga7994060cfa5021aabac4c9e946864711"></a>
+<a class="anchor" id="gaeb15ff019d0188a52ea4b507c5a369b2"></a>
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void UART_dropSendBytes </td>
+          <td class="memname">void UART_dropBufferBytes </td>
           <td>(</td>
           <td class="paramtype">uint8_t&#160;</td>
           <td class="paramname"><em>interface</em>, </td>
@@ -511,7 +511,7 @@ Functions</h2></td></tr>
 </div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri May 8 2015 13:41:59 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri May 15 2015 11:18:27 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>

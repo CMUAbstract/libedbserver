@@ -118,7 +118,6 @@
 #define USB_CMD_LOG_VINJ_END					0x23 //!< Stop streaming Vinj ADC12 reading over USB
 #define USB_CMD_PWM_HIGH						0x24 //!< Set PWM pin to GPIO and output high
 #define USB_CMD_PWM_LOW							0x25 //!< Set PWM pin to GPIO and output low
-#define USB_CMD_SET_ENERGY_BREAKPOINT			0x26 //!< Set an energy breakpoint to the given ADC reading
 /** @} End USB_CMD */
 
 /**
@@ -209,7 +208,7 @@ typedef struct {
     uint8_t buf[UART_BUF_MAX_LEN_WITH_TAIL];  //!< Circular buffer to be used for UART interfaces
     uint8_t head;                   //!< Relative buffer head
     uint8_t tail;                   //!< Relative buffer tail
-    // the tail should never point to a full byte
+    // the tail should never point to byte that contains data
 } uartBuf_t;
 
 /**
@@ -274,9 +273,9 @@ void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
 uint8_t UART_RxBufEmpty(uint8_t interface);
 
 /**
- * @brief       Determine the number of bytes available in the circular buffer
+ * @brief       Determine the length of the circular buffer
  * @param       buf        Pointer to the circular buffer
- * @return      Number of bytes available in the buffer
+ * @return      Length of the buffer
  */
 inline uint8_t uartBuf_len(uartBuf_t *buf) {
     int16_t diff = buf->tail - buf->head;

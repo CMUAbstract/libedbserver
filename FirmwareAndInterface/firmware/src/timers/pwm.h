@@ -19,13 +19,11 @@
 
 /**
  * @defgroup	PWM_DUTY_CYCLE		Change PWM duty cycle
- * @brief		Used to indicate how to change the PWM duty cycle
+ * @brief		Used to  change the PWM duty cycle
  * @{
  */
-
-#define PWM_INCREASE_DUTY_CYCLE				1 //!< Increase PWM duty cycle
-#define PWM_DECREASE_DUTY_CYCLE				0 //!< Decrease PWM duty cycle
-
+#define PWM_INCREASE_DUTY_CYCLE	TB0CCR1 = (TB0CCR1 < TB0CCR0) ? TB0CCR1 + 1 : TB0CCR0 //!< Increase PWM duty cycle by one SMCLK cycle
+#define PWM_DECREASE_DUTY_CYCLE	TB0CCR1 = (TB0CCR1 > 0) ? TB0CCR1 - 1 : 0 //!< Decrease PWM duty cycle by one SMCLK cycle
 /** @} End PWM_DUTY_CYCLE */
 
 /**
@@ -42,12 +40,6 @@ void PWM_start();
  * @brief   Stop PWM
  */
 void PWM_stop();
-
-/**
- * @brief   If possible, change PWM duty cycle
- * @param   change		Indicates how to change the duty cycle.  See @ref PWM_DUTY_CYCLE.
- */
-void PWM_changeDutyCycle(uint8_t change);
 
 /** @} End PWM */
 

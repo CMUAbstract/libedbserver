@@ -4,6 +4,9 @@ date: 24 April 2015
 This directory contains the scripts used to collect and process data from
 the WISP debugger.
 
+The WISP debugger class is in wispmon.py.  For example usage, take a look at
+logVcapToDataFile.py
+
 The structure of the data files that are produced is simple.  Each piece of
 data (time, Vcap, etc.) is stored with just a delimiter and the value.  The
 delimiter is the same as the corresponding UART message descriptor.  For

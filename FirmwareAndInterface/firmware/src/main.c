@@ -1,7 +1,7 @@
 /**
  * @file
  * @author  Graham Harvey
- * @date    28 April 2015
+ * @date    13 May 2015
  * @brief   Main function for the WISP monitor.
  * @details The MSP430 on the WISP monitor has UART interrupts enabled to interface
  *          to a computer through USB.  The main loop checks flags that are set in
@@ -43,19 +43,6 @@
 /** @} End MAIN_FLAG_DEFINES */
 
 /**
- * @defgroup    SET_POWER_DEFINES   Set power indicators
- * @brief       Used to determine which energy level we're aiming to set.
- * @note
- * @{
- */
-#define SET_VCAP                    0x01 //!< Setting Vcap
-#define SET_VBOOST                  0x02 //!< Setting Vboost
-// set Vreg will be limited because it's a regulated voltage
-// set Vrect won't work when injecting charge into Vcap
-
-/** @} End SET_POWER_DEFINES */
-
-/**
  * @defgroup    LOG_DEFINES     Logging flags
  * @brief       Flags to set in a bit mask to check which ADC readings to log
  * @{
@@ -76,11 +63,9 @@ static int8_t vrect_index = -1;
 static int8_t vinj_index = -1;
 
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
-static uint8_t set_pwr = 0; // used to determine which voltage we're trying to set
 static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
 static uint16_t adc12Target; // target ADC reading
-static uint16_t adc12ActiveDebug; // ADC reading just before entering active debug mode
 
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
@@ -112,21 +97,6 @@ int main(void)
         if(flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
             flags &= ~FLAG_ADC12_COMPLETE;
-
-            // adjust PWM if necessary
-            switch(set_pwr)
-            {
-            case SET_VCAP:
-                adjust_power(adc12.results[vcap_index]);
-                ADC12_START; // start another ADC sample
-                break;
-            case SET_VBOOST:
-                adjust_power(adc12.results[vboost_index]);
-                ADC12_START;
-                break;
-            default:
-                break;
-            }
 
             if(flags & FLAG_LOGGING) {
                 // check if we need to send Vcap
@@ -203,11 +173,12 @@ int main(void)
             UART_ENABLE_USB_RX; // enable interrupt
         }
 
-//        if(flags & FLAG_UART_USB_TX) {
-//            // USB UART Tx byte
-//            flags &= ~FLAG_UART_USB_TX;
-//        }
-
+/*
+        if(flags & FLAG_UART_USB_TX) {
+            // USB UART Tx byte
+            flags &= ~FLAG_UART_USB_TX;
+        }
+*/
 /*
         if(flags & FLAG_UART_WISP_RX) {
             // we've received a byte over UART from the WISP
@@ -225,11 +196,12 @@ int main(void)
             UART_ENABLE_WISP_RX; // enable interrupt
         }
 */
-
-//        if(flags & FLAG_UART_WISP_TX) {
-//            // WISP UART Tx byte
-//            flags &= ~FLAG_UART_WISP_TX;
-//        }
+/*
+        if(flags & FLAG_UART_WISP_TX) {
+            // WISP UART Tx byte
+            flags &= ~FLAG_UART_WISP_TX;
+        }
+*/
 
         if(flags & FLAG_RF_DATA) {
         	flags &= ~FLAG_RF_DATA;
@@ -286,34 +258,23 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_SET_VCAP:
         adc12Target = *((uint16_t *)(pkt->data));
-        set_pwr = SET_VCAP; // for main loop
-        addAdcChannel(ADC12INCH_VCAP, &vcap_index);
-        restartAdc();
-        PWM_start();
+        setWispVoltage_block(ADC12INCH_VCAP, &vcap_index, adc12Target);
         break;
 
     case USB_CMD_SET_VBOOST:
         adc12Target = *((uint16_t *)(pkt->data));
-        set_pwr = SET_VBOOST; // for main loop
-        addAdcChannel(ADC12INCH_VBOOST, &vboost_index);
-        restartAdc();
-        PWM_start();
-        break;
-
-    case USB_CMD_RELEASE_POWER:
-        release_power();
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_RELEASE_POWER_COMPLETE, 0, 0, UART_TX_FORCE);
+        setWispVoltage_block(ADC12INCH_VBOOST, &vboost_index, adc12Target);
         break;
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     {
     	// todo: turn off all logging?
 
-        adc12ActiveDebug = adc12Read_block(ADC12INCH_VCAP); // read Vcap
+        adc12Target = adc12Read_block(ADC12INCH_VCAP); // read Vcap and set as the target for exit
 
         // report reading over USB
         UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                        (uint8_t *)(&adc12ActiveDebug), sizeof(uint16_t),
+                        (uint8_t *)(&adc12Target), sizeof(uint16_t),
 						UART_TX_FORCE);
 
         // bring AUX1 high, interrupting the WISP to enter active debug mode
@@ -342,24 +303,21 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	// Wait for WISP to indicate that it's ready to exit debug mode
 		while(PAUXIN & GPIO_AUX_2); // WISP will pull AUX 2 low when ready
 
-    	// set Vcap to adc12ActiveDebug
-    	adc12Target = adc12ActiveDebug;
-    	set_pwr = SET_VCAP;
-    	addAdcChannel(ADC12INCH_VCAP, &vcap_index);
-    	restartAdc();
-    	PWM_start();
+		// Now we need to wait for the WISP cap's voltage to drop below the target,
+		// and start PWM until we get there.
+		PWM_stop();
+		while(adc12Read_block(ADC12INCH_VCAP) > adc12Target); // wait for the voltage to drop
+		setWispVoltage_block(ADC12INCH_VCAP, &vcap_index, adc12Target); // set the voltage
+		PAUXOUT &= ~GPIO_AUX_1; // signal to the WISP that we're exiting active debug mode
+		PWM_stop();
+		PAUXIE = pauxie; // restore interrupt enable register
 
-    	PAUXIE = pauxie; // restore interrupt
-
-    	// This next part could be better, but it'll work for now.
-    	// Wait to timer1's maximum for Vcap to reach the target
-    	Timer1_set(0xFFFF, &complete_active_debug_exit);
+		PLEDOUT &= ~LED4;
     	break;
     }
 
     case USB_CMD_GET_WISP_PC:
     	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_PC, 0, 0, UART_TX_FORCE); // send request
-
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
     			(wispRxPkt.descriptor != WISP_RSP_PC)); // wait for response
     	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_PC, &(wispRxPkt.data[0]),
@@ -386,10 +344,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 		}
         TimeLog_request(0);
 
-        // check if we need this ADC channel active for any other reason
-        if(set_pwr != SET_VCAP) {
-        	removeAdcChannel(&vcap_index);
-        }
+		removeAdcChannel(&vcap_index);
         restartAdc();
         break;
 
@@ -408,10 +363,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         }
         TimeLog_request(0);
 
-        // check if we need this ADC channel active for any other reason
-		if(set_pwr != SET_VBOOST) {
-			removeAdcChannel(&vboost_index);
-		}
+		removeAdcChannel(&vboost_index);
         restartAdc();
         break;
 
@@ -487,6 +439,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	PWM_start();
     	break;
 
+    case USB_CMD_RELEASE_POWER:
     case USB_CMD_PWM_OFF:
     case USB_CMD_PWM_LOW:
     	PWM_stop();
@@ -616,45 +569,68 @@ static uint16_t adc12Read_block(uint16_t channel)
     return adc12Result;
 }
 
-static void adjust_power(uint16_t adc12Result)
+static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target)
 {
-    if(adc12Target < adc12Result) {
-        // charge less
-        PWM_changeDutyCycle(PWM_DECREASE_DUTY_CYCLE);
-    } else if(adc12Target > adc12Result) {
-        // charge more
-        PWM_changeDutyCycle(PWM_INCREASE_DUTY_CYCLE);
-    }
-    // else
-	//     adc12Target == adc12Result
-	//     leave PWM duty cycle as it is
+	uint16_t result;
+	int8_t compare;
+	uint8_t threshold = 1;
+	addAdcChannel(channel, pResults_index);
+	restartAdc();
+
+	// Here, we want to choose a starting PWM duty cycle close to, but not above,
+	// what the correct one will be.  We want it to be close because we will test
+	// each duty cycle, increasing one cycle at a time, until we reach the right
+	// one.  In my experiment with the oscilloscope, the WISP cap took about 60ms
+	// to charge, so I'll give it 80ms for the first charge and 10ms for each
+	// charge following.
+
+	// We know the ADC target, so let's give the PWM duty cycle our best guess.
+	// target (adc) * PWM_period (SMCLK cycles) / 2^12 (adc) = approx. PWM_duty_cycle (SMCLK cycles)
+	// Subtract 40 from this to start.
+	uint32_t duty_cycle = (uint32_t) target * (uint32_t) TB0CCR0 / 4096;
+	TB0CCR1 = MAX((uint16_t) duty_cycle - 40, 0);
+	PWM_start();
+
+	// 70ms wait time
+	uint8_t i;
+	for(i = 0; i < 40; i++) {
+		__delay_cycles(21922); // delay for 1ms
+	}
+
+	do {
+		// 10ms wait time
+		for(i = 0; i < 40; i++) {
+			__delay_cycles(21922); // delay for 1ms
+		}
+
+		result = adc12Read_block(channel);
+		compare = uint16Compare(result, target, threshold);
+		if(compare < 0) {
+			// result < target
+			PWM_INCREASE_DUTY_CYCLE;
+		} else if(compare > 0) {
+			// result > target
+			PWM_DECREASE_DUTY_CYCLE;
+		}
+	} while(compare != 0);
+
+	// We've found the correct PWM duty cycle for the target voltage.
+	// Leave PWM on, but remove this channel from the ADC configuration
+	// if necessary.
+	if((channel == ADC12INCH_VCAP && !(log_flags & LOG_VCAP)) ||
+				(channel == ADC12INCH_VBOOST && !(log_flags & LOG_VBOOST))) {
+		// We don't need this ADC channel anymore, since we're done here and
+		// we're not logging this voltage right now.
+		removeAdcChannel(pResults_index);
+		restartAdc();
+	}
 }
 
-static void release_power()
-{
-    PWM_stop();
-    switch(set_pwr)
-    {
-    case SET_VCAP:
-        if(!(log_flags & LOG_VCAP)) {
-            removeAdcChannel(&vcap_index);
-            restartAdc();
-        }
-        break;
-    case SET_VBOOST:
-        if(!(log_flags & LOG_VBOOST)) {
-            removeAdcChannel(&vboost_index);
-            restartAdc();
-        }
-        break;
-    default:
-        break;
-    }
-    set_pwr = 0;
-}
-
-static void complete_active_debug_exit()
-{
-	PAUXOUT &= ~GPIO_AUX_1; // signal to the WISP that we're exiting active debug mode
-	release_power();
+static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
+	if(n1 < n2 - threshold && n2 >= threshold) {
+		return -1;
+	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
+		return 1;
+	}
+	return 0;
 }

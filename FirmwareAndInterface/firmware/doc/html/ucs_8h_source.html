@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.9.1"/>
-<title>WISP Monitor: C:/Users/gharvey/Dropbox/wisp_monitor_v2/firmware/src/ucs/ucs.h Source File</title>
+<title>WISP Monitor: C:/Users/gharvey/top-up-debugger/FirmwareAndInterface/firmware/src/ucs/ucs.h Source File</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -99,27 +99,28 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <div class="line"><a name="l00008"></a><span class="lineno">    8</span>&#160;<span class="preprocessor">#ifndef UCS_H</span></div>
 <div class="line"><a name="l00009"></a><span class="lineno">    9</span>&#160;<span class="preprocessor">#define UCS_H</span></div>
 <div class="line"><a name="l00010"></a><span class="lineno">   10</span>&#160;</div>
-<div class="line"><a name="l00021"></a><span class="lineno">   21</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#ga59341c5e4835e0d234410306a6f625d3">UCS_setup</a>(<span class="keywordtype">void</span>);</div>
-<div class="line"><a name="l00022"></a><span class="lineno">   22</span>&#160;</div>
-<div class="line"><a name="l00023"></a><span class="lineno">   23</span>&#160;<span class="keywordtype">void</span> UCS_setMainFreq();</div>
-<div class="line"><a name="l00024"></a><span class="lineno">   24</span>&#160;</div>
-<div class="line"><a name="l00029"></a><span class="lineno">   29</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#ga111bfefc8edd92fc209139dd4459d0e4">UCS_set16MHz</a>();</div>
-<div class="line"><a name="l00030"></a><span class="lineno">   30</span>&#160;</div>
-<div class="line"><a name="l00035"></a><span class="lineno">   35</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#ga5835a0db538642970d8699a8df11a868">UCS_set12MHz</a>();</div>
-<div class="line"><a name="l00036"></a><span class="lineno">   36</span>&#160;</div>
-<div class="line"><a name="l00041"></a><span class="lineno">   41</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#gad55b661d86ba229779afe22d3668fb9a">UCS_set8MHz</a>();</div>
-<div class="line"><a name="l00042"></a><span class="lineno">   42</span>&#160;</div>
-<div class="line"><a name="l00050"></a><span class="lineno">   50</span>&#160;<span class="keyword">static</span> <span class="keywordtype">void</span> SetVcoreUp (<span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> level);</div>
-<div class="line"><a name="l00051"></a><span class="lineno">   51</span>&#160;</div>
-<div class="line"><a name="l00054"></a><span class="lineno">   54</span>&#160;<span class="preprocessor">#endif</span></div>
-<div class="ttc" id="group___u_c_s_html_ga111bfefc8edd92fc209139dd4459d0e4"><div class="ttname"><a href="group___u_c_s.html#ga111bfefc8edd92fc209139dd4459d0e4">UCS_set16MHz</a></div><div class="ttdeci">void UCS_set16MHz()</div><div class="ttdoc">Initialize MCLK, SMCLK to 16MHz. </div><div class="ttdef"><b>Definition:</b> ucs.c:56</div></div>
-<div class="ttc" id="group___u_c_s_html_ga59341c5e4835e0d234410306a6f625d3"><div class="ttname"><a href="group___u_c_s.html#ga59341c5e4835e0d234410306a6f625d3">UCS_setup</a></div><div class="ttdeci">void UCS_setup(void)</div><div class="ttdoc">Set up UCS for 25MHz operation with ACLK sourced from XT2CLK (12MHz crystal oscillator) ...</div><div class="ttdef"><b>Definition:</b> ucs.c:12</div></div>
-<div class="ttc" id="group___u_c_s_html_gad55b661d86ba229779afe22d3668fb9a"><div class="ttname"><a href="group___u_c_s.html#gad55b661d86ba229779afe22d3668fb9a">UCS_set8MHz</a></div><div class="ttdeci">void UCS_set8MHz()</div><div class="ttdoc">Initialize MCLK, SMCLK to 8MHz. </div><div class="ttdef"><b>Definition:</b> ucs.c:109</div></div>
-<div class="ttc" id="group___u_c_s_html_ga5835a0db538642970d8699a8df11a868"><div class="ttname"><a href="group___u_c_s.html#ga5835a0db538642970d8699a8df11a868">UCS_set12MHz</a></div><div class="ttdeci">void UCS_set12MHz()</div><div class="ttdoc">Initialize MCLK, SMCLK to 12MHz. </div><div class="ttdef"><b>Definition:</b> ucs.c:83</div></div>
+<div class="line"><a name="l00020"></a><span class="lineno">   20</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#ga59341c5e4835e0d234410306a6f625d3">UCS_setup</a>(<span class="keywordtype">void</span>);</div>
+<div class="line"><a name="l00021"></a><span class="lineno">   21</span>&#160;</div>
+<div class="line"><a name="l00025"></a><span class="lineno">   25</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#gafa2ad8d6aacb01eeca75e0f09dba88da">UCS_setMainFreq</a>();</div>
+<div class="line"><a name="l00026"></a><span class="lineno">   26</span>&#160;</div>
+<div class="line"><a name="l00031"></a><span class="lineno">   31</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#ga111bfefc8edd92fc209139dd4459d0e4">UCS_set16MHz</a>();</div>
+<div class="line"><a name="l00032"></a><span class="lineno">   32</span>&#160;</div>
+<div class="line"><a name="l00037"></a><span class="lineno">   37</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#ga5835a0db538642970d8699a8df11a868">UCS_set12MHz</a>();</div>
+<div class="line"><a name="l00038"></a><span class="lineno">   38</span>&#160;</div>
+<div class="line"><a name="l00043"></a><span class="lineno">   43</span>&#160;<span class="keywordtype">void</span> <a class="code" href="group___u_c_s.html#gad55b661d86ba229779afe22d3668fb9a">UCS_set8MHz</a>();</div>
+<div class="line"><a name="l00044"></a><span class="lineno">   44</span>&#160;</div>
+<div class="line"><a name="l00052"></a><span class="lineno">   52</span>&#160;<span class="keyword">static</span> <span class="keywordtype">void</span> SetVcoreUp (<span class="keywordtype">unsigned</span> <span class="keywordtype">int</span> level);</div>
+<div class="line"><a name="l00053"></a><span class="lineno">   53</span>&#160;</div>
+<div class="line"><a name="l00056"></a><span class="lineno">   56</span>&#160;<span class="preprocessor">#endif</span></div>
+<div class="ttc" id="group___u_c_s_html_ga111bfefc8edd92fc209139dd4459d0e4"><div class="ttname"><a href="group___u_c_s.html#ga111bfefc8edd92fc209139dd4459d0e4">UCS_set16MHz</a></div><div class="ttdeci">void UCS_set16MHz()</div><div class="ttdoc">Set MCLK, SMCLK to 16MHz (average) </div><div class="ttdef"><b>Definition:</b> ucs.c:56</div></div>
+<div class="ttc" id="group___u_c_s_html_ga59341c5e4835e0d234410306a6f625d3"><div class="ttname"><a href="group___u_c_s.html#ga59341c5e4835e0d234410306a6f625d3">UCS_setup</a></div><div class="ttdeci">void UCS_setup(void)</div><div class="ttdoc">Set up UCS for ~22MHz operation. </div><div class="ttdef"><b>Definition:</b> ucs.c:12</div></div>
+<div class="ttc" id="group___u_c_s_html_gad55b661d86ba229779afe22d3668fb9a"><div class="ttname"><a href="group___u_c_s.html#gad55b661d86ba229779afe22d3668fb9a">UCS_set8MHz</a></div><div class="ttdeci">void UCS_set8MHz()</div><div class="ttdoc">Set MCLK, SMCLK to 8MHz (average) </div><div class="ttdef"><b>Definition:</b> ucs.c:109</div></div>
+<div class="ttc" id="group___u_c_s_html_ga5835a0db538642970d8699a8df11a868"><div class="ttname"><a href="group___u_c_s.html#ga5835a0db538642970d8699a8df11a868">UCS_set12MHz</a></div><div class="ttdeci">void UCS_set12MHz()</div><div class="ttdoc">Set MCLK, SMCLK to 12MHz (average) </div><div class="ttdef"><b>Definition:</b> ucs.c:83</div></div>
+<div class="ttc" id="group___u_c_s_html_gafa2ad8d6aacb01eeca75e0f09dba88da"><div class="ttname"><a href="group___u_c_s.html#gafa2ad8d6aacb01eeca75e0f09dba88da">UCS_setMainFreq</a></div><div class="ttdeci">void UCS_setMainFreq()</div><div class="ttdoc">Set MCLK, SMCLK to (668 + 1) * 32768 Hz = 21921792 Hz (average) </div><div class="ttdef"><b>Definition:</b> ucs.c:26</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
-Generated on Fri May 8 2015 13:41:58 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
+Generated on Fri May 15 2015 11:18:27 for WISP Monitor by &#160;<a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/>
 </a> 1.8.9.1
 </small></address>
