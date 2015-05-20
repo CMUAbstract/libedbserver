@@ -25,4 +25,36 @@
 		<nature>org.eclipse.cdt.core.ccnature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>catchall.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/catchall.c</locationURI>
+		</link>
+		<link>
+			<name>debug.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/debug.c</locationURI>
+		</link>
+		<link>
+			<name>debug.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/debug.h</locationURI>
+		</link>
+		<link>
+			<name>isr-link.asm</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/isr-link.asm</locationURI>
+		</link>
+		<link>
+			<name>lnk_msp430fr5969.cmd</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/lnk_msp430fr5969.cmd</locationURI>
+		</link>
+		<link>
+			<name>main.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/main.c</locationURI>
+		</link>
+	</linkedResources>
 </projectDescription>
