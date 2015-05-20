@@ -36,6 +36,11 @@
 			<locationURI>$%7BSRC_LOC%7D/gpio</locationURI>
 		</link>
 		<link>
+			<name>lnk_msp430f5340.cmd</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/lnk_msp430f5340.cmd</locationURI>
+		</link>
+		<link>
 			<name>main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/src/main.c</locationURI>
