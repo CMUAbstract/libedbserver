@@ -48,12 +48,12 @@
 								<option id="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.INCLUDE_PATH.153162558" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.INCLUDE_PATH" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${CCS_BASE_ROOT}/msp430/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}\adc12&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}\gpio&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}\rfid&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}\uart&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}\ucs&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}\timers&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/adc12&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/gpio&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/rfid&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/uart&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/ucs&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/timers&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
 								</option>
 								<option id="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.ABI.66598662" name="Application binary interface [See 'General' page to edit] (--abi)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.ABI" value="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.ABI.eabi" valueType="enumerated"/>
