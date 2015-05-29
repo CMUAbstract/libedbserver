@@ -26,6 +26,7 @@
 #include "timeLog.h"
 #include "timer1.h"
 #include "rfid.h"
+#include "marker.h"
 #include "main.h"
 
 /**
@@ -477,6 +478,14 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	break;
 
     // USB_CMD_PWM_LOW and USB_CMD_PWM_OFF do the same thing
+
+    case USB_CMD_MONITOR_MARKER_BEGIN:
+        marker_monitor_begin();
+        break;
+
+    case USB_CMD_MONITOR_MARKER_END:
+        marker_monitor_end();
+        break;
 
     default:
         break;

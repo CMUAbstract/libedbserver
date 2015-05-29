@@ -80,6 +80,7 @@ C_SRCS = \
 	rfid/rfid.c \
 	gpio/gpio.c \
 	adc12/adc12.c \
+	marker.c \
 
 ASM_SRCS = \
 	rfid/RFID_RxHandler.asm \

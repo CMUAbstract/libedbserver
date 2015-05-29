@@ -118,6 +118,8 @@
 #define USB_CMD_LOG_VINJ_END					0x23 //!< Stop streaming Vinj ADC12 reading over USB
 #define USB_CMD_PWM_HIGH						0x24 //!< Set PWM pin to GPIO and output high
 #define USB_CMD_PWM_LOW							0x25 //!< Set PWM pin to GPIO and output low
+#define USB_CMD_MONITOR_MARKER_BEGIN            0x26 //!< Start periodically reading a code marker GPIO pin
+#define USB_CMD_MONITOR_MARKER_END              0x27 //!< Stop periodically reading a code marker GPIO pin
 /** @} End USB_CMD */
 
 /**
