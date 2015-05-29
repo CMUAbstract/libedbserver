@@ -13,7 +13,7 @@ import atexit
 
 SAMPLE_TIME                 = 1.0 # s
 
-LOG_FILE                    = 'data/vcap.log'
+LOG_FILE                    = 'data/vcap.csv'
 
 mon = wispmon.WispMonitor()
 fp = open(LOG_FILE, 'w')
@@ -43,6 +43,8 @@ def main():
     startCycles = -1
     curCycles = 0
     curTime = 0
+
+    fp.write("time,Vcap\n")
     
     while(curTime < SAMPLE_TIME):
         bufLen = mon.serial.inWaiting() # get the number of bytes available
@@ -66,18 +68,16 @@ def main():
                 
                 curCycles -= startCycles # adjust to when we started
                 curTime = curCycles * mon.CLK_PERIOD
-                timeStr = "t = %f\t" % (curTime)
             
             elif(mon.rxPkt.descriptor == wispmon.USB_RSP_VCAP):
                 # received Vcap data
                 numSamples += 1
                 Vcap_adc = (mon.rxPkt.data[1] << 8) | mon.rxPkt.data[0]
                 Vcap = float(Vcap_adc) / 4096 * mon.VDD
-                VcapStr = "Vcap = %f\n" % Vcap
                 
                 # write both strings now to ensure that we don't get a time
                 # with no corresponding Vcap value
-                fp.write(timeStr + VcapStr)
+                fp.write("%f,%f\n" % (curTime, Vcap))
             mon.rxPkt.processed = True
 
 if __name__ == '__main__':
