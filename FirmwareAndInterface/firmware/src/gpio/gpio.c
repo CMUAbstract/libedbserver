@@ -16,7 +16,6 @@
 void pin_init()
 {
     P1SEL = 0x00;                           // I/O function
-    P1REN = GPIO_AUX_2 | GPIO_AUX_3;		// resistor enable
     P1DIR = GPIO_AUX_1 | BIT7;              // output direction
     P1OUT = 0x00;                           // output low or pulldown enabled
 
