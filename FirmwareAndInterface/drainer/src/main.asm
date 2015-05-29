@@ -29,7 +29,7 @@ main:
 loop:
     ; States: LPM0 - LPM4 (change the obvious macro below)
     NOP
-    BIS #LPM2, SR
+    BIS #LPM4, SR
     NOP
 
     ; State: LPM5
