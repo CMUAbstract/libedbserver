@@ -122,6 +122,7 @@
 #define PLEDDIR									PJDIR //!< LED port direction
 #define PLEDOUT									PJOUT //!< LED port output
 
+#define PDISCHGDIR                              PJDIR
 #define GPIO_DISCHARGE                          BIT0 //!< PJ.0: WISP discharge pin
 #define GPIO_LS_ENABLE                          BIT1 //!< PJ.1: level shifter enable pin - output low to disable
 #define LED3                                    BIT2 //!< PJ.2: LED3 - named to match schematic

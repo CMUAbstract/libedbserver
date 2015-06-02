@@ -120,6 +120,8 @@
 #define USB_CMD_PWM_LOW							0x25 //!< Set PWM pin to GPIO and output low
 #define USB_CMD_MONITOR_MARKER_BEGIN            0x26 //!< Start periodically reading a code marker GPIO pin
 #define USB_CMD_MONITOR_MARKER_END              0x27 //!< Stop periodically reading a code marker GPIO pin
+#define USB_CMD_PULSE_AUX_3                     0x28 //!< Bring the AUX 3 GPIO pin high then low
+#define USB_CMD_DISCHARGE                       0x29 //!< Discharge WISP capacitor to a given level
 /** @} End USB_CMD */
 
 /**

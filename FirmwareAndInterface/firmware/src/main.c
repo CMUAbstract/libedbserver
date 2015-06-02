@@ -440,6 +440,22 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	PWM_start();
     	break;
 
+    case USB_CMD_DISCHARGE:
+        // pulse a gpio pin to use as  scope trigger
+        P1DIR |= GPIO_AUX_3;
+        P1OUT |= GPIO_AUX_3;
+        P1OUT &= ~GPIO_AUX_3;
+
+        adc12Target = *((uint16_t *)(pkt->data));
+        discharge_block(adc12Target);
+        break;
+
+    case USB_CMD_PULSE_AUX_3:
+        P1DIR |= GPIO_AUX_3;
+        P1OUT |= GPIO_AUX_3;
+        P1OUT &= ~GPIO_AUX_3;
+        break;
+
     case USB_CMD_RELEASE_POWER:
     case USB_CMD_PWM_OFF:
     case USB_CMD_PWM_LOW:
@@ -576,6 +592,28 @@ static uint16_t adc12Read_block(uint16_t channel)
     ADC12_configure(&adc12); // restore previous configuration, enable interrupt
 
     return adc12Result;
+}
+
+static void discharge_block(uint16_t target)
+{
+    uint16_t chan = ADC12INCH_VCAP;
+    int8_t chan_index;
+    uint16_t cur_voltage;
+
+    addAdcChannel(chan, &chan_index);
+    restartAdc();
+
+    PDISCHGDIR |= GPIO_DISCHARGE;
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = adc12Read_block(chan);
+    } while (cur_voltage > target);
+
+    PDISCHGDIR &= ~GPIO_DISCHARGE;
+
+    removeAdcChannel(&chan_index);
 }
 
 static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target)

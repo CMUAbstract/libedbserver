@@ -45,6 +45,12 @@ static void restartAdc();
 static uint16_t adc12Read_block(uint16_t channel);
 
 /**
+ * @brief	Discharge WISP capacitor to the specified voltage level
+ * @param	target			Target voltage level to discharge to
+ */
+static void discharge_block(uint16_t target);
+
+/**
  * @brief	Block until setting the voltage read at channel to the ADC reading target.
  * @param	channel	ADC channel measuring the voltage at the node that is being set.
  * @param	pResults_index	Pointer to any of vcap_index, vboost_index, vreg_index,
