@@ -79,7 +79,7 @@ int main(void)
 
     UCS_setup(); // set up unified clock system
     pin_init();
-    PWM_setup();
+    PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
     UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX); // USCI_A1 UART
 

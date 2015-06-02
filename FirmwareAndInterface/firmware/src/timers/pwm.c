@@ -10,11 +10,11 @@
 #include "pwm.h"
 #include "monitor.h"
 
-void PWM_setup()
+void PWM_setup(uint16_t period, uint16_t duty_cycle)
 {
-    TB0CCR0 = 1024-1;                   // PWM period
+    TB0CCR0 = period;                   // PWM period
     TB0CCTL1 = OUTMOD_7;                // CCR1 reset/set
-    TB0CCR1 = 512;                      // duty cycle
+    TB0CCR1 = duty_cycle;               // duty cycle
 }
 
 void PWM_start()
