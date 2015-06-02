@@ -236,6 +236,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_SET_VBOOST:			// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VREG:				// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VRECT:				// expecting 2 data bytes (ADC reading)
+				case USB_CMD_CHARGE:                // expecting 2 data bytes (target voltage)
 				case USB_CMD_DISCHARGE:             // expecting 2 data bytes (target voltage)
 				case USB_CMD_EXAMINE_MEMORY:
 				case USB_CMD_SEND_RF_TX_DATA:

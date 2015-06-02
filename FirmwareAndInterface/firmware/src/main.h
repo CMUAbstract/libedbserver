@@ -45,6 +45,12 @@ static void restartAdc();
 static uint16_t adc12Read_block(uint16_t channel);
 
 /**
+ * @brief	Charge WISP capacitor to the specified voltage level
+ * @param	target			Target voltage level to charge to (in ADC units)
+ */
+static void charge_block(uint16_t target);
+
+/**
  * @brief	Discharge WISP capacitor to the specified voltage level
  * @param	target			Target voltage level to discharge to
  */

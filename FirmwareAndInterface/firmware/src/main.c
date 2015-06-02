@@ -440,6 +440,16 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	PWM_start();
     	break;
 
+    case USB_CMD_CHARGE:
+        // pulse a gpio pin to use as  scope trigger
+        P1DIR |= GPIO_AUX_3;
+        P1OUT |= GPIO_AUX_3;
+        P1OUT &= ~GPIO_AUX_3;
+
+        adc12Target = *((uint16_t *)(&pkt->data[0]));
+        charge_block(adc12Target);
+        break;
+
     case USB_CMD_DISCHARGE:
         // pulse a gpio pin to use as  scope trigger
         P1DIR |= GPIO_AUX_3;
@@ -592,6 +602,37 @@ static uint16_t adc12Read_block(uint16_t channel)
     ADC12_configure(&adc12); // restore previous configuration, enable interrupt
 
     return adc12Result;
+}
+
+static void charge_block(uint16_t target)
+{
+    uint16_t chan = ADC12INCH_VCAP;
+    int8_t chan_index;
+    uint16_t cur_voltage;
+
+    addAdcChannel(chan, &chan_index);
+    restartAdc();
+
+    /* Output Vcc level to Vcap (through R1) */
+
+    /* Configure the pin */
+    P5DS |= WISP_CHARGE; /* full drive strength (note that R1 is the bottleneck for current) */
+    P5SEL &= ~WISP_CHARGE; /* I/O function */
+    P5DIR |= WISP_CHARGE; /* I/O function output */
+
+    P5OUT |= WISP_CHARGE;
+
+    /* Wait for the cap to charge to that voltage */
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = adc12Read_block(chan);
+    } while (cur_voltage < target);
+
+    P5OUT &= ~(WISP_CHARGE);
+
+    removeAdcChannel(&chan_index);
 }
 
 static void discharge_block(uint16_t target)
