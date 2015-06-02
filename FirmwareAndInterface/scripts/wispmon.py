@@ -1,6 +1,7 @@
 # WISP Monitor Python Class
 
 import serial
+import math
 from binascii import hexlify
 
 SERIAL_PORT                         = 'COM17'
@@ -171,6 +172,25 @@ class WispMonitor:
             serialMsg += bytearray([dataLen]) + bytearray(data)
         
         self.serial.write(serialMsg)
+
+    def uint16_to_bytes(self, val):
+        return [val & 0xFF, (val>> 8) & 0xFF]
+
+    def voltage_to_adc(self, voltage):
+        return int(math.ceil(voltage * 4096 / self.VDD))
+
+    def charge(self, target_voltage):
+
+        target_voltage += 0.030 # calibration (TODO: try to find the underlying reason)
+
+        target_voltage_adc = self.voltage_to_adc(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_adc)
+        self.sendCmd(USB_CMD_CHARGE, data=cmd_data)
+
+    def discharge(self, target_voltage):
+        target_voltage_adc = self.voltage_to_adc(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_adc)
+        self.sendCmd(USB_CMD_DISCHARGE, data=cmd_data)
 
 class RxPkt():
     def __init__(self):
