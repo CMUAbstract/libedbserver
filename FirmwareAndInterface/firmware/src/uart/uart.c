@@ -224,6 +224,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_LOG_VINJ_END:
 				case USB_CMD_PWM_HIGH:
 				case USB_CMD_PWM_LOW:
+				case USB_CMD_MONITOR_MARKER_BEGIN:
+				case USB_CMD_MONITOR_MARKER_END:
 					// no additional data is needed
 					// mark this packet as unprocessed
 					pkt->processed = 0;
