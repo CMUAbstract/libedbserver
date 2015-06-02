@@ -24,6 +24,8 @@ main:
     MOV.B #0xff, &PJDIR
     MOV.B #0x0, &PJOUT
 
+    BIC.B #BIT4, &P1DIR ; set AUX3 to input for experiment WISP GPIO IV curve
+
     BIC.B #LOCKLPM5, &PM5CTL0 ; "commit" pin config
 
 loop:
