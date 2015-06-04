@@ -105,6 +105,7 @@ static void signal_target()
     GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);		// output enable
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
 }
 
 /**
@@ -183,9 +184,12 @@ static void pin_setup()
     P1SEL = P2SEL = P3SEL = P4SEL = P5SEL = 0x00; // I/O function
     P1OUT = P2OUT = P3OUT = P4OUT = P5OUT = PJOUT = 0x00; // low
     P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = PJDIR = 0xFF; // out
+    P1IFG = P2IFG = 0x00; // clear interrupt flags (might have been set by the above)
 
     // Configure pins that need to be in high-impedence/input mode
-    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG); // low
+    GPIO(PORT_SIG, REN) |= BIT(PIN_SIG); // pull-down (need to not cause int when undriven)
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE);
     GPIO(PORT_LS_ENABLE, DIR) &= ~BIT(PIN_LS_ENABLE); // level-shifter enable is pulled high
     GPIO(PORT_VSENSE, DIR) &= ~(BIT(PIN_VCAP) | BIT(PIN_VBOOST) |
