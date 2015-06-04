@@ -16,8 +16,8 @@
 
 
 #define PORT_STATE  3
-#define PIN_STATE_0 2
-#define PIN_STATE_1 3
+#define PIN_STATE_0 4
+#define PIN_STATE_1 5
 
 #define PORT_SIG   1
 #define PIN_SIG    4
