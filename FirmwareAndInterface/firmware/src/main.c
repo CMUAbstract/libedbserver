@@ -189,7 +189,6 @@ static void pin_setup()
     // Configure pins that need to be in high-impedence/input mode
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG); // low
-    GPIO(PORT_SIG, REN) |= BIT(PIN_SIG); // pull-down (need to not cause int when undriven)
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE);
     GPIO(PORT_LS_ENABLE, DIR) &= ~BIT(PIN_LS_ENABLE); // level-shifter enable is pulled high
     GPIO(PORT_VSENSE, DIR) &= ~(BIT(PIN_VCAP) | BIT(PIN_VBOOST) |
