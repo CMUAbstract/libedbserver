@@ -52,7 +52,7 @@
 #define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable
 
 #define PORT_SIG                                1 //!< GPIO port for signal line to target
-#define PIN_SIG                                 1 //!< target signal pin
+#define PIN_SIG                                 3 //!< target signal pin
 
 #define PORT_STATE                              1 //!< GPIO port for debugger state pins
 #define PIN_STATE_0                             5 //!< debugger state lsb bit
