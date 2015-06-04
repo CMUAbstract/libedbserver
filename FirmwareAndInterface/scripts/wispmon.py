@@ -192,6 +192,12 @@ class WispMonitor:
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
         self.sendCmd(USB_CMD_DISCHARGE, data=cmd_data)
 
+    def enter_debug_mode(self):
+        self.sendCmd(USB_CMD_ENTER_ACTIVE_DEBUG)
+
+    def exit_debug_mode(self):
+        self.sendCmd(USB_CMD_EXIT_ACTIVE_DEBUG)
+
 class RxPkt():
     def __init__(self):
         self.processed = True
