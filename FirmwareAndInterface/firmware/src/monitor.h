@@ -20,8 +20,4 @@
        __typeof__ (b) _b = (b); \
        _a > _b ? _a : _b; })
 
-#ifndef NULL
-#define NULL	0
-#endif
-
 #endif // MONITOR_H
