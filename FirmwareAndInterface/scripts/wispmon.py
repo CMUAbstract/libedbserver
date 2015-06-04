@@ -4,7 +4,7 @@ import serial
 import math
 from binascii import hexlify
 
-SERIAL_PORT                         = 'COM17'
+SERIAL_PORT                         = '/dev/ttyUSB0'
 BAUD_RATE                           = 921600
 
 UART_USB_IDENTIFIER                 = 0xF0
