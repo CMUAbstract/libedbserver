@@ -50,7 +50,7 @@ USB_CMD_PWM_HIGH                     = 0x24
 USB_CMD_PWM_LOW                      = 0x25
 USB_CMD_MONITOR_MARKER_BEGIN         = 0x26
 USB_CMD_MONITOR_MARKER_END           = 0x27
-USB_CMD_PULSE_AUX_3                  = 0x28
+USB_CMD_RESET_STATE                  = 0x28
 USB_CMD_CHARGE                       = 0x29
 USB_CMD_DISCHARGE                    = 0x30
 

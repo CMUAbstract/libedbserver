@@ -168,6 +168,12 @@ static void exit_debug_mode()
     UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
 }
 
+static void reset_state()
+{
+    set_state(STATE_IDLE);
+    mask_target_signal();
+}
+
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
  */
@@ -539,7 +545,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
         discharge_block(adc12Target);
         break;
 
-    case USB_CMD_TRIGGER_SCOPE:
+    case USB_CMD_RESET_STATE:
+        reset_state();
         trigger_scope();
         break;
 
