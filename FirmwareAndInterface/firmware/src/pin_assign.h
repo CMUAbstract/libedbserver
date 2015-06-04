@@ -55,8 +55,8 @@
 #define PIN_SIG                                 1 //!< target signal pin
 
 #define PORT_STATE                              1 //!< GPIO port for debugger state pins
-#define PIN_STATE_0                             5 //!< debugger state bit 0
-#define PIN_STATE_1                             4 //!< debugger state bit 1
+#define PIN_STATE_0                             5 //!< debugger state lsb bit
+#define PIN_STATE_1                             4 //!< debugger state msb bit
 
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             1 //!< scope trigger pin
