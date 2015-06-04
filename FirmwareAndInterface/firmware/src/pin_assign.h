@@ -61,9 +61,18 @@
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             3 //!< scope trigger pin
 
+/* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
 #define PIN_RF_TX                               1 //!< RF TX line
 #define PIN_RF_RX                               2 //!< RF RX line
+
+/* The same as above, but for asm, which is limited to a simple pre-processor */
+#define PIN_RX BIT1
+#define PRXSEL P1SEL
+#define PRXIN P1IN
+#define PRXIE P1IE
+#define PRXIES P1IES
+#define PRXIFG P1IFG
 
 #define PORT_AUX                                1 //!< GPIO port for AUX lines to target device
 #define PIN_AUX_1                               3 //!< AUX1 line

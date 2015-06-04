@@ -3,7 +3,7 @@
 ; Graham Harvey
 ; 13 April 2015
 
-	.cdecls	C, LIST, "../monitor.h", "rfid.h"
+	.cdecls	C, LIST, "rfid.h"
 	.def	RFID_RxHandler
 	.global	RFID_RxHandler
 
