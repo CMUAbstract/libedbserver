@@ -238,4 +238,4 @@ class RxPkt():
         print "\tdescriptor = 0x%02x" % self.descriptor
         print "\tlength = %d" % self.length
         print "\tdata = 0x%s" % hexlify(self.data)
-        
+
