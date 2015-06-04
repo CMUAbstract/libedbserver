@@ -689,12 +689,7 @@ static uint16_t adc12Read_block(uint16_t channel)
 
 static void charge_block(uint16_t target)
 {
-    uint16_t chan = ADC12INCH_VCAP;
-    int8_t chan_index;
     uint16_t cur_voltage;
-
-    addAdcChannel(chan, &chan_index);
-    restartAdc();
 
     // Output Vcc level to Vcap (through R1) */
 
@@ -710,34 +705,27 @@ static void charge_block(uint16_t target)
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
-        cur_voltage = adc12Read_block(chan);
+        cur_voltage = adc12Read_block(ADC12INCH_VCAP);
     } while (cur_voltage < target);
 
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
 
-    removeAdcChannel(&chan_index);
 }
 
 static void discharge_block(uint16_t target)
 {
-    uint16_t chan = ADC12INCH_VCAP;
-    int8_t chan_index;
     uint16_t cur_voltage;
-
-    addAdcChannel(chan, &chan_index);
-    restartAdc();
 
     GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
 
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
-        cur_voltage = adc12Read_block(chan);
+        cur_voltage = adc12Read_block(ADC12INCH_VCAP);
     } while (cur_voltage > target);
 
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
 
-    removeAdcChannel(&chan_index);
 }
 
 static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target)
