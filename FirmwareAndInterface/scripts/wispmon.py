@@ -93,8 +93,10 @@ class WispMonitor:
         self.serial.close()
     
     def buildRxPkt(self, buf):
+        """Parses packet header and returns whether it is ready or not"""
+
         if(not self.rxPkt.processed):
-            return 1
+            return Exception("current packet has not been processed")
         
         minBufLen = len(buf)
         while minBufLen > 0:
@@ -105,7 +107,7 @@ class WispMonitor:
                     # unknown identifier - reset state
                     self.rxPkt.processed = True
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 1 # packet construction failed
+                    raise Exception("packet construction failed: unknown identifier")
                 minBufLen -= 1
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
@@ -117,7 +119,7 @@ class WispMonitor:
                     # no additional data is needed
                     self.rxPkt.processed = False
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 0 # packet construction succeeded
+                    return True # packet construction succeeded
                 elif(self.rxPkt.descriptor in (USB_RSP_VCAP, USB_RSP_VBOOST,
                                 USB_RSP_VREG, USB_RSP_VRECT,
                                 USB_RSP_WISP_PC, USB_RSP_WISP_MEMORY,
@@ -131,7 +133,7 @@ class WispMonitor:
                     # unknown message descriptor
                     self.rxPkt.processed = True
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 1 # packet construction failed
+                    raise Exception("packet construction failed: unknown msg descriptor")
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA_LEN):
                 self.rxPkt.length = buf.pop(0) # get data length
                 minBufLen -= 1
@@ -144,17 +146,17 @@ class WispMonitor:
                     del buf[:self.rxPkt.length]
                     self.rxPkt.processed = False
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 0 # packet construction succeeded
+                    return True # packet construction succeeded
                 else:
-                    return 2 # not enough data
+                    return False # not enough data
             else:
                 # unknown state - reset packet construction state
                 self.rxPkt.processed = True
                 self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                return 1 # packet construction failed
+                raise Exception("packet construction failed")
         
         # ran out of data
-        return 2 # packet construction will resume next time this function is called
+        return False # packet construction will resume next time this function is called
     
     # Note that when sending data, the byte order is reversed.
     # Example: to send a command to set Vcap to 2.2 V, do the following.
@@ -172,6 +174,15 @@ class WispMonitor:
             serialMsg += bytearray([dataLen]) + bytearray(data)
         
         self.serial.write(serialMsg)
+
+    def receive(self):
+        buf = bytearray()
+        while not self.buildRxPkt(buf):
+            bufLen = self.serial.inWaiting() # get the number of bytes available
+            if(bufLen > 0):
+                newBytes = bytearray(self.serial.read(bufLen))
+                buf.extend(newBytes)
+        return self.rxPkt
 
     def uint16_to_bytes(self, val):
         return [val & 0xFF, (val>> 8) & 0xFF]

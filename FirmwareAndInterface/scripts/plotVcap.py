@@ -60,7 +60,7 @@ def main():
             newBytes = bytearray(mon.serial.read(bufLen))
             buf.extend(newBytes)
         
-        if(mon.buildRxPkt(buf) == 0):
+        if mon.buildRxPkt(buf):
             # packet construction succeeded
             
             if(mon.rxPkt.descriptor == wispmon.USB_RSP_TIME):
