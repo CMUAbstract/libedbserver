@@ -362,6 +362,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
 {
     uint16_t adc12Result;
 
+    trigger_scope();
+
     switch(pkt->descriptor)
     {
     case USB_CMD_GET_VCAP:
@@ -404,12 +406,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
-        trigger_scope();
         enter_debug_mode();
         break;
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
-        trigger_scope();
         exit_debug_mode();
         break;
 
@@ -537,20 +537,17 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	break;
 
     case USB_CMD_CHARGE:
-        trigger_scope();
         adc12Target = *((uint16_t *)(&pkt->data[0]));
         charge_block(adc12Target);
         break;
 
     case USB_CMD_DISCHARGE:
-        trigger_scope();
         adc12Target = *((uint16_t *)(pkt->data));
         discharge_block(adc12Target);
         break;
 
     case USB_CMD_RESET_STATE:
         reset_state();
-        trigger_scope();
         break;
 
     case USB_CMD_RELEASE_POWER:
