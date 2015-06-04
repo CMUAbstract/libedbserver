@@ -353,6 +353,12 @@ static void trigger_scope()
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
 }
 
+static void send_vcap(uint16_t vcap)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
+                 (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
+}
+
 /**
  * @brief       Execute a command received from the computer through the USB port
  * @param       pkt     Packet structure that contains the received message info
@@ -360,6 +366,7 @@ static void trigger_scope()
 static void executeUSBCmd(uartPkt_t *pkt)
 {
     uint16_t adc12Result;
+    uint16_t target_vcap, actual_vcap;
 
     trigger_scope();
 
@@ -536,13 +543,15 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	break;
 
     case USB_CMD_CHARGE:
-        adc12Target = *((uint16_t *)(&pkt->data[0]));
-        charge_block(adc12Target);
+        target_vcap = *((uint16_t *)(&pkt->data[0]));
+        actual_vcap = charge_block(target_vcap);
+        send_vcap(actual_vcap);
         break;
 
     case USB_CMD_DISCHARGE:
-        adc12Target = *((uint16_t *)(pkt->data));
-        discharge_block(adc12Target);
+        target_vcap = *((uint16_t *)(pkt->data));
+        actual_vcap = discharge_block(target_vcap);
+        send_vcap(actual_vcap);
         break;
 
     case USB_CMD_RESET_STATE:
@@ -687,7 +696,7 @@ static uint16_t adc12Read_block(uint16_t channel)
     return adc12Result;
 }
 
-static void charge_block(uint16_t target)
+static uint16_t charge_block(uint16_t target)
 {
     uint16_t cur_voltage;
 
@@ -710,9 +719,10 @@ static void charge_block(uint16_t target)
 
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
 
+    return cur_voltage;
 }
 
-static void discharge_block(uint16_t target)
+static uint16_t discharge_block(uint16_t target)
 {
     uint16_t cur_voltage;
 
@@ -726,6 +736,7 @@ static void discharge_block(uint16_t target)
 
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
 
+    return cur_voltage;
 }
 
 static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target)

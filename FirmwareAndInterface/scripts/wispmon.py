@@ -187,21 +187,34 @@ class WispMonitor:
     def uint16_to_bytes(self, val):
         return [val & 0xFF, (val>> 8) & 0xFF]
 
+    def bytes_to_uint16(self, bytes):
+        return (bytes[1] << 8) | bytes[0]
+
     def voltage_to_adc(self, voltage):
         return int(math.ceil(voltage * 4096 / self.VDD))
 
+    def adc_to_voltage(self, value):
+        return float(value) / 4096 * self.VDD
+
+    def receive_vcap_reply(self):
+        reply = self.receive()
+        if reply.descriptor != USB_RSP_VCAP:
+            raise Exception("invalid reply to charge cmd: " + str(reply.descriptor))
+        vcap = self.adc_to_voltage(self.bytes_to_uint16(reply.data))
+        reply.processed = True
+        return vcap
+
     def charge(self, target_voltage):
-
-        target_voltage += 0.030 # calibration (TODO: try to find the underlying reason)
-
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
         self.sendCmd(USB_CMD_CHARGE, data=cmd_data)
+        return self.receive_vcap_reply()
 
     def discharge(self, target_voltage):
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
         self.sendCmd(USB_CMD_DISCHARGE, data=cmd_data)
+        return self.receive_vcap_reply()
 
     def enter_debug_mode(self):
         self.sendCmd(USB_CMD_ENTER_ACTIVE_DEBUG)
