@@ -2,13 +2,11 @@
  * @file
  * @date            28 April 2015
  * @author          Graham Harvey
- * @brief           Definitions and prototypes for the WISP monitor.
+ * @brief           Useful macros for taking the min and the max of two values.
  ******************************************************************************/
 
-#ifndef MONITOR_H
-#define MONITOR_H
-
-#include <msp430.h>
+#ifndef MINMAX_H
+#define MINMAX_H
 
 // type safe MIN, MAX from http://stackoverflow.com/questions/3437404/min-and-max-in-c
 #define MIN(a, b) \
@@ -20,4 +18,4 @@
        __typeof__ (b) _b = (b); \
        _a > _b ? _a : _b; })
 
-#endif // MONITOR_H
+#endif // MINMAX_H

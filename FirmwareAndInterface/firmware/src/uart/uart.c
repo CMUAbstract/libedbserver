@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <msp430.h>
 #include "uart.h"
-#include "monitor.h"
+#include "minmax.h"
 #include "pin_assign.h"
 
 static uint16_t *pUSBFlags;

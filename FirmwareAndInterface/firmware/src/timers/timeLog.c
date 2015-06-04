@@ -23,7 +23,6 @@
 #include <msp430.h>
 #include <stdint.h>
 
-#include "monitor.h"
 #include "timeLog.h"
 
 static uint32_t overflowCycles = 0;

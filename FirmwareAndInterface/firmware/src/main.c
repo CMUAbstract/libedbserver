@@ -17,7 +17,6 @@
 #include <msp430.h>
 #include <stdint.h>
 
-#include "monitor.h"
 #include "pin_assign.h"
 #include "ucs.h"
 #include "adc12.h"
@@ -27,6 +26,7 @@
 #include "timer1.h"
 #include "rfid.h"
 #include "marker.h"
+#include "minmax.h"
 #include "main.h"
 
 /**
