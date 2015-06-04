@@ -134,6 +134,7 @@ static void handle_target_signal()
         case STATE_ENTERING:
             // WISP has entered debug main loop
             set_state(STATE_DEBUG);
+            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
             break;
         case STATE_EXITING:
             // WISP has shutdown UART and is asleep waiting for int to resume
@@ -150,8 +151,6 @@ static void handle_target_signal()
 
 static void enter_debug_mode()
 {
-    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-
     set_state(STATE_ENTERING);
 
     saved_vcap = adc12Read_block(ADC12INCH_VCAP); // read Vcap and set as the target for exit
