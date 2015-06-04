@@ -36,7 +36,7 @@ void UCS_setMainFreq()
     UCSCTL2 = FLLD_0 + 668;                     // Set DCO Multiplier
                                                 // (N + 1) * FLLRef = Fdco
                                                 // (668 + 1) * 32768 = 21921792 Hz (average)
-                                                // Set FLL Div = fDCOCLK/2
+                                                // Set FLL Div = fDCOCLK/1
 
     __bic_SR_register(SCG0);                    // Enable the FLL control loop
 

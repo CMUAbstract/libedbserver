@@ -1,6 +1,7 @@
 # WISP Monitor Python Class
 
 import serial
+import math
 from binascii import hexlify
 
 SERIAL_PORT                         = 'COM17'
@@ -47,6 +48,11 @@ USB_CMD_LOG_VINJ_BEGIN               = 0x22
 USB_CMD_LOG_VINJ_END                 = 0x23
 USB_CMD_PWM_HIGH                     = 0x24
 USB_CMD_PWM_LOW                      = 0x25
+USB_CMD_MONITOR_MARKER_BEGIN         = 0x26
+USB_CMD_MONITOR_MARKER_END           = 0x27
+USB_CMD_PULSE_AUX_3                  = 0x28
+USB_CMD_CHARGE                       = 0x29
+USB_CMD_DISCHARGE                    = 0x30
 
 # Serial receive message descriptors
 USB_RSP_VCAP                         = 0x00
@@ -166,6 +172,25 @@ class WispMonitor:
             serialMsg += bytearray([dataLen]) + bytearray(data)
         
         self.serial.write(serialMsg)
+
+    def uint16_to_bytes(self, val):
+        return [val & 0xFF, (val>> 8) & 0xFF]
+
+    def voltage_to_adc(self, voltage):
+        return int(math.ceil(voltage * 4096 / self.VDD))
+
+    def charge(self, target_voltage):
+
+        target_voltage += 0.030 # calibration (TODO: try to find the underlying reason)
+
+        target_voltage_adc = self.voltage_to_adc(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_adc)
+        self.sendCmd(USB_CMD_CHARGE, data=cmd_data)
+
+    def discharge(self, target_voltage):
+        target_voltage_adc = self.voltage_to_adc(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_adc)
+        self.sendCmd(USB_CMD_DISCHARGE, data=cmd_data)
 
 class RxPkt():
     def __init__(self):

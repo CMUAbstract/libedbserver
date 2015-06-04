@@ -29,7 +29,7 @@
 /**
  * @brief   Set up PWM for the WISP monitor
  */
-void PWM_setup();
+void PWM_setup(uint16_t period, uint16_t duty_cycle);
 
 /**
  * @brief   Start PWM
