@@ -21,7 +21,6 @@
 #include "ucs.h"
 #include "adc12.h"
 #include "uart.h"
-#include "gpio.h"
 #include "pwm.h"
 #include "timeLog.h"
 #include "timer1.h"
@@ -88,34 +87,46 @@ static void set_state(state_t new_state)
     state = new_state;
 
     // Encode state onto two indicator pins
-    GPIO(PORT_STATE, OUT) &= ~(PIN_STATE_0 | PIN_STATE_1);
-    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? PIN_STATE_0 : 0) |
-                             (new_state & 0x2 ? PIN_STATE_1 : 0);
+    GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
+    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? BIT(PIN_STATE_0) : 0) |
+                             (new_state & 0x2 ? BIT(PIN_STATE_1) : 0);
 }
 
-void signal_target()
+/**
+ * @brief	Send an interrupt to the target device
+ */
+static void signal_target()
 {
     // pulse the signal line
 
     // target signal line starts in high imedence state
-    GPIO(PORT_SIG, OUT) |= PIN_SIG;		// output high
-    GPIO(PORT_SIG, DIR) |= PIN_SIG;		// output enable
-    GPIO(PORT_SIG, OUT) &= ~PIN_SIG;    // output low
-    GPIO(PORT_SIG, DIR) &= ~PIN_SIG;    // back to high impedence state
+    GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);		// output high
+    GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);		// output enable
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
 }
 
-void unmask_target_signal()
+/**
+ * @brief	Enable interrupt line between the debugger and the target device
+ */
+static void unmask_target_signal()
 {
-    GPIO(PORT_SIG, IE) |= PIN_SIG;   // enable interrupt
-    GPIO(PORT_SIG, IES) &= ~PIN_SIG; // rising edge
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
+    GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
 }
 
-void mask_target_signal()
+/**
+ * @brief	Disable interrupt line between the debugger and the target device
+ */
+static void mask_target_signal()
 {
-    GPIO(PORT_SIG, IE) &= ~PIN_SIG; // disable interrupt
+    GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
 
-void handle_target_signal()
+/**
+ * @brief	Handle an interrupt from the target device
+ */
+static void handle_target_signal()
 {
     switch (state) {
         case STATE_ENTERING:
@@ -124,9 +135,9 @@ void handle_target_signal()
             break;
         case STATE_EXITING:
             // WISP has shutdown UART and is asleep waiting for int to resume
-            GPIO(PORT_CHARGE, OUT) &= ~PIN_CHARGE; // cut the power supply
+            GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
             discharge_block(saved_vcap); // restore energy level
-            GPIO(PORT_LED, OUT) &= ~PIN_LED_RED;
+            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
             set_state(STATE_IDLE);
             break;
         default:
@@ -135,9 +146,9 @@ void handle_target_signal()
     }
 }
 
-void enter_debug_mode()
+static void enter_debug_mode()
 {
-    GPIO(PORT_LED, OUT) |= PIN_LED_RED;
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
 
     set_state(STATE_ENTERING);
 
@@ -146,14 +157,32 @@ void enter_debug_mode()
     unmask_target_signal();
 
     // Start supplying full power to the target device
-    GPIO(PORT_CHARGE, OUT) |= PIN_CHARGE;
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE);
 }
 
-void exit_debug_mode()
+static void exit_debug_mode()
 {
     set_state(STATE_EXITING);
     unmask_target_signal();
     UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
+}
+
+/**
+ * @brief   Set up all pins.  Default to GPIO output low for unused pins.
+ */
+static void pin_setup()
+{
+    // First pass: set all pins as output low (so that unused pins stay that way)
+    P1SEL = P2SEL = P3SEL = P4SEL = P5SEL = 0x00; // I/O function
+    P1OUT = P2OUT = P3OUT = P4OUT = P5OUT = PJOUT = 0x00; // low
+    P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = PJDIR = 0xFF; // out
+
+    // Configure pins that need to be in high-impedence/input mode
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);
+    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE);
+    GPIO(PORT_LS_ENABLE, DIR) &= ~BIT(PIN_LS_ENABLE); // level-shifter enable is pulled high
+    GPIO(PORT_VSENSE, DIR) &= ~(BIT(PIN_VCAP) | BIT(PIN_VBOOST) |
+                                BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ));
 }
 
 int main(void)
@@ -164,7 +193,7 @@ int main(void)
     WDTCTL = WDTPW + WDTHOLD;
 
     UCS_setup(); // set up unified clock system
-    pin_init();
+    pin_setup();
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
     UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX); // USCI_A1 UART
@@ -299,7 +328,7 @@ int main(void)
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
         if(count++ > 500000) {
-            GPIO(PORT_LED, OUT) ^= PIN_LED_GREEN;
+            GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
         	count = 0;
         }
     }
@@ -310,9 +339,9 @@ int main(void)
  */
 static void trigger_scope()
 {
-    GPIO(PORT_TRIGGER, OUT) |= PIN_TRIGGER;
-    GPIO(PORT_TRIGGER, DIR) |= PIN_TRIGGER;
-    GPIO(PORT_TRIGGER, OUT) &= ~PIN_TRIGGER;
+    GPIO(PORT_TRIGGER, OUT) |= BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
 }
 
 /**
@@ -549,7 +578,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_PWM_HIGH:
     	PWM_stop();
-        GPIO(PORT_CHARGE, OUT) |= PIN_CHARGE; // output high
+        GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // output high
     	break;
 
     // USB_CMD_PWM_LOW and USB_CMD_PWM_OFF do the same thing
@@ -665,11 +694,11 @@ static void charge_block(uint16_t target)
     // Output Vcc level to Vcap (through R1) */
 
     // Configure the pin
-    GPIO(PORT_CHARGE, DS) |= PIN_CHARGE; // full drive strength
-    GPIO(PORT_CHARGE, SEL) &= ~PIN_CHARGE; // I/O function
-    GPIO(PORT_CHARGE, DIR) |= PIN_CHARGE; // I/O function output
+    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
 
-    GPIO(PORT_CHARGE, OUT) |= PIN_CHARGE; // turn on the power supply
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
 
     // Wait for the cap to charge to that voltage
 
@@ -679,7 +708,7 @@ static void charge_block(uint16_t target)
         cur_voltage = adc12Read_block(chan);
     } while (cur_voltage < target);
 
-    GPIO(PORT_CHARGE, OUT) &= ~PIN_CHARGE; // cut the power supply
+    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
 
     removeAdcChannel(&chan_index);
 }
@@ -693,7 +722,7 @@ static void discharge_block(uint16_t target)
     addAdcChannel(chan, &chan_index);
     restartAdc();
 
-    GPIO(PORT_DISCHARGE, DIR) |= PIN_DISCHARGE; // open the discharge "valve"
+    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
 
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
@@ -701,7 +730,7 @@ static void discharge_block(uint16_t target)
         cur_voltage = adc12Read_block(chan);
     } while (cur_voltage > target);
 
-    GPIO(PORT_DISCHARGE, DIR) &= ~PIN_DISCHARGE; // close the discharge "valve"
+    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
 
     removeAdcChannel(&chan_index);
 }
@@ -770,4 +799,33 @@ static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
 		return 1;
 	}
 	return 0;
+}
+
+// Port 1 ISR
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
+#else
+#error Compiler not supported!
+#endif
+{
+	switch(__even_in_range(P1IV, 16))
+	{
+	case INTFLAG(PORT_RF, PIN_RF_TX):
+		RFID_TxHandler(getTime());
+		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
+		break;
+	case INTFLAG(PORT_RF, PIN_RF_RX):
+		RFID_RxHandler();
+		break;
+	case INTFLAG(PORT_SIG, PIN_SIG):
+		mask_target_signal();
+		handle_target_signal();
+		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
+		break;
+	default:
+		break;
+	}
 }

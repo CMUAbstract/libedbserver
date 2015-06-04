@@ -24,8 +24,14 @@
 #define NULL	0
 #endif
 
-#define GPIO_INNER(port, reg) port ## reg
+#define BIT_INNER(idx) BIT ## idx
+#define BIT(idx) BIT_INNER(idx)
+
+#define GPIO_INNER(port, reg) P ## port ## reg
 #define GPIO(port, reg) GPIO_INNER(port, reg)
+
+#define INTFLAG_INNER(port, pin) P ## port ## IV_ ## P ## port ## IFG ## pin
+#define INTFLAG(port, pin) INTFLAG_INNER(port, pin)
 
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
@@ -49,14 +55,6 @@
 #define GPIO_AUX_2                              BIT4 //!< P1.4: WISP AUX2, reserved during semi-passive debugging for tagging WISP power trace
 #define GPIO_AUX_1                              BIT5 //!< P1.5: WISP AUX1, reserved for entering active debug mode
 #define GPIO_VBOOST                             BIT6 //!< P1.6: WISP Vboost
-
-#define PAUXSEL									P1SEL	//!< AUX port selection
-#define PAUXDIR									P1DIR	//!< AUX port direction
-#define PAUXIN									P1IN	//!< AUX port input
-#define PAUXOUT									P1OUT	//!< AUX port output
-#define PAUXIE									P1IE	//!< AUX port interrupt enable
-#define PAUXIFG									P1IFG	//!< AUX port interrupt flag
-#define PAUXIES									P1IES	//!< AUX port interrupt edge select
 
 #define PIN_RX                                  GPIO_RF_RX      //!< RF RX input pin
 #define PRXIN                                   P1IN            //!< RF RX port input
@@ -101,9 +99,6 @@
  * @defgroup    PORT5_DEFINES   Port 5
  * @{
  */
-#define PCHGDIR                                 P5DIR //!< WISP charge pin direction
-#define PCHGOUT                                 P5OUT //!< WISP charge pin output value
-
 #define XT2IN                                   BIT2 //!< P5.2: XT2 in
 #define XT2OUT                                  BIT3 //!< P5.3: XT2 out
 #define XT1IN                                   BIT4 //!< P5.4: XT1 in
@@ -125,27 +120,38 @@
 
 /** @} End PORTS */
 
-#define PORT_LED                                PJ //<! GPIO port for LEDs
-#define PIN_LED_GREEN                           BIT2
-#define PIN_LED_RED                             BIT3
+#define PORT_LED                                J //!< GPIO port for LEDs
+#define PIN_LED_GREEN                           2
+#define PIN_LED_RED                             3
 
-#define PORT_CHARGE                             P5 //!< GPIO port for target capacitor charge pin
-#define PIN_CHARGE                              BIT7 //!< target capacitor charge pin
+#define PORT_VSENSE                             6 //!< GPIO port for voltage sense lines
+#define PIN_VCAP                                1 //!< P6.1: ADC input Vcap
+#define PIN_VBOOST                              2 //!< P6.2: ADC input Vboost
+#define PIN_VREG                                3 //!< P6.3: ADC input Vreg
+#define PIN_VRECT                               4 //!< P6.4: ADC input Vrect
+#define PIN_VINJ                           	    5 //!< P6.5: ADC input PWM LPF
 
-#define PORT_DISCHARGE                          PJ //!< GPIO port for target capacitor discharge pin
-#define PIN_DISCHARGE                           BIT0 //!< target capacitor discharge pin
+#define PORT_CHARGE                             5 //!< GPIO port for target capacitor charge pin
+#define PIN_CHARGE                              7 //!< target capacitor charge pin
 
-#define PORT_LS_ENABLE                          PJ //!< GPIO port for level shifter enable signal
-#define PIN_LS_ENABLE                           BIT1 //!< level shifter enable pin - output low to disable
+#define PORT_DISCHARGE                          J //!< GPIO port for target capacitor discharge pin
+#define PIN_DISCHARGE                           0 //!< target capacitor discharge pin
 
-#define PORT_SIG                                P1 //!< GPIO port for signal line to target
-#define PIN_SIG                                 BIT5 //!< target signal pin
+#define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
+#define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable
 
-#define PORT_STATE                              P1 //!< GPIO port for debugger state pins
-#define PIN_STATE_0                             BIT1 //!< debugger state bit 0
-#define PIN_STATE_1                             BIT2 //!< debugger state bit 1
+#define PORT_SIG                                1 //!< GPIO port for signal line to target
+#define PIN_SIG                                 5 //!< target signal pin
 
-#define PORT_TRIGGER                            P1 //!< GPIO port for scope trigger line
-#define PIN_TRIGGER                             BIT3 //!< scope trigger pin
+#define PORT_STATE                              1 //!< GPIO port for debugger state pins
+#define PIN_STATE_0                             1 //!< debugger state bit 0
+#define PIN_STATE_1                             2 //!< debugger state bit 1
+
+#define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
+#define PIN_TRIGGER                             3 //!< scope trigger pin
+
+#define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
+#define PIN_RF_TX                               1 //!< RF TX line
+#define PIN_RF_RX                               2 //!< RF RX line
 
 #endif // MONITOR_H

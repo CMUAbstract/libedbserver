@@ -79,24 +79,4 @@ static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint1
  */
 static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold);
 
-/**
- * @brief	Send an interrupt to the target device
- */
-void signal_target();
-
-/**
- * @brief	Enable interrupt line between the debugger and the target device
- */
-void unmask_target_signal();
-
-/**
- * @brief	Disable interrupt line between the debugger and the target device
- */
-void mask_target_signal();
-
-/**
- * @brief	Handle an interrupt from the target device
- */
-void handle_target_signal();
-
 #endif // MAIN_H
