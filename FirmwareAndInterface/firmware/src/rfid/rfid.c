@@ -8,7 +8,7 @@
 #include <msp430.h>
 #include <stdint.h>
 #include "rfid.h"
-#include "monitor.h"
+#include "pin_assign.h"
 
 #include "timeLog.h"
 #include "timer1.h"
@@ -45,11 +45,11 @@ void RFID_setup(uint16_t *pFlag_bitmask, uint16_t rxFlag, uint16_t txFlag)
 	rxActivityFlag = rxFlag; // will set this flag in *pFlags when Rx data is ready
 	txActivityFlag = txFlag;
 
-    P1SEL &= ~GPIO_RF_RX;   // set GPIO function
-    P1DIR &= ~GPIO_RF_RX;   // set input direction
-    P1IES |= GPIO_RF_RX;    // interrupt on falling edge
-    P1IFG = 0x00;           // clear interrupt flags
-    P1IE |= GPIO_RF_RX;     // enable port interrupt
+    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_RX);   // set GPIO function
+    GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_RX);   // set input direction
+    GPIO(PORT_RF, IES) |= BIT(PIN_RF_RX);    // interrupt on falling edge
+    GPIO(PORT_RF, IFG) &= ~(BIT(PIN_RF_RX) | BIT(PIN_RF_TX));           // clear interrupt flags
+    GPIO(PORT_RF, IE) |= BIT(PIN_RF_RX);     // enable port interrupt
 }
 
 void RFID_UARTSendRxData()
@@ -81,14 +81,14 @@ void RFID_UARTSendTxData()
 
 void RFID_startTxLog()
 {
-	PTXIFG &= ~PIN_TX;			// clear Tx interrupt flag
-	PTXIE |= PIN_TX;			// enable Tx interrupt
+	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear Tx interrupt flag
+	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);			// enable Tx interrupt
 }
 
 void RFID_stopTxLog()
 {
-	PTXIE &= ~PIN_TX;			// disable interrupt
-	PTXIFG &= ~PIN_TX;			// clear interrupt flag
+	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
+	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear interrupt flag
 
 	TIMER1_STOP;
 }
@@ -101,7 +101,7 @@ void RFID_TxHandler(uint32_t curTime)
 	// Disable the Tx interrupt and set a timer to enable it again.
 	// This allows us to only log activity once when a single Tx event occurs,
 	// since the Tx line makes several transitions when a transmission occurs.
-	PTXIE &= ~PIN_TX;						// disable Tx interrupt
+	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX;)						// disable Tx interrupt
 
 	Timer1_set(FORCE_SKIP_TX_ACTIVITY, &RFID_startTxLog);
 }
@@ -110,8 +110,8 @@ void RFID_stopRxLog()
 {
 	TA0CTL = 0;				// disable timer
 	TA0CCTL1 = 0;			// reset timer control register
-	PRXIE &= ~PIN_RX;		// disable Rx port interrupt
-	PRXIFG &= ~PIN_RX;		// clear Rx port interrupt flag
+	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_RX);		// disable Rx port interrupt
+	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_RX);		// clear Rx port interrupt flag
 }
 
 void handleQR(void)

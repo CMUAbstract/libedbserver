@@ -18,6 +18,7 @@
 #include <stdint.h>
 
 #include "monitor.h"
+#include "pin_assign.h"
 #include "ucs.h"
 #include "adc12.h"
 #include "uart.h"
