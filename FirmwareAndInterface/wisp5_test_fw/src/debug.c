@@ -100,7 +100,7 @@ static void enter_debug_mode()
     UART_init(); // enable UART
 
     set_state(STATE_DEBUG);
-    PLED1OUT |= PIN_LED1;
+    PLED2OUT |= PIN_LED2;
 }
 
 void exit_debug_mode()
@@ -135,6 +135,8 @@ void exit_debug_mode()
 
     // set up to return from debug_main
     debug_flags |= DEBUG_RETURN;
+
+    PLED2OUT &= ~PIN_LED2;
 }
 
 /**
