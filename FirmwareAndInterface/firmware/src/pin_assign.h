@@ -52,14 +52,14 @@
 #define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable
 
 #define PORT_SIG                                1 //!< GPIO port for signal line to target
-#define PIN_SIG                                 5 //!< target signal pin
+#define PIN_SIG                                 1 //!< target signal pin
 
 #define PORT_STATE                              1 //!< GPIO port for debugger state pins
-#define PIN_STATE_0                             1 //!< debugger state bit 0
-#define PIN_STATE_1                             2 //!< debugger state bit 1
+#define PIN_STATE_0                             5 //!< debugger state bit 0
+#define PIN_STATE_1                             4 //!< debugger state bit 1
 
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
-#define PIN_TRIGGER                             3 //!< scope trigger pin
+#define PIN_TRIGGER                             1 //!< scope trigger pin
 
 /* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
