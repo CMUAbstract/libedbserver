@@ -42,20 +42,6 @@
 
 /** @} End WISP_MSG_DESCRIPTORS */
 
-#define PORT_STATE  P3
-#define PIN_STATE_0 BIT2
-#define PIN_STATE_1 BIT3
-
-#define PORT_SIG   P1
-#define PIN_SIG    BIT4
-
-#define GPIO_INNER(port, reg) port ## reg
-#define GPIO(port, reg) GPIO_INNER(port, reg)
-
-// Ugly workaround to make the pretty GPIO macro work for OUT register
-// (a control bit for TAxCCTLx uses the name 'OUT')
-#undef OUT
-
 /**
  * @brief	Initialize pins used by the debugger board
  */

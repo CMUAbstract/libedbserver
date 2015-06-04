@@ -9,6 +9,7 @@
 
 #include "debug.h"
 #include "wisp-base.h"
+#include "pin_assign.h"
 
 #define DEBUG_RETURN			0x0001 // signals debug main loop to stop
 
@@ -48,9 +49,9 @@ static void set_state(state_t new_state)
     state = new_state;
 
     // Encode state onto two indicator pins
-    GPIO(PORT_STATE, OUT) &= ~(PIN_STATE_0 | PIN_STATE_1); // clear
-    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? PIN_STATE_0 : 0) |
-                             (new_state & 0x2 ? PIN_STATE_1 : 0);
+    GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1)); // clear
+    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? BIT(PIN_STATE_0) : 0) |
+                             (new_state & 0x2 ? BIT(PIN_STATE_1) : 0);
 }
 
 static void signal_debugger()
@@ -58,21 +59,21 @@ static void signal_debugger()
     // pulse the signal line
 
     // target signal line starts in high imedence state
-    GPIO(PORT_SIG, OUT) |= PIN_SIG;        // output high
-    GPIO(PORT_SIG, DIR) |= PIN_SIG;        // output enable
-    GPIO(PORT_SIG, OUT) &= ~PIN_SIG;    // output low
-    GPIO(PORT_SIG, DIR) &= ~PIN_SIG;    // back to high impedence state
+    GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);        // output high
+    GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);        // output enable
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
 }
 
 static void unmask_debugger_signal()
 {
-    GPIO(PORT_SIG, IE) |= PIN_SIG; // enable interrupt
-    GPIO(PORT_SIG, IES) &= ~PIN_SIG; // rising edge
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG); // enable interrupt
+    GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
 }
 
 static void mask_debugger_signal()
 {
-    GPIO(PORT_SIG, IE) &= ~PIN_SIG; // disable interrupt
+    GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
 
 static void enter_debug_mode()
@@ -244,10 +245,10 @@ static inline void handle_debugger_signal()
 void debug_setup()
 {
     // these pins report state of the debugger state machine on the target
-    GPIO(PORT_STATE, OUT) &= ~(PIN_STATE_0 | PIN_STATE_1); // output low
-    GPIO(PORT_STATE, DIR) |= PIN_STATE_0 | PIN_STATE_1; // output
+    GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1)); // output low
+    GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1); // output
 
-    GPIO(PORT_SIG, DIR) &= ~PIN_SIG; // input
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
 
     unmask_debugger_signal();
 }
