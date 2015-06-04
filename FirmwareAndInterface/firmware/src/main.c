@@ -394,17 +394,15 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
-    {
     	// todo: turn off all logging?
+        trigger_scope();
         enter_debug_mode();
         break;
-    }
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
-    {
+        trigger_scope();
         exit_debug_mode();
         break;
-    }
 
     case USB_CMD_GET_WISP_PC:
     	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_PC, 0, 0, UART_TX_FORCE); // send request
