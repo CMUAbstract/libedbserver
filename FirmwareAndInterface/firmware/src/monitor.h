@@ -24,6 +24,13 @@
 #define NULL	0
 #endif
 
+#define GPIO_INNER(port, reg) port ## reg
+#define GPIO(port, reg) GPIO_INNER(port, reg)
+
+// Ugly workaround to make the pretty GPIO macro work for OUT register
+// (a control bit for TAxCCTLx uses the name 'OUT')
+#undef OUT
+
 /**
  * @defgroup    PORTS   Pin functions
  * @brief       MSP430F5340 pin functions by port
@@ -94,6 +101,9 @@
  * @defgroup    PORT5_DEFINES   Port 5
  * @{
  */
+#define PCHGDIR                                 P5DIR //!< WISP charge pin direction
+#define PCHGOUT                                 P5OUT //!< WISP charge pin output value
+
 #define XT2IN                                   BIT2 //!< P5.2: XT2 in
 #define XT2OUT                                  BIT3 //!< P5.3: XT2 out
 #define XT1IN                                   BIT4 //!< P5.4: XT1 in
@@ -113,22 +123,29 @@
 #define ADC12_VINJ                           	BIT5 //!< P6.5: ADC input PWM LPF
 /** @} End PORT6_DEFINES */
 
-/*************************** Port J **************************/
-/**
- * @defgroup    PORTJ_DEFINES   Port J
- * @{
- */
-#define PLEDSEL									PJSEL //!< LED port selection
-#define PLEDDIR									PJDIR //!< LED port direction
-#define PLEDOUT									PJOUT //!< LED port output
-
-#define PDISCHGDIR                              PJDIR
-#define GPIO_DISCHARGE                          BIT0 //!< PJ.0: WISP discharge pin
-#define GPIO_LS_ENABLE                          BIT1 //!< PJ.1: level shifter enable pin - output low to disable
-#define LED3                                    BIT2 //!< PJ.2: LED3 - named to match schematic
-#define LED4                                    BIT3 //!< PJ.3: LED4 - named to match schematic
-/** @} End PORTJ_DEFINES */
-
 /** @} End PORTS */
+
+#define PORT_LED                                PJ //<! GPIO port for LEDs
+#define PIN_LED_GREEN                           BIT2
+#define PIN_LED_RED                             BIT3
+
+#define PORT_CHARGE                             P5 //!< GPIO port for target capacitor charge pin
+#define PIN_CHARGE                              BIT7 //!< target capacitor charge pin
+
+#define PORT_DISCHARGE                          PJ //!< GPIO port for target capacitor discharge pin
+#define PIN_DISCHARGE                           BIT0 //!< target capacitor discharge pin
+
+#define PORT_LS_ENABLE                          PJ //!< GPIO port for level shifter enable signal
+#define PIN_LS_ENABLE                           BIT1 //!< level shifter enable pin - output low to disable
+
+#define PORT_SIG                                P1 //!< GPIO port for signal line to target
+#define PIN_SIG                                 BIT5 //!< target signal pin
+
+#define PORT_STATE                              P1 //!< GPIO port for debugger state pins
+#define PIN_STATE_0                             BIT1 //!< debugger state bit 0
+#define PIN_STATE_1                             BIT2 //!< debugger state bit 1
+
+#define PORT_TRIGGER                            P1 //!< GPIO port for scope trigger line
+#define PIN_TRIGGER                             BIT3 //!< scope trigger pin
 
 #endif // MONITOR_H

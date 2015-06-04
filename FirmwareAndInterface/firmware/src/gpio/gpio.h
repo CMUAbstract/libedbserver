@@ -27,6 +27,7 @@
 #define IFG_AUX_3						P1IV_P1IFG3 //!< AUX 3 interrupt flag
 #define IFG_AUX_2						P1IV_P1IFG4 //!< AUX 2 interrupt flag
 #define IFG_AUX_1						P1IV_P1IFG5 //!< AUX 1 interrupt flag
+#define IFG_SIG  						P1IV_P1IFG5 //!< target signal interrupt flag
 #define IFG_VBOOST_BUF					P1IV_P1IFG6 //!< Vboost interrupt flag
 /** @} End P1IFG_DEFINES */
 

@@ -10,50 +10,136 @@
 #include "debug.h"
 #include "wisp-base.h"
 
-#define DEBUG_RETURN			0x0001
+#define DEBUG_RETURN			0x0001 // signals debug main loop to stop
 
-uint16_t debug_flags = 0;
+typedef enum {
+    STATE_IDLE = 0,
+    STATE_DEBUG,
+    STATE_SUSPENDED,
+} state_t;
 
-clkInfo_t clkInfo;
+typedef struct {
+	uint16_t CSCTL0;
+	uint16_t CSCTL1;
+	uint16_t CSCTL2;
+	uint16_t CSCTL3;
+	uint16_t CSCTL4;
+	uint16_t CSCTL5;
+	uint16_t CSCTL6;
+} clkInfo_t;
 
-uint16_t *wisp_sp; // stack pointer on debug entry
+typedef enum {
+	MSG_STATE_IDENTIFIER,	//!< UART identifier byte
+	MSG_STATE_DESCRIPTOR,	//!< UART descriptor byte
+	MSG_STATE_DATALEN,		//!< data length byte
+	MSG_STATE_DATA			//!< UART data
+} msgState_t;
 
-void debug_main()
+static state_t state = STATE_IDLE;
+
+static uint16_t debug_flags = 0;
+
+static clkInfo_t clkInfo;
+
+static uint16_t *wisp_sp; // stack pointer on debug entry
+
+static void set_state(state_t new_state)
 {
-	// save clock configuration
-	clkInfo.CSCTL0 = CSCTL0;
-	clkInfo.CSCTL1 = CSCTL1;
-	clkInfo.CSCTL2 = CSCTL2;
-	clkInfo.CSCTL3 = CSCTL3;
-	clkInfo.CSCTL4 = CSCTL4;
-	clkInfo.CSCTL5 = CSCTL5;
-	clkInfo.CSCTL6 = CSCTL6;
+    state = new_state;
 
-	// set up 8 MHz clock for UART drivers
-	CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-	CSCTL1 = DCOFSEL_6;                       // Set DCO to 8MHz
-	CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
-											  // ACLK = VLOCLK
-	CSCTL3 = DIVA__1 | DIVS__1 | DIVM__1;     // Set all dividers to 1
-	CSCTL0_H = 0;                             // Lock CS registers
-
-	UART_init(); // enable UART
-
-	// expecting 2-byte messages from the debugger (identifier byte + descriptor byte)
-	uint8_t uartRxBuf[DEBUG_UART_BUF_LEN];
-
-	while(1) {
-		UART_receive(uartRxBuf, DEBUG_UART_BUF_LEN, 0xFF); // block until we receive a message
-		debug_parseAndExecute(uartRxBuf, DEBUG_UART_BUF_LEN); // parse the message and perform actions
-
-		if(debug_flags & DEBUG_RETURN) {
-			debug_flags &= ~DEBUG_RETURN;
-			return;
-		}
-	}
+    // Encode state onto two indicator pins
+    GPIO(PORT_STATE, OUT) &= ~(PIN_STATE_0 | PIN_STATE_1); // clear
+    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? PIN_STATE_0 : 0) |
+                             (new_state & 0x2 ? PIN_STATE_1 : 0);
 }
 
-void debug_parseAndExecute(uint8_t *msg, uint8_t len)
+static void signal_debugger()
+{
+    // pulse the signal line
+
+    // target signal line starts in high imedence state
+    GPIO(PORT_SIG, OUT) |= PIN_SIG;        // output high
+    GPIO(PORT_SIG, DIR) |= PIN_SIG;        // output enable
+    GPIO(PORT_SIG, OUT) &= ~PIN_SIG;    // output low
+    GPIO(PORT_SIG, DIR) &= ~PIN_SIG;    // back to high impedence state
+}
+
+static void unmask_debugger_signal()
+{
+    GPIO(PORT_SIG, IE) |= PIN_SIG; // enable interrupt
+    GPIO(PORT_SIG, IES) &= ~PIN_SIG; // rising edge
+}
+
+static void mask_debugger_signal()
+{
+    GPIO(PORT_SIG, IE) &= ~PIN_SIG; // disable interrupt
+}
+
+static void enter_debug_mode()
+{
+    __enable_interrupt();
+
+    // save clock configuration
+    clkInfo.CSCTL0 = CSCTL0;
+    clkInfo.CSCTL1 = CSCTL1;
+    clkInfo.CSCTL2 = CSCTL2;
+    clkInfo.CSCTL3 = CSCTL3;
+    clkInfo.CSCTL4 = CSCTL4;
+    clkInfo.CSCTL5 = CSCTL5;
+    clkInfo.CSCTL6 = CSCTL6;
+
+    // set up 8 MHz clock for UART drivers
+    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
+    CSCTL1 = DCOFSEL_6;                       // Set DCO to 8MHz
+    CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
+                                              // ACLK = VLOCLK
+    CSCTL3 = DIVA__1 | DIVS__1 | DIVM__1;     // Set all dividers to 1
+    CSCTL0_H = 0;                             // Lock CS registers
+
+    UART_init(); // enable UART
+
+    set_state(STATE_DEBUG);
+    PLED1OUT |= PIN_LED1;
+}
+
+void exit_debug_mode()
+{
+    // disable UART
+    // Not sure how to do this best, but set all UCA0* registers to
+    // their default values.  See User's Guide for default values.
+    PUART_TXSEL0 &= ~PIN_UART_TX;
+    PUART_TXSEL1 &= ~PIN_UART_TX;
+    P2DIR &= ~PIN_UART_TX; // match pin initialization
+    P2OUT &= ~PIN_UART_TX;
+    PUART_RXSEL0 &= ~PIN_UART_RX;
+    PUART_RXSEL1 &= ~PIN_UART_RX;
+    P2DIR &= ~PIN_UART_RX; // match pin initialization
+    P2OUT &= ~PIN_UART_RX;
+    UCA0CTLW0 = 0x0001;
+    UCA0BR0 = 0x0000;
+    UCA0MCTLW = 0x0000;
+    UCA0IE = 0x0000;
+    UCA0IFG = 0x0000;
+
+    // restore clock configuration
+    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
+    CSCTL0 = clkInfo.CSCTL0;
+    CSCTL1 = clkInfo.CSCTL1;
+    CSCTL2 = clkInfo.CSCTL2;
+    CSCTL3 = clkInfo.CSCTL3;
+    CSCTL4 = clkInfo.CSCTL4;
+    CSCTL5 = clkInfo.CSCTL5;
+    CSCTL6 = clkInfo.CSCTL6;
+    CSCTL0_H = 0;                             // Lock CS registers
+
+    // set up to return from debug_main
+    debug_flags |= DEBUG_RETURN;
+}
+
+/**
+ * @brief	Parse and handle cmds that come from the debugger over UART
+ */
+static void parseAndExecute(uint8_t *msg, uint8_t len)
 {
 	static msgState_t state = MSG_STATE_IDENTIFIER;
 
@@ -98,7 +184,7 @@ void debug_parseAndExecute(uint8_t *msg, uint8_t len)
 				break;
 
 			case WISP_CMD_EXIT_ACTIVE_DEBUG:
-				debug_pre_exit();
+                exit_debug_mode();
 				return;
 
 			default:
@@ -114,41 +200,56 @@ void debug_parseAndExecute(uint8_t *msg, uint8_t len)
 	}
 }
 
-void debug_pre_exit()
+/**
+ * @brief    Debug mode main loop.  This executes when the WISP enters debug mode,
+ *             and should allow debugging functionality.
+ */
+static void debug_main()
 {
-	// raise AUX 2 to let the debugger know we're preparing to exit
-	P3OUT |= PIN_AUX2;
+    // expecting 2-byte messages from the debugger (identifier byte + descriptor byte)
+    uint8_t uartRxBuf[DEBUG_UART_BUF_LEN];
 
-	// disable UART
-	// Not sure how to do this best, but set all UCA0* registers to
-	// their default values.  See User's Guide for default values.
-	PUART_TXSEL0 &= ~PIN_UART_TX;
-	PUART_TXSEL1 &= ~PIN_UART_TX;
-	P2DIR &= ~PIN_UART_TX; // match pin initialization
-	P2OUT &= ~PIN_UART_TX;
-	PUART_RXSEL0 &= ~PIN_UART_RX;
-	PUART_RXSEL1 &= ~PIN_UART_RX;
-	P2DIR &= ~PIN_UART_RX; // match pin initialization
-	P2OUT &= ~PIN_UART_RX;
-	UCA0CTLW0 = 0x0001;
-	UCA0BR0 = 0x0000;
-	UCA0MCTLW = 0x0000;
-	UCA0IE = 0x0000;
-	UCA0IFG = 0x0000;
+    while(1) {
+        UART_receive(uartRxBuf, DEBUG_UART_BUF_LEN, 0xFF); // block until we receive a message
+        parseAndExecute(uartRxBuf, DEBUG_UART_BUF_LEN); // parse the message and perform actions
 
-	// restore clock configuration
-	CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-	CSCTL0 = clkInfo.CSCTL0;
-	CSCTL1 = clkInfo.CSCTL1;
-	CSCTL2 = clkInfo.CSCTL2;
-	CSCTL3 = clkInfo.CSCTL3;
-	CSCTL4 = clkInfo.CSCTL4;
-	CSCTL5 = clkInfo.CSCTL5;
-	CSCTL6 = clkInfo.CSCTL6;
-	CSCTL0_H = 0;                             // Lock CS registers
+        if(debug_flags & DEBUG_RETURN) {
+            debug_flags &= ~DEBUG_RETURN;
+            return;
+        }
+    }
+}
 
-	// set up to return from debug_main
-	debug_flags |= DEBUG_RETURN;
+static inline void handle_debugger_signal()
+{
+    switch (state) {
+        case STATE_IDLE: // debugger requested us to enter debug mode
+            enter_debug_mode();
+            signal_debugger();
+            debug_main();
+            // debug loop exited (due to UART cmd to exit debugger)
+            signal_debugger(); // tell debugger we have shutdown UART
+            unmask_debugger_signal();
+            set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
+            break;
+        case STATE_SUSPENDED: // debugger finished restoring the energy level
+            set_state(STATE_IDLE); // return to the application code
+            break;
+        default:
+            // received an unexpected signal from the debugger
+            break;
+    }
+}
+
+void debug_setup()
+{
+    // these pins report state of the debugger state machine on the target
+    GPIO(PORT_STATE, OUT) &= ~(PIN_STATE_0 | PIN_STATE_1); // output low
+    GPIO(PORT_STATE, DIR) |= PIN_STATE_0 | PIN_STATE_1; // output
+
+    GPIO(PORT_SIG, DIR) &= ~PIN_SIG; // input
+
+    unmask_debugger_signal();
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -173,44 +274,32 @@ void __attribute__ ((interrupt(PORT3_VECTOR))) Port_3(void)
 	case P3IV_P3IFG3:
 		break;
 	case P3IV_P3IFG4:
-		// AUX 1 interrupt -- active debug mode
-		if(P3IN & PIN_AUX1) {
-			// Enter active debug mode
 
-			// set up active debug mode exit interrupt
-			P3IES |= PIN_AUX1;	// switch to falling edge
+		// Clear the int flag, because during active debug mode, we are
+		// in the interrupt context (we return from interrupt on exit
+		// from the debug node) and we re-use the signal pin before exit.
+		GPIO(PORT_SIG, IFG) &= ~PIN_SIG;
 
-			// get stack pointer so we can easily access state information
-			wisp_sp = (uint16_t *) __get_SP_register();
+		// Save application stack pointer
+		// TODO: ideally this would be in enter_debug_mode, but then
+		// would need to subtract the extra call frames.
+		wisp_sp = (uint16_t *) __get_SP_register();
 
-			__enable_interrupt();
+		mask_debugger_signal();
 
-			debug_main(); // main debugging loop
+		handle_debugger_signal();
 
-			// When debug_main returns, we want to go to sleep and return to WISP actions
-			// when we wake up.
-
-			// pull AUX_2 low to indicate to the debugger
-			// that the WISP is ready to exit debug mode
-			P3OUT &= ~PIN_AUX2;	// output low
-			__bis_SR_register(LPM4_bits + GIE); // WISP will continue normal execution when it wakes
-			return; // PC will be restored on return from interrupt
-		} else {
-			// Exit active debug mode
-
-			// The exit from active debug mode is split into two parts:
-				//	1. Debugger sends UART message to WISP
-				//		- WISP raises GPIO AUX_2 while performing pre-exit tasks
-				//		- WISP performs pre-exit tasks (debug_pre_exit)
-				//		- WISP pulls AUX_2 low when ready to return, and sleeps
-				//	2. Debugger pulls AUX_1 low, which only wakes the WISP and returns from interrupt (here)
-
-			// set up interrupt for entering active debug mode again
-			P3IES &= ~PIN_AUX1; // switch to rising edge
-
-			__bic_SR_register_on_exit(LPM4_bits);
+		/* Power state manipulation is required to be inside the ISR */
+		switch (state) {
+			case STATE_SUSPENDED: /* DEBUG->SUSPENDED just happened */
+				__bis_SR_register(LPM4_bits + GIE); // go to sleep
+				break;
+			case STATE_IDLE: /* SUSPENDED->IDLE just happened */
+				__bic_SR_register_on_exit(LPM4_bits); // resume execution upon return from isr
+				break;
+			default: /* nothing to do */
+				break;
 		}
-
 		break;
 	case P3IV_P3IFG5:
 		break;
@@ -219,6 +308,4 @@ void __attribute__ ((interrupt(PORT3_VECTOR))) Port_3(void)
 	case P3IV_P3IFG7:
 		break;
 	}
-
-	P3IFG &= ~PIN_AUX1;
 }

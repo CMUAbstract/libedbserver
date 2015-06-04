@@ -42,58 +42,23 @@
 
 /** @} End WISP_MSG_DESCRIPTORS */
 
-/* Set up debug interrupt:
- * 	- AUX 1:
- *		- input direction
- *		- rising edge
- *		- enable interrupt
- *	- AUX 2:
- *		- output direction
- *		- output low
- *	- AUX 3:
- *		- output direction
- *		- output low
- */
-#define DEBUG_SETUP		P3DIR = P3DIR & ~PIN_AUX1 | PIN_AUX2; \
-						P3IES &= ~PIN_AUX1; \
-						P3IE |= PIN_AUX1; \
-						P3OUT &= ~PIN_AUX2; \
-						P1DIR |= PIN_AUX3; \
-						P1OUT &= ~PIN_AUX3
+#define PORT_STATE  P3
+#define PIN_STATE_0 BIT2
+#define PIN_STATE_1 BIT3
 
-typedef struct {
-	uint16_t CSCTL0;
-	uint16_t CSCTL1;
-	uint16_t CSCTL2;
-	uint16_t CSCTL3;
-	uint16_t CSCTL4;
-	uint16_t CSCTL5;
-	uint16_t CSCTL6;
-} clkInfo_t;
+#define PORT_SIG   P1
+#define PIN_SIG    BIT4
 
-typedef enum {
-	MSG_STATE_IDENTIFIER,	//!< UART identifier byte
-	MSG_STATE_DESCRIPTOR,	//!< UART descriptor byte
-	MSG_STATE_DATALEN,		//!< data length byte
-	MSG_STATE_DATA			//!< UART data
-} msgState_t;
+#define GPIO_INNER(port, reg) port ## reg
+#define GPIO(port, reg) GPIO_INNER(port, reg)
+
+// Ugly workaround to make the pretty GPIO macro work for OUT register
+// (a control bit for TAxCCTLx uses the name 'OUT')
+#undef OUT
 
 /**
- * @brief	Debug mode main loop.  This executes when the WISP enters debug mode,
- * 			and should allow debugging functionality.
+ * @brief	Initialize pins used by the debugger board
  */
-void debug_main();
-
-/**
- * @brief	Parse and execute a UART message.
- * @param	msg		UART message
- * @param	len		length of msg
- */
-void debug_parseAndExecute(uint8_t *msg, uint8_t len);
-
-/**
- * @brief	Prepare to exit debug mode.
- */
-void debug_pre_exit();
+void debug_setup();
 
 #endif

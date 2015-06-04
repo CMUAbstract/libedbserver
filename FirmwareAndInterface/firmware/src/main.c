@@ -55,6 +55,16 @@
 #define LOG_VINJ					0x10 //!< Logging Vinj
 /** @} End LOG_DEFINES */
 
+/**
+ * Debugger state machine states
+ */
+typedef enum {
+    STATE_IDLE = 0,
+    STATE_ENTERING,
+    STATE_DEBUG,
+    STATE_EXITING,
+} state_t;
+
 static adc12_t adc12;
 // indices in the adc12.config.channels and adc12.results arrays
 static int8_t vcap_index = -1;
@@ -66,9 +76,85 @@ static int8_t vinj_index = -1;
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
 static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
+static state_t state = STATE_IDLE;
+
 static uint16_t adc12Target; // target ADC reading
+static uint16_t saved_vcap; // energy level before entering active debug mode
 
 static uartPkt_t wispRxPkt = { .processed = 1 };
+
+static void set_state(state_t new_state)
+{
+    state = new_state;
+
+    // Encode state onto two indicator pins
+    GPIO(PORT_STATE, OUT) &= ~(PIN_STATE_0 | PIN_STATE_1);
+    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? PIN_STATE_0 : 0) |
+                             (new_state & 0x2 ? PIN_STATE_1 : 0);
+}
+
+void signal_target()
+{
+    // pulse the signal line
+
+    // target signal line starts in high imedence state
+    GPIO(PORT_SIG, OUT) |= PIN_SIG;		// output high
+    GPIO(PORT_SIG, DIR) |= PIN_SIG;		// output enable
+    GPIO(PORT_SIG, OUT) &= ~PIN_SIG;    // output low
+    GPIO(PORT_SIG, DIR) &= ~PIN_SIG;    // back to high impedence state
+}
+
+void unmask_target_signal()
+{
+    GPIO(PORT_SIG, IE) |= PIN_SIG;   // enable interrupt
+    GPIO(PORT_SIG, IES) &= ~PIN_SIG; // rising edge
+}
+
+void mask_target_signal()
+{
+    GPIO(PORT_SIG, IE) &= ~PIN_SIG; // disable interrupt
+}
+
+void handle_target_signal()
+{
+    switch (state) {
+        case STATE_ENTERING:
+            // WISP has entered debug main loop
+            set_state(STATE_DEBUG);
+            break;
+        case STATE_EXITING:
+            // WISP has shutdown UART and is asleep waiting for int to resume
+            GPIO(PORT_CHARGE, OUT) &= ~PIN_CHARGE; // cut the power supply
+            discharge_block(saved_vcap); // restore energy level
+            GPIO(PORT_LED, OUT) &= ~PIN_LED_RED;
+            set_state(STATE_IDLE);
+            break;
+        default:
+            // received an unexpected signal
+            break;
+    }
+}
+
+void enter_debug_mode()
+{
+    GPIO(PORT_LED, OUT) |= PIN_LED_RED;
+
+    set_state(STATE_ENTERING);
+
+    saved_vcap = adc12Read_block(ADC12INCH_VCAP); // read Vcap and set as the target for exit
+    signal_target();
+    unmask_target_signal();
+
+    // Start supplying full power to the target device
+    GPIO(PORT_CHARGE, OUT) |= PIN_CHARGE;
+}
+
+void exit_debug_mode()
+{
+    set_state(STATE_EXITING);
+    unmask_target_signal();
+    UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
+}
 
 int main(void)
 {
@@ -213,10 +299,20 @@ int main(void)
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
         if(count++ > 500000) {
-        	PLEDOUT ^= LED3;
+            GPIO(PORT_LED, OUT) ^= PIN_LED_GREEN;
         	count = 0;
         }
     }
+}
+
+/**
+ * @brief       Pulse a designated pin for triggering an oscilloscope
+ */
+static void trigger_scope()
+{
+    GPIO(PORT_TRIGGER, OUT) |= PIN_TRIGGER;
+    GPIO(PORT_TRIGGER, DIR) |= PIN_TRIGGER;
+    GPIO(PORT_TRIGGER, OUT) &= ~PIN_TRIGGER;
 }
 
 /**
@@ -270,51 +366,14 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     {
     	// todo: turn off all logging?
-
-        adc12Target = adc12Read_block(ADC12INCH_VCAP); // read Vcap and set as the target for exit
-
-        // report reading over USB
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                        (uint8_t *)(&adc12Target), sizeof(uint16_t),
-						UART_TX_FORCE);
-
-        // bring AUX1 high, interrupting the WISP to enter active debug mode
-    	PAUXSEL &= ~GPIO_AUX_1;		// GPIO option select
-        PAUXOUT |= GPIO_AUX_1;		// output high
-        PAUXDIR |= GPIO_AUX_1;		// output direction
-
-        PLEDOUT |= LED4;
-
-        P5SEL &= ~WISP_CHARGE; // option select for PWM charge line
-        P5OUT |= WISP_CHARGE; // output high for PWM charge line
+        enter_debug_mode();
         break;
     }
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
     {
-    	uint16_t pauxie = PAUXIE;
-    	PAUXIE &= ~GPIO_AUX_2; // we need to use AUX 2 to exit debug mode, so disable interrupt
-
-    	// let the WISP know so that it can perform pre-exit tasks
-    	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
-
-    	while(!(PAUXIN & GPIO_AUX_2)); // WISP should raise AUX 2 while performing
-    								   // pre-exit tasks, so wait for this
-
-    	// Wait for WISP to indicate that it's ready to exit debug mode
-		while(PAUXIN & GPIO_AUX_2); // WISP will pull AUX 2 low when ready
-
-		// Now we need to wait for the WISP cap's voltage to drop below the target,
-		// and start PWM until we get there.
-		PWM_stop();
-		while(adc12Read_block(ADC12INCH_VCAP) > adc12Target); // wait for the voltage to drop
-		setWispVoltage_block(ADC12INCH_VCAP, &vcap_index, adc12Target); // set the voltage
-		PAUXOUT &= ~GPIO_AUX_1; // signal to the WISP that we're exiting active debug mode
-		PWM_stop();
-		PAUXIE = pauxie; // restore interrupt enable register
-
-		PLEDOUT &= ~LED4;
-    	break;
+        exit_debug_mode();
+        break;
     }
 
     case USB_CMD_GET_WISP_PC:
@@ -441,29 +500,19 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	break;
 
     case USB_CMD_CHARGE:
-        // pulse a gpio pin to use as  scope trigger
-        P1DIR |= GPIO_AUX_3;
-        P1OUT |= GPIO_AUX_3;
-        P1OUT &= ~GPIO_AUX_3;
-
+        trigger_scope();
         adc12Target = *((uint16_t *)(&pkt->data[0]));
         charge_block(adc12Target);
         break;
 
     case USB_CMD_DISCHARGE:
-        // pulse a gpio pin to use as  scope trigger
-        P1DIR |= GPIO_AUX_3;
-        P1OUT |= GPIO_AUX_3;
-        P1OUT &= ~GPIO_AUX_3;
-
+        trigger_scope();
         adc12Target = *((uint16_t *)(pkt->data));
         discharge_block(adc12Target);
         break;
 
-    case USB_CMD_PULSE_AUX_3:
-        P1DIR |= GPIO_AUX_3;
-        P1OUT |= GPIO_AUX_3;
-        P1OUT &= ~GPIO_AUX_3;
+    case USB_CMD_TRIGGER_SCOPE:
+        trigger_scope();
         break;
 
     case USB_CMD_RELEASE_POWER:
@@ -500,7 +549,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_PWM_HIGH:
     	PWM_stop();
-    	P5OUT |= WISP_CHARGE; // output high
+        GPIO(PORT_CHARGE, OUT) |= PIN_CHARGE; // output high
     	break;
 
     // USB_CMD_PWM_LOW and USB_CMD_PWM_OFF do the same thing
@@ -613,16 +662,16 @@ static void charge_block(uint16_t target)
     addAdcChannel(chan, &chan_index);
     restartAdc();
 
-    /* Output Vcc level to Vcap (through R1) */
+    // Output Vcc level to Vcap (through R1) */
 
-    /* Configure the pin */
-    P5DS |= WISP_CHARGE; /* full drive strength (note that R1 is the bottleneck for current) */
-    P5SEL &= ~WISP_CHARGE; /* I/O function */
-    P5DIR |= WISP_CHARGE; /* I/O function output */
+    // Configure the pin
+    GPIO(PORT_CHARGE, DS) |= PIN_CHARGE; // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~PIN_CHARGE; // I/O function
+    GPIO(PORT_CHARGE, DIR) |= PIN_CHARGE; // I/O function output
 
-    P5OUT |= WISP_CHARGE;
+    GPIO(PORT_CHARGE, OUT) |= PIN_CHARGE; // turn on the power supply
 
-    /* Wait for the cap to charge to that voltage */
+    // Wait for the cap to charge to that voltage
 
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
@@ -630,7 +679,7 @@ static void charge_block(uint16_t target)
         cur_voltage = adc12Read_block(chan);
     } while (cur_voltage < target);
 
-    P5OUT &= ~(WISP_CHARGE);
+    GPIO(PORT_CHARGE, OUT) &= ~PIN_CHARGE; // cut the power supply
 
     removeAdcChannel(&chan_index);
 }
@@ -644,7 +693,7 @@ static void discharge_block(uint16_t target)
     addAdcChannel(chan, &chan_index);
     restartAdc();
 
-    PDISCHGDIR |= GPIO_DISCHARGE;
+    GPIO(PORT_DISCHARGE, DIR) |= PIN_DISCHARGE; // open the discharge "valve"
 
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
@@ -652,7 +701,7 @@ static void discharge_block(uint16_t target)
         cur_voltage = adc12Read_block(chan);
     } while (cur_voltage > target);
 
-    PDISCHGDIR &= ~GPIO_DISCHARGE;
+    GPIO(PORT_DISCHARGE, DIR) &= ~PIN_DISCHARGE; // close the discharge "valve"
 
     removeAdcChannel(&chan_index);
 }

@@ -9,14 +9,17 @@
 #include <stdint.h>
 #include "monitor.h"
 #include "gpio.h"
+#include "main.h"
 
 #include "timeLog.h"
 #include "rfid.h"
 
 void pin_init()
 {
+    // TODO: init by signal names instead of by ports
+
     P1SEL = 0x00;                           // I/O function
-    P1DIR = GPIO_AUX_1 | BIT7;              // output direction
+    P1DIR = BIT7;                           // output direction
     P1OUT = 0x00;                           // output low or pulldown enabled
 
     P2SEL = 0x00;                           // I/O function
@@ -40,7 +43,7 @@ void pin_init()
     P6DIR = BIT0 | BIT6 | BIT7;             // output direction for P6.0,P6.6, P6.7
     P6OUT = 0x00;                           // output low
 
-    PJDIR = ~(GPIO_DISCHARGE | GPIO_LS_ENABLE);  // input for these pins
+    PJDIR = ~(PIN_DISCHARGE | PIN_LS_ENABLE);  // input for these pins
     PJOUT = 0x00;                           // output low
 }
 
@@ -72,8 +75,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	case IFG_AUX_2:
 		P1IFG &= ~GPIO_AUX_2;
 		break;
-	case IFG_AUX_1:
-		P1IFG &= ~GPIO_AUX_1;
+	case IFG_SIG:
+		mask_target_signal();
+		handle_target_signal();
+		GPIO(PORT_SIG, IFG) &= ~PIN_SIG;
 		break;
 	case IFG_VBOOST_BUF:
 		P1IFG &= ~GPIO_VBOOST;
