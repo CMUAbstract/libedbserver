@@ -146,18 +146,18 @@ void exit_debug_mode()
  */
 static void parseAndExecute(uint8_t *msg, uint8_t len)
 {
-	static msgState_t state = MSG_STATE_IDENTIFIER;
+	static msgState_t msg_state = MSG_STATE_IDENTIFIER;
 
 	uint8_t i;
 	for(i = 0; i < len; i++) {
-		switch(state)
+		switch(msg_state)
 		{
 		case MSG_STATE_IDENTIFIER:
 		{
 			uint8_t identifier = msg[i];
 			if(identifier == UART_IDENTIFIER_WISP) {
 				// good identifier byte
-				state = MSG_STATE_DESCRIPTOR;
+				msg_state = MSG_STATE_DESCRIPTOR;
 			}
 
 			// else we had a bad identifier byte, so don't change the state
@@ -180,7 +180,7 @@ static void parseAndExecute(uint8_t *msg, uint8_t len)
 				UART_send(txBuf, 6); // For some reason, UART_send seems to send size - 1 bytes.
 									 // This message is only 5 bytes long.
 
-				state = MSG_STATE_IDENTIFIER;
+				msg_state = MSG_STATE_IDENTIFIER;
 				break;
 			}
 
