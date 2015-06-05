@@ -151,6 +151,7 @@ static void handle_target_signal()
             // WISP has shutdown UART and is asleep waiting for int to resume
             continuous_power_off();
             discharge_block(saved_vcap); // restore energy level
+            signal_target();
             GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
             set_state(STATE_IDLE);
             break;
