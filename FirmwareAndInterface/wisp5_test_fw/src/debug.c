@@ -45,6 +45,9 @@ static clkInfo_t clkInfo;
 
 static uint16_t *wisp_sp; // stack pointer on debug entry
 
+// expecting 2-byte messages from the debugger (identifier byte + descriptor byte)
+static uint8_t uartRxBuf[DEBUG_UART_BUF_LEN];
+
 static void set_state(state_t new_state)
 {
     state = new_state;
@@ -211,8 +214,6 @@ static void parseAndExecute(uint8_t *msg, uint8_t len)
  */
 static void debug_main()
 {
-    // expecting 2-byte messages from the debugger (identifier byte + descriptor byte)
-    uint8_t uartRxBuf[DEBUG_UART_BUF_LEN];
 
     while(1) {
         UART_receive(uartRxBuf, DEBUG_UART_BUF_LEN, 0xFF); // block until we receive a message
