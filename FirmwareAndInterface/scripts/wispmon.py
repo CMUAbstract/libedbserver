@@ -218,9 +218,11 @@ class WispMonitor:
 
     def enter_debug_mode(self):
         self.sendCmd(USB_CMD_ENTER_ACTIVE_DEBUG)
+        return self.receive_vcap_reply()
 
     def exit_debug_mode(self):
         self.sendCmd(USB_CMD_EXIT_ACTIVE_DEBUG)
+        return self.receive_vcap_reply()
 
 class RxPkt():
     def __init__(self):

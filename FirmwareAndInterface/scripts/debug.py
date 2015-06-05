@@ -20,11 +20,13 @@ def main():
         # WISP Boot latency (TODO: why is it taking this long?)
         time.sleep(0.004)
 
-    mon.enter_debug_mode()
-
+    saved_vcap = mon.enter_debug_mode()
+    print "Entered debug mode: saved Vcap = %.4f V" % saved_vcap
     time.sleep(0.010)
+    restored_vcap = mon.exit_debug_mode()
+    print "Exited debug mode: restored Vcap = %.4f V" % restored_vcap
 
-    mon.exit_debug_mode()
+
 
     mon.destroy()
 

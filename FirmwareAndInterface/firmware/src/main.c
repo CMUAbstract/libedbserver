@@ -135,23 +135,33 @@ static void continuous_power_off()
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);
 }
 
+static void send_vcap(uint16_t vcap)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
+                 (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
+}
+
 /**
  * @brief	Handle an interrupt from the target device
  */
 static void handle_target_signal()
 {
+    uint16_t restored_vcap;
+
     switch (state) {
         case STATE_ENTERING:
             // WISP has entered debug main loop
             set_state(STATE_DEBUG);
             GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
             continuous_power_on();
+            send_vcap(saved_vcap); // do it here: reply marks completion
             break;
         case STATE_EXITING:
             // WISP has shutdown UART and is asleep waiting for int to resume
             continuous_power_off();
-            discharge_block(saved_vcap); // restore energy level
+            restored_vcap = discharge_block(saved_vcap); // restore energy level
             signal_target();
+            send_vcap(restored_vcap);
             GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
             set_state(STATE_IDLE);
             break;
@@ -361,12 +371,6 @@ static void trigger_scope()
     GPIO(PORT_TRIGGER, OUT) |= BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
-}
-
-static void send_vcap(uint16_t vcap)
-{
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                 (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
 }
 
 /**
