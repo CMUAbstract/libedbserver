@@ -14,7 +14,8 @@
 #define DEBUG_RETURN			0x0001 // signals debug main loop to stop
 
 typedef enum {
-    STATE_IDLE = 0,
+    STATE_OFF = 0,
+    STATE_IDLE,
     STATE_DEBUG,
     STATE_SUSPENDED,
 } state_t;
@@ -36,7 +37,7 @@ typedef enum {
 	MSG_STATE_DATA			//!< UART data
 } msgState_t;
 
-static state_t state = STATE_IDLE;
+static state_t state = STATE_OFF;
 
 static uint16_t debug_flags = 0;
 
