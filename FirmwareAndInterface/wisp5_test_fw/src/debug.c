@@ -85,14 +85,13 @@ static void enter_debug_mode()
 {
     __enable_interrupt();
 
+#if 0 // TODO: save
     // save clock configuration
     clkInfo.CSCTL0 = CSCTL0;
     clkInfo.CSCTL1 = CSCTL1;
     clkInfo.CSCTL2 = CSCTL2;
     clkInfo.CSCTL3 = CSCTL3;
-    clkInfo.CSCTL4 = CSCTL4;
-    clkInfo.CSCTL5 = CSCTL5;
-    clkInfo.CSCTL6 = CSCTL6;
+#endif
 
     // set up 8 MHz clock for UART drivers
     CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
@@ -129,13 +128,16 @@ void exit_debug_mode()
 
     // restore clock configuration
     CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
+#if 0 // TODO: restore (this causes reset, probably need to do bit by bit)
     CSCTL0 = clkInfo.CSCTL0;
     CSCTL1 = clkInfo.CSCTL1;
     CSCTL2 = clkInfo.CSCTL2;
     CSCTL3 = clkInfo.CSCTL3;
-    CSCTL4 = clkInfo.CSCTL4;
-    CSCTL5 = clkInfo.CSCTL5;
-    CSCTL6 = clkInfo.CSCTL6;
+#else
+    CSCTL1 = DCOFSEL0 + DCOFSEL1; //4MHz
+    CSCTL2 = SELA_0 + SELS_3 + SELM_3;
+    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;
+#endif
     CSCTL0_H = 0;                             // Lock CS registers
 
     // set up to return from debug_main
