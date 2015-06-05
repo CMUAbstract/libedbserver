@@ -63,6 +63,7 @@ static void signal_debugger()
     GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);        // output enable
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
 }
 
 static void unmask_debugger_signal()
@@ -251,64 +252,51 @@ void debug_setup()
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1); // output
 
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
 
     unmask_debugger_signal();
+
+    set_state(STATE_IDLE);
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=PORT3_VECTOR
-__interrupt void Port_3(void)
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(PORT3_VECTOR))) Port_3(void)
+void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
 #else
 #error Compiler not supported!
 #endif
 {
-	switch(__even_in_range(P3IV, P3IV_P3IFG7))
+	switch(__even_in_range(P1IV, P1IV_P1IFG7))
 	{
-	case P3IV_NONE:
-		break;
-	case P3IV_P3IFG0:
-		break;
-	case P3IV_P3IFG1:
-		break;
-	case P3IV_P3IFG2:
-		break;
-	case P3IV_P3IFG3:
-		break;
-	case P3IV_P3IFG4:
+        case INTFLAG(PORT_SIG, PIN_SIG):
 
-		// Clear the int flag, because during active debug mode, we are
-		// in the interrupt context (we return from interrupt on exit
-		// from the debug node) and we re-use the signal pin before exit.
-		GPIO(PORT_SIG, IFG) &= ~PIN_SIG;
+            // Clear the int flag, because during active debug mode, we are
+            // in the interrupt context (we return from interrupt on exit
+            // from the debug node) and we re-use the signal pin before exit.
+            GPIO(PORT_SIG, IFG) &= ~PIN_SIG;
 
-		// Save application stack pointer
-		// TODO: ideally this would be in enter_debug_mode, but then
-		// would need to subtract the extra call frames.
-		wisp_sp = (uint16_t *) __get_SP_register();
+            // Save application stack pointer
+            // TODO: ideally this would be in enter_debug_mode, but then
+            // would need to subtract the extra call frames.
+            wisp_sp = (uint16_t *) __get_SP_register();
 
-		mask_debugger_signal();
+            mask_debugger_signal();
 
-		handle_debugger_signal();
+            handle_debugger_signal();
 
-		/* Power state manipulation is required to be inside the ISR */
-		switch (state) {
-			case STATE_SUSPENDED: /* DEBUG->SUSPENDED just happened */
-				__bis_SR_register(LPM4_bits + GIE); // go to sleep
-				break;
-			case STATE_IDLE: /* SUSPENDED->IDLE just happened */
-				__bic_SR_register_on_exit(LPM4_bits); // resume execution upon return from isr
-				break;
-			default: /* nothing to do */
-				break;
-		}
-		break;
-	case P3IV_P3IFG5:
-		break;
-	case P3IV_P3IFG6:
-		break;
-	case P3IV_P3IFG7:
-		break;
+            /* Power state manipulation is required to be inside the ISR */
+            switch (state) {
+                case STATE_SUSPENDED: /* DEBUG->SUSPENDED just happened */
+                    __bis_SR_register(LPM4_bits + GIE); // go to sleep
+                    break;
+                case STATE_IDLE: /* SUSPENDED->IDLE just happened */
+                    __bic_SR_register_on_exit(LPM4_bits); // resume execution upon return from isr
+                    break;
+                default: /* nothing to do */
+                    break;
+            }
+            break;
 	}
 }
