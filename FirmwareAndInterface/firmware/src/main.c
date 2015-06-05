@@ -125,6 +125,16 @@ static void mask_target_signal()
     GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
 
+static void continuous_power_on()
+{
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE);
+}
+
+static void continuous_power_off()
+{
+    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);
+}
+
 /**
  * @brief	Handle an interrupt from the target device
  */
@@ -135,11 +145,13 @@ static void handle_target_signal()
             // WISP has entered debug main loop
             set_state(STATE_DEBUG);
             GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+            continuous_power_on();
             break;
         case STATE_EXITING:
             // WISP has shutdown UART and is asleep waiting for int to resume
-            GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
+            continuous_power_off();
             discharge_block(saved_vcap); // restore energy level
+            continuous_power_off();
             GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
             set_state(STATE_IDLE);
             break;
@@ -156,9 +168,6 @@ static void enter_debug_mode()
     saved_vcap = adc12Read_block(ADC12INCH_VCAP); // read Vcap and set as the target for exit
     signal_target();
     unmask_target_signal();
-
-    // Start supplying full power to the target device
-    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE);
 }
 
 static void exit_debug_mode()
@@ -170,6 +179,8 @@ static void exit_debug_mode()
 
 static void reset_state()
 {
+    continuous_power_off();
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
     set_state(STATE_IDLE);
     mask_target_signal();
 }
