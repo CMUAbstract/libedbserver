@@ -13,6 +13,8 @@
 
 #define DEBUG_RETURN			0x0001 // signals debug main loop to stop
 
+// #define LED_IN_DEBUG_STATE
+
 typedef enum {
     STATE_OFF = 0,
     STATE_IDLE,
@@ -104,7 +106,6 @@ static void enter_debug_mode()
     UART_init(); // enable UART
 
     set_state(STATE_DEBUG);
-    PLED2OUT |= PIN_LED2;
 }
 
 void exit_debug_mode()
@@ -142,8 +143,6 @@ void exit_debug_mode()
 
     // set up to return from debug_main
     debug_flags |= DEBUG_RETURN;
-
-    PLED2OUT &= ~PIN_LED2;
 }
 
 /**
@@ -216,6 +215,9 @@ static void parseAndExecute(uint8_t *msg, uint8_t len)
  */
 static void debug_main()
 {
+#ifdef LED_IN_DEBUG_STATE
+    PLED2OUT |= PIN_LED2;
+#endif
 
     while(1) {
         UART_receive(uartRxBuf, DEBUG_UART_BUF_LEN, 0xFF); // block until we receive a message
@@ -223,9 +225,13 @@ static void debug_main()
 
         if(debug_flags & DEBUG_RETURN) {
             debug_flags &= ~DEBUG_RETURN;
-            return;
+            break;
         }
     }
+
+#ifdef LED_IN_DEBUG_STATE
+    PLED2OUT &= ~PIN_LED2;
+#endif
 }
 
 static inline void handle_debugger_signal()
