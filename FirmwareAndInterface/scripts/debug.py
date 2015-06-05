@@ -26,7 +26,15 @@ def main():
     restored_vcap = mon.exit_debug_mode()
     print "Exited debug mode: restored Vcap = %.4f V" % restored_vcap
 
+    # This can't be much longer than ~5ms if the LED on the WISP is on in debug
+    # mode because the WISP discharges quickly in that case
+    time.sleep(0.005)
 
+    saved_vcap = mon.enter_debug_mode()
+    print "Entered debug mode: saved Vcap = %.4f V" % saved_vcap
+    time.sleep(0.010)
+    restored_vcap = mon.exit_debug_mode()
+    print "Exited debug mode: restored Vcap = %.4f V" % restored_vcap
 
     mon.destroy()
 
