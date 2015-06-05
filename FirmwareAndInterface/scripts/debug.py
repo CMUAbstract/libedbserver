@@ -22,9 +22,9 @@ def main():
 
     mon.enter_debug_mode()
 
-    #time.sleep(0.100)
+    time.sleep(0.010)
 
-    #mon.exit_debug_mode()
+    mon.exit_debug_mode()
 
     mon.destroy()
 
