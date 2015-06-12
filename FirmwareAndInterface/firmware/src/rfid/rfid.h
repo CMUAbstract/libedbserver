@@ -11,6 +11,10 @@
 
 #include <stdint.h>
 
+#include <msp430.h>
+
+#include "pin_assign.h"
+
 // from wisp-base project -- globals.h
 // ====================================================
 #define TRUE                                1

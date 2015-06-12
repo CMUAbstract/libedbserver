@@ -9,7 +9,7 @@
 #include <msp430.h>
 #include "adc12.h"
 #include "timeLog.h"
-#include "monitor.h"
+#include "pin_assign.h"
 
 static adc12_t *_pAdc12;
 
@@ -17,8 +17,6 @@ void ADC12_configure(adc12_t *adc12)
 {
     _pAdc12 = adc12;
 
-    P6SEL = 0x00;
-    
     ADC12CTL0 &= ~ADC12ENC; // disable conversion so we can set control bits
     uint8_t num_channels = _pAdc12->config.num_channels;
     if(num_channels == 1) {
@@ -60,19 +58,19 @@ static void ADC12_pinSelect(uint16_t channel)
     switch(channel)
     {
     case ADC12INCH_VCAP:
-        P6SEL |= ADC12_VCAP;
+        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VCAP);
         break;
     case ADC12INCH_VBOOST:
-        P6SEL |= ADC12_VBOOST;
+        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VBOOST);
         break;
     case ADC12INCH_VREG:
-        P6SEL |= ADC12_VREG;
+        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VREG);
         break;
     case ADC12INCH_VRECT:
-        P6SEL |= ADC12_VRECT;
+        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VRECT);
         break;
     case ADC12INCH_VINJ:
-        P6SEL |= ADC12_VINJ;
+        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VINJ);
         break;
     default:
         break;

@@ -8,6 +8,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+#include "uart.h"
+
 /**
  * @brief   Execute a command received over USB
  * @param   pkt     UART packet containing message information
@@ -47,14 +49,16 @@ static uint16_t adc12Read_block(uint16_t channel);
 /**
  * @brief	Charge WISP capacitor to the specified voltage level
  * @param	target			Target voltage level to charge to (in ADC units)
+ * @return  final actual measured voltage level (ADC units)
  */
-static void charge_block(uint16_t target);
+static uint16_t charge_block(uint16_t target);
 
 /**
  * @brief	Discharge WISP capacitor to the specified voltage level
- * @param	target			Target voltage level to discharge to
+ * @param	target			Target voltage level to discharge to (in ADC units)
+ * @return  final actual measured voltage level (ADC units)
  */
-static void discharge_block(uint16_t target);
+static uint16_t discharge_block(uint16_t target);
 
 /**
  * @brief	Block until setting the voltage read at channel to the ADC reading target.

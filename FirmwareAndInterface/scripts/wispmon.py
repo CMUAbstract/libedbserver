@@ -4,7 +4,7 @@ import serial
 import math
 from binascii import hexlify
 
-SERIAL_PORT                         = 'COM17'
+SERIAL_PORT                         = '/dev/ttyUSB0'
 BAUD_RATE                           = 921600
 
 UART_USB_IDENTIFIER                 = 0xF0
@@ -50,7 +50,7 @@ USB_CMD_PWM_HIGH                     = 0x24
 USB_CMD_PWM_LOW                      = 0x25
 USB_CMD_MONITOR_MARKER_BEGIN         = 0x26
 USB_CMD_MONITOR_MARKER_END           = 0x27
-USB_CMD_PULSE_AUX_3                  = 0x28
+USB_CMD_RESET_STATE                  = 0x28
 USB_CMD_CHARGE                       = 0x29
 USB_CMD_DISCHARGE                    = 0x30
 
@@ -93,8 +93,10 @@ class WispMonitor:
         self.serial.close()
     
     def buildRxPkt(self, buf):
+        """Parses packet header and returns whether it is ready or not"""
+
         if(not self.rxPkt.processed):
-            return 1
+            return Exception("current packet has not been processed")
         
         minBufLen = len(buf)
         while minBufLen > 0:
@@ -105,7 +107,7 @@ class WispMonitor:
                     # unknown identifier - reset state
                     self.rxPkt.processed = True
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 1 # packet construction failed
+                    raise Exception("packet construction failed: unknown identifier")
                 minBufLen -= 1
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
@@ -117,7 +119,7 @@ class WispMonitor:
                     # no additional data is needed
                     self.rxPkt.processed = False
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 0 # packet construction succeeded
+                    return True # packet construction succeeded
                 elif(self.rxPkt.descriptor in (USB_RSP_VCAP, USB_RSP_VBOOST,
                                 USB_RSP_VREG, USB_RSP_VRECT,
                                 USB_RSP_WISP_PC, USB_RSP_WISP_MEMORY,
@@ -131,7 +133,7 @@ class WispMonitor:
                     # unknown message descriptor
                     self.rxPkt.processed = True
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 1 # packet construction failed
+                    raise Exception("packet construction failed: unknown msg descriptor")
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA_LEN):
                 self.rxPkt.length = buf.pop(0) # get data length
                 minBufLen -= 1
@@ -144,17 +146,17 @@ class WispMonitor:
                     del buf[:self.rxPkt.length]
                     self.rxPkt.processed = False
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return 0 # packet construction succeeded
+                    return True # packet construction succeeded
                 else:
-                    return 2 # not enough data
+                    return False # not enough data
             else:
                 # unknown state - reset packet construction state
                 self.rxPkt.processed = True
                 self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                return 1 # packet construction failed
+                raise Exception("packet construction failed")
         
         # ran out of data
-        return 2 # packet construction will resume next time this function is called
+        return False # packet construction will resume next time this function is called
     
     # Note that when sending data, the byte order is reversed.
     # Example: to send a command to set Vcap to 2.2 V, do the following.
@@ -173,24 +175,54 @@ class WispMonitor:
         
         self.serial.write(serialMsg)
 
+    def receive(self):
+        buf = bytearray()
+        while not self.buildRxPkt(buf):
+            bufLen = self.serial.inWaiting() # get the number of bytes available
+            if(bufLen > 0):
+                newBytes = bytearray(self.serial.read(bufLen))
+                buf.extend(newBytes)
+        return self.rxPkt
+
     def uint16_to_bytes(self, val):
         return [val & 0xFF, (val>> 8) & 0xFF]
+
+    def bytes_to_uint16(self, bytes):
+        return (bytes[1] << 8) | bytes[0]
 
     def voltage_to_adc(self, voltage):
         return int(math.ceil(voltage * 4096 / self.VDD))
 
+    def adc_to_voltage(self, value):
+        return float(value) / 4096 * self.VDD
+
+    def receive_vcap_reply(self):
+        reply = self.receive()
+        if reply.descriptor != USB_RSP_VCAP:
+            raise Exception("invalid reply to charge cmd: " + str(reply.descriptor))
+        vcap = self.adc_to_voltage(self.bytes_to_uint16(reply.data))
+        reply.processed = True
+        return vcap
+
     def charge(self, target_voltage):
-
-        target_voltage += 0.030 # calibration (TODO: try to find the underlying reason)
-
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
         self.sendCmd(USB_CMD_CHARGE, data=cmd_data)
+        return self.receive_vcap_reply()
 
     def discharge(self, target_voltage):
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
         self.sendCmd(USB_CMD_DISCHARGE, data=cmd_data)
+        return self.receive_vcap_reply()
+
+    def enter_debug_mode(self):
+        self.sendCmd(USB_CMD_ENTER_ACTIVE_DEBUG)
+        return self.receive_vcap_reply()
+
+    def exit_debug_mode(self):
+        self.sendCmd(USB_CMD_EXIT_ACTIVE_DEBUG)
+        return self.receive_vcap_reply()
 
 class RxPkt():
     def __init__(self):
@@ -208,4 +240,4 @@ class RxPkt():
         print "\tdescriptor = 0x%02x" % self.descriptor
         print "\tlength = %d" % self.length
         print "\tdata = 0x%s" % hexlify(self.data)
-        
+

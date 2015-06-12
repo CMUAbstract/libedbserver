@@ -11,7 +11,9 @@ def main():
         target_voltage = float(sys.argv[1])
 
     print "Discharging to %.4f V" % (target_voltage)
-    mon.discharge(target_voltage)
+    actual_voltage = mon.discharge(target_voltage)
+    print "Discharged to %.4f V" % (actual_voltage)
+
     mon.destroy()
 
 if __name__ == '__main__':

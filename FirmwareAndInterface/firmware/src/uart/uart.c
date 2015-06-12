@@ -8,7 +8,8 @@
 #include <stdint.h>
 #include <msp430.h>
 #include "uart.h"
-#include "monitor.h"
+#include "minmax.h"
+#include "pin_assign.h"
 
 static uint16_t *pUSBFlags;
 static uint16_t *pWISPFlags;
@@ -32,7 +33,9 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         USBRxFlag = rxFlag;
         USBTxFlag = txFlag;
 
-        P3SEL |= UART_USB_TX + UART_USB_RX;     // USCI_A0 option select
+        // USCI_A0 option select
+        GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
+
         UCA0CTL1 |= UCSWRST;                    // put state machine in reset
         UCA0CTL1 |= UCSSEL__SMCLK;              // use SMCLK
         UCA0BR0 = 23;                           // baud rate 921600
@@ -47,7 +50,9 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         WISPRxFlag = rxFlag;
         WISPTxFlag = txFlag;
 
-        P4SEL |= UART_WISP_TX + UART_WISP_RX;   // USCI_A1 option select
+        // USCI_A1 option select
+        GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
+
         UCA1CTL1 |= UCSWRST;                    // put state machine in reset
         UCA1CTL1 |= UCSSEL__SMCLK;              // use SMCLK
         UCA1BR0 = 235;                         	// baud rate 9600
@@ -226,7 +231,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_PWM_LOW:
 				case USB_CMD_MONITOR_MARKER_BEGIN:
 				case USB_CMD_MONITOR_MARKER_END:
-				case USB_CMD_PULSE_AUX_3:
+				case USB_CMD_RESET_STATE:
 					// no additional data is needed
 					// mark this packet as unprocessed
 					pkt->processed = 0;

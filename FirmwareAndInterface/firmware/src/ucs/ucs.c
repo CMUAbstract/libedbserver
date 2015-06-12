@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include <msp430.h>
-#include "monitor.h"
 #include "ucs.h"
 
 void UCS_setup()

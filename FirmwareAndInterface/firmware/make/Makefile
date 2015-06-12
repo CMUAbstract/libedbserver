@@ -78,7 +78,6 @@ C_SRCS = \
 	timers/timeLog.c \
 	timers/timer1.c \
 	rfid/rfid.c \
-	gpio/gpio.c \
 	adc12/adc12.c \
 	marker.c \
 

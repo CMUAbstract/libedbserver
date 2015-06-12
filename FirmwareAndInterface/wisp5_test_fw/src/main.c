@@ -59,6 +59,7 @@ void my_blockWriteCallback  (void) {
 void main(void) {
 
   WISP_init();
+  debug_setup();
   
   // Register callback functions with WISP comm routines
   WISP_registerCallback_ACK(&my_ackCallback);
@@ -87,8 +88,6 @@ void main(void) {
   wispData.epcBuf[10]= 0xAA;
   wispData.epcBuf[11]= 0xBB;
   
-  DEBUG_SETUP;
-
   // Talk to the RFID reader.
   while (FOREVER) {
     WISP_doRFID();
