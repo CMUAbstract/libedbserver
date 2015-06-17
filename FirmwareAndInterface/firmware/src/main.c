@@ -312,10 +312,6 @@ int main(void)
                 }
 
                 ADC12_START;
-                ADC12_START; // I don't know why, but for some reason this seems to
-                			 // only work if the ADC12SC bit is set twice.  I hope
-                			 // this doesn't indicate that something is horribly,
-                			 // horribly wrong.
             }
         }
 
