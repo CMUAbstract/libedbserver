@@ -12,7 +12,7 @@
 import wispmon
 import atexit
 
-SAMPLE_TIME                     = 2.0 # seconds
+SAMPLE_TIME                     = 60.0 # seconds
 
 HEX_FILE                        = 'data/v.dat' # data file used for plotting with matlab
 

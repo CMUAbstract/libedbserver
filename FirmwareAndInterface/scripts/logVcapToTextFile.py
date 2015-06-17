@@ -11,7 +11,7 @@ import wispmon
 import atexit
 
 
-SAMPLE_TIME                 = 1.0 # s
+SAMPLE_TIME                 = 60.0 # s
 
 LOG_FILE                    = 'data/vcap.csv'
 
