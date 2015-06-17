@@ -6,7 +6,65 @@
  ******************************************************************************/
 
 #include <msp430.h>
+#include "pin_assign.h"
 #include "ucs.h"
+
+//#define CONFIG_CLOCK_SOURCE_INTERNAL // 21.921792 Mhz DCO referenced to internal REFO
+#define CONFIG_CLOCK_SOURCE_CRYSTAL // 25 Mhz XT2 crystal
+
+// #define CLOCK_TEST_MODE
+
+#ifdef CLOCK_TEST_MODE
+// For debugging clock configurations
+static void blink_loop() {
+    unsigned i = 0;
+
+    while (1) {
+        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+        for (i = 0; i < 100; ++i)
+            __delay_cycles(100000);
+    }
+}
+#endif
+
+#ifdef CONFIG_CLOCK_SOURCE_CRYSTAL
+static void setClockSource()
+{
+    // In pin setup (main.c): P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
+
+    // The MCU starts in a fault condition, because ACLK is set to XT1 LF but
+    // XT1 LF takes time to initialize. Its init begins when XT1 pin function
+    // is selected. The fault flag for this clock source (and for DCO which
+    // depends on it) and the "wildcard" osc fault flag OFIFG are set
+    // and cannot be cleared until the init is complete (they bounce back on
+    // if cleared before the init is completed).
+
+    // wait for default clock source to init and clear the fault flags
+    while (UCSCTL7 & XT1LFOFFG || UCSCTL7 & DCOFFG)
+        UCSCTL7 &= ~(XT1LFOFFG | DCOFFG);
+    SFRIFG1 &= ~OFIFG; // clear wildcard fault flag (strangely, does not work without this)
+
+    // At this point we are running in the default config:
+    //      ACLK = XT1LFCLK (32.768 kHz); MCLK,SMCLK = DCOCLKDIV (1.048567 MHz)
+
+    // switch all clocks to XT2 (25 MHz) and clear fault flags
+    UCSCTL4 |= SELA__XT2CLK | SELA__XT2CLK | SELM__XT2CLK | SELS__XT2CLK;
+    while (UCSCTL7 & XT2OFFG)
+        UCSCTL7 &= ~XT2OFFG;
+    SFRIFG1 &= ~OFIFG; // clear wildcard fault flag
+
+    SFRIE1 |= OFIE; // watch for oscillator faults
+}
+#endif
+
+#ifdef CONFIG_CLOCK_SOURCE_INTERNAL
+static void setClockSource()
+{
+    UCSCTL3 = SELREF__REFOCLK;                  // Set DCO FLL reference = REFO
+    UCSCTL4 |= SELA__REFOCLK;                   // Set ACLK = REFO
+    UCS_set21Mhz();
+}
+#endif
 
 void UCS_setup()
 {
@@ -16,13 +74,14 @@ void UCS_setup()
     SetVcoreUp(0x02);
     SetVcoreUp(0x03);
 
-    UCSCTL3 = SELREF__REFOCLK;                  // Set DCO FLL reference = REFO
-    UCSCTL4 |= SELA__REFOCLK;                   // Set ACLK = REFO
+    setClockSource();
 
-    UCS_setMainFreq();
+#ifdef CLOCK_TEST_MODE
+    blink_loop(); // to check clock configuration
+#endif
 }
 
-void UCS_setMainFreq()
+void UCS_set21Mhz()
 {
     __bis_SR_register(SCG0);                    // Disable the FLL control loop
     UCSCTL0 = 0x0000;                           // Set lowest possible DCOx, MODx
@@ -152,4 +211,18 @@ static void SetVcoreUp (unsigned int level)
     SVSMLCTL = SVSLE + SVSLRVL0 * level + SVMLE + SVSMLRRL0 * level;
     // Lock PMM registers for write access
     PMMCTL0_H = 0x00;
+}
+
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=UNMI_VECTOR
+__interrupt void unmi_isr(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
+#else
+#error Compiler not supported!
+#endif
+{
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    while (1);
 }

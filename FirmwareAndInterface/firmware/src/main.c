@@ -29,6 +29,8 @@
 #include "minmax.h"
 #include "main.h"
 
+// #define CONFIG_ROUTE_ACLK_TO_PIN
+
 /**
  * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
  * @brief       Flags to set in a bit mask to check in the main loop
@@ -206,6 +208,9 @@ static void pin_setup()
     P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = PJDIR = 0xFF; // out
     P1IFG = P2IFG = 0x00; // clear interrupt flags (might have been set by the above)
 
+    // XT2 and XT1 crystal pins
+    P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
+
     // Configure pins that need to be in high-impedence/input mode
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
     GPIO(PORT_CHARGE, DIR) &= ~BIT(PIN_CHARGE); // high impedence
@@ -213,6 +218,11 @@ static void pin_setup()
     GPIO(PORT_LS_ENABLE, DIR) &= ~BIT(PIN_LS_ENABLE); // level-shifter enable is pulled high
     GPIO(PORT_VSENSE, DIR) &= ~(BIT(PIN_VCAP) | BIT(PIN_VBOOST) |
                                 BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ));
+
+#ifdef CONFIG_ROUTE_ACLK_TO_PIN
+    P1SEL |= BIT0;
+    P1DIR |= BIT0;
+#endif
 }
 
 int main(void)
@@ -222,8 +232,8 @@ int main(void)
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
 
-    UCS_setup(); // set up unified clock system
     pin_setup();
+    UCS_setup(); // set up unified clock system
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
     UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX); // USCI_A1 UART
@@ -238,7 +248,7 @@ int main(void)
 
     __enable_interrupt();                   // enable all interrupts
 
-    long count = 0;
+    volatile uint32_t count = 0;
     while(1) {
         if(flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
@@ -357,10 +367,11 @@ int main(void)
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
-        if(count++ > 500000) {
+        if (count++ == 100000) {
+            count = 0;
             GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-        	count = 0;
         }
+        __delay_cycles(25); // with 25 MHz clock, code execution breaks without this
     }
 }
 

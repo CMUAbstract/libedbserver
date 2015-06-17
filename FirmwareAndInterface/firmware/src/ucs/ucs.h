@@ -22,7 +22,7 @@ void UCS_setup(void);
 /**
  * @brief	Set MCLK, SMCLK to (668 + 1) * 32768 Hz = 21921792 Hz (average)
  */
-void UCS_setMainFreq();
+void UCS_set21Mhz();
 
 /**
  * @brief   Set MCLK, SMCLK to 16MHz (average)
