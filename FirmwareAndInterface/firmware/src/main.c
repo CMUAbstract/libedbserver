@@ -234,6 +234,9 @@ int main(void)
     WDTCTL = WDTPW + WDTHOLD;
 
     pin_setup();
+
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+
     UCS_setup(); // set up unified clock system
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
@@ -248,6 +251,8 @@ int main(void)
     adc12.config.num_channels = 0;
 
     __enable_interrupt();                   // enable all interrupts
+
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
 
     while(1) {
         if(flags & FLAG_ADC12_COMPLETE) {
