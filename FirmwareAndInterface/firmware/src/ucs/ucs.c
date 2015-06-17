@@ -47,8 +47,8 @@ static void setClockSource()
     // At this point we are running in the default config:
     //      ACLK = XT1LFCLK (32.768 kHz); MCLK,SMCLK = DCOCLKDIV (1.048567 MHz)
 
-    // switch all clocks to XT2 (25 MHz) and clear fault flags
-    UCSCTL4 |= SELA__XT2CLK | SELA__XT2CLK | SELM__XT2CLK | SELS__XT2CLK;
+    // switch master clock (CPU) to XT2 (25 MHz) and clear fault flags
+    UCSCTL4 |= SELM__XT2CLK | SELS__XT2CLK | SELA__XT2CLK;
     while (UCSCTL7 & XT2OFFG)
         UCSCTL7 &= ~XT2OFFG;
     SFRIFG1 &= ~OFIFG; // clear wildcard fault flag
