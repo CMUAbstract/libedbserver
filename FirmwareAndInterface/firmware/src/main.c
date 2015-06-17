@@ -228,6 +228,7 @@ static void pin_setup()
 int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
+    unsigned count = 0;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
@@ -248,7 +249,6 @@ int main(void)
 
     __enable_interrupt();                   // enable all interrupts
 
-    volatile uint32_t count = 0;
     while(1) {
         if(flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
@@ -367,11 +367,8 @@ int main(void)
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
-        if (count++ == 100000) {
-            count = 0;
+        if (++count == 0)
             GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-        }
-        __delay_cycles(25); // with 25 MHz clock, code execution breaks without this
     }
 }
 
