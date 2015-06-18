@@ -96,7 +96,7 @@ class WispMonitor:
         """Parses packet header and returns whether it is ready or not"""
 
         if(not self.rxPkt.processed):
-            return Exception("current packet has not been processed")
+            raise Exception("current packet has not been processed")
         
         minBufLen = len(buf)
         while minBufLen > 0:
@@ -107,7 +107,8 @@ class WispMonitor:
                     # unknown identifier - reset state
                     self.rxPkt.processed = True
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    raise Exception("packet construction failed: unknown identifier")
+                    raise Exception("packet construction failed: unknown identifier: " +
+                            str(self.rxPkt.identifier) + " (exp " + str(UART_USB_IDENTIFIER) + ")")
                 minBufLen -= 1
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
@@ -133,7 +134,8 @@ class WispMonitor:
                     # unknown message descriptor
                     self.rxPkt.processed = True
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    raise Exception("packet construction failed: unknown msg descriptor")
+                    raise Exception("packet construction failed: unknown msg descriptor: " +
+                            str(self.rxPkt.descriptor))
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA_LEN):
                 self.rxPkt.length = buf.pop(0) # get data length
                 minBufLen -= 1
