@@ -29,7 +29,7 @@
 #include "minmax.h"
 #include "main.h"
 
-// #define CONFIG_ROUTE_ACLK_TO_PIN
+// #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
 
 /**
  * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
@@ -202,27 +202,26 @@ static void reset_state()
  */
 static void pin_setup()
 {
-    // First pass: set all pins as output low (so that unused pins stay that way)
-    P1SEL = P2SEL = P3SEL = P4SEL = P5SEL = 0x00; // I/O function
-    P1OUT = P2OUT = P3OUT = P4OUT = P5OUT = PJOUT = 0x00; // low
-    P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = PJDIR = 0xFF; // out
-    P1IFG = P2IFG = 0x00; // clear interrupt flags (might have been set by the above)
+    // Set unconnected pins to output mode
+    P1DIR |= BIT7;
+    P2DIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P3DIR |= BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7;
+    P4DIR |= BIT0 | BIT3 | BIT7;
+    P5DIR |= BIT0 | BIT1 | BIT6;
+    P6DIR |= BIT0 | BIT6 | BIT7;
+    // PJDIR |= <none>
+
+    GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
 
     // XT2 and XT1 crystal pins
     P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
-
-    // Configure pins that need to be in high-impedence/input mode
-    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
-    GPIO(PORT_CHARGE, DIR) &= ~BIT(PIN_CHARGE); // high impedence
-    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE);
-    GPIO(PORT_LS_ENABLE, DIR) &= ~BIT(PIN_LS_ENABLE); // level-shifter enable is pulled high
-    GPIO(PORT_VSENSE, DIR) &= ~(BIT(PIN_VCAP) | BIT(PIN_VBOOST) |
-                                BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ));
 
 #ifdef CONFIG_ROUTE_ACLK_TO_PIN
     P1SEL |= BIT0;
     P1DIR |= BIT0;
 #endif
+
+    GPIO(PORT_PWM_BYPASS, DIR) |= BIT(PIN_PWM_BYPASS); // if R3 is not populated
 }
 
 int main(void)
