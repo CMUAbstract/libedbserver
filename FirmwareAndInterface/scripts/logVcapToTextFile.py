@@ -48,11 +48,13 @@ def main():
     
     while(curTime < SAMPLE_TIME):
         bufLen = mon.serial.inWaiting() # get the number of bytes available
-        if(bufLen > 0):
-            newBytes = bytearray(mon.serial.read(bufLen))
-            buf.extend(newBytes)
-            
-        if mon.buildRxPkt(buf):
+        if(bufLen == 0):
+            continue
+
+        newBytes = bytearray(mon.serial.read(bufLen))
+        buf.extend(newBytes)
+
+        while mon.buildRxPkt(buf):
             # packet construction succeeded
             
             if(mon.rxPkt.descriptor == wispmon.USB_RSP_TIME):
