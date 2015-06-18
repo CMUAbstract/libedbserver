@@ -54,6 +54,9 @@ static void setClockSource()
     SFRIFG1 &= ~OFIFG; // clear wildcard fault flag
 
     SFRIE1 |= OFIE; // watch for oscillator faults
+
+    // Can't drive the UART with a 25 MHz clock (hang/reset), divide it
+    UCSCTL5 |= DIVS0 | DIVA0; // SMCLK, ACLK = 25 MHz / 2 = 12.5 MHz
 }
 #endif
 

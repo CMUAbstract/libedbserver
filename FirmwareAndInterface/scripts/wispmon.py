@@ -5,7 +5,7 @@ import math
 from binascii import hexlify
 
 SERIAL_PORT                         = '/dev/ttyUSB0'
-BAUD_RATE                           = 921600
+BAUD_RATE                           = 2000000
 
 UART_USB_IDENTIFIER                 = 0xF0
 
@@ -79,7 +79,7 @@ CONSTRUCT_STATE_DATA                = 0x03
 
 class WispMonitor:
     VDD                                 = 3.35 # V
-    CLK_FREQ                            = 669 * 32768 # Hz (average)
+    CLK_FREQ                            = 25000000 / 2 # Hz (SMCLK = XT2CLK / 2)
     CLK_PERIOD                          = 1.0 / CLK_FREQ # seconds
 
     def __init__(self):
