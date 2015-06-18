@@ -17,12 +17,12 @@ EXEC = monitor
 
 COMMON_FLAGS = \
 	-g \
-	-O3 \
+	-O1 \
+	--opt_for_speed=0 \
+	--use_hw_mpy=F5 \
 	-vmspx \
 	--abi=eabi \
 	--data_model=small \
-	--opt_for_speed=5 \
-	--use_hw_mpy=F5 \
 	--define=__MSP430F5340__ \
 	--printf_support=minimal \
 	--silicon_errata=CPU21 \
@@ -33,7 +33,6 @@ COMMON_FLAGS = \
 	--diag_warning=225 \
 	--display_error_number \
 	--diag_wrap=off \
-
 
 CFLAGS = \
 	--preproc_with_compile \

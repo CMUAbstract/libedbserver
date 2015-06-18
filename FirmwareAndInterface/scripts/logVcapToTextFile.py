@@ -11,7 +11,7 @@ import wispmon
 import atexit
 
 
-SAMPLE_TIME                 = 1.0 # s
+SAMPLE_TIME                 = 5.0 # s
 
 LOG_FILE                    = 'data/vcap.csv'
 
@@ -19,21 +19,24 @@ mon = wispmon.WispMonitor()
 fp = open(LOG_FILE, 'w')
 
 numSamples = 0
+total_bytes = 0
 
 def cleanup():
-    global curTime, numSamples
+    global curTime, numSamples, total_bytes
     
+    print("Stopping")
     mon.sendCmd(wispmon.USB_CMD_LOG_VCAP_END) # stop logging Vcap
     
     # clean up
     fp.close()
     mon.destroy()
     
-    print "%d data points taken in %f seconds" % (numSamples, curTime)
+    print "%d data points (%d B) in %f seconds: %.02f KB/s" % \
+            (numSamples, total_bytes, curTime, total_bytes / curTime)
     exit()
 
 def main():
-    global curTime, numSamples
+    global curTime, numSamples, total_bytes
     atexit.register(cleanup)
     buf = bytearray()
     
@@ -48,11 +51,16 @@ def main():
     
     while(curTime < SAMPLE_TIME):
         bufLen = mon.serial.inWaiting() # get the number of bytes available
-        if(bufLen > 0):
-            newBytes = bytearray(mon.serial.read(bufLen))
-            buf.extend(newBytes)
-            
-        if mon.buildRxPkt(buf):
+        if(bufLen == 0):
+            continue
+
+        newBytes = bytearray(mon.serial.read(bufLen))
+        buf.extend(newBytes)
+
+        total_bytes += len(newBytes)
+        print "\r", total_bytes, "B",
+
+        while mon.buildRxPkt(buf):
             # packet construction succeeded
             
             if(mon.rxPkt.descriptor == wispmon.USB_RSP_TIME):

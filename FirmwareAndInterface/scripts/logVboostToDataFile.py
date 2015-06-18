@@ -12,7 +12,7 @@
 import wispmon
 import atexit
 
-SAMPLE_TIME                     = 2.0 # s
+SAMPLE_TIME                     = 60.0 # s
 
 HEX_FILE                        = 'data/vboost.dat'
 

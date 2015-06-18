@@ -23,7 +23,6 @@ static uartBuf_t wispTx = { .head = 0, .tail = 0 };
 
 extern inline uint8_t uartBuf_len(uartBuf_t *buf);
 
-// Assumes 21.921792 MHz SMCLK (see UCS_setMainFreq in ucs.c)
 void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)
 {
     switch(interface)
@@ -37,10 +36,14 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
 
         UCA0CTL1 |= UCSWRST;                    // put state machine in reset
-        UCA0CTL1 |= UCSSEL__SMCLK;              // use SMCLK
-        UCA0BR0 = 23;                           // baud rate 921600
-        UCA0BR1 = 0;
-        UCA0MCTL |= UCBRS_6 + UCBRF_0;          // modulation UCBRSx = 6, UCBRFx = 0
+        UCA0CTL1 |= UCSSEL__SMCLK;
+
+        // baud rate 2000000 @ SMCLK 25/2=12.5 MHz
+        // N = SMCLK / BAUD = 6.25
+        UCA0BR0 = 6; // floor(N) & 0xff
+        UCA0BR1 = 0; // floor(N) >> 8
+        UCA0MCTL |= UCBRS_2; // (floor(N) - N) * 8
+
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
         break;
@@ -55,9 +58,13 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
 
         UCA1CTL1 |= UCSWRST;                    // put state machine in reset
         UCA1CTL1 |= UCSSEL__SMCLK;              // use SMCLK
-        UCA1BR0 = 235;                         	// baud rate 9600
-        UCA1BR1 = 8;							// baud rate 9600
-        UCA1MCTL |= UCBRS_4 + UCBRF_0;          // modulation UCBRSx = 4, UCBRFx = 0
+
+        // baud rate 9600 @ SMCLK 25/2=12.5 MHz
+        // N = SMCLK / BAUD = 1302.083333...
+        UCA1BR0 = 0x16; // floor(N) & 0xff
+        UCA1BR1 = 0x05; // floor(N) >> 8
+        UCA1MCTL |= UCBRS_1; // (floor(N) - N) * 8
+
         UCA1CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA1IE |= UCRXIE;                       // enable USCI_A1 Tx + Rx interrupts
         break;

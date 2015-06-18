@@ -29,6 +29,8 @@
 #include "minmax.h"
 #include "main.h"
 
+// #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
+
 /**
  * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
  * @brief       Flags to set in a bit mask to check in the main loop
@@ -200,29 +202,41 @@ static void reset_state()
  */
 static void pin_setup()
 {
-    // First pass: set all pins as output low (so that unused pins stay that way)
-    P1SEL = P2SEL = P3SEL = P4SEL = P5SEL = 0x00; // I/O function
-    P1OUT = P2OUT = P3OUT = P4OUT = P5OUT = PJOUT = 0x00; // low
-    P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = PJDIR = 0xFF; // out
-    P1IFG = P2IFG = 0x00; // clear interrupt flags (might have been set by the above)
+    // Set unconnected pins to output mode
+    P1DIR |= BIT7;
+    P2DIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P3DIR |= BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7;
+    P4DIR |= BIT0 | BIT3 | BIT7;
+    P5DIR |= BIT0 | BIT1 | BIT6;
+    P6DIR |= BIT0 | BIT6 | BIT7;
+    // PJDIR |= <none>
 
-    // Configure pins that need to be in high-impedence/input mode
-    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
-    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE);
-    GPIO(PORT_LS_ENABLE, DIR) &= ~BIT(PIN_LS_ENABLE); // level-shifter enable is pulled high
-    GPIO(PORT_VSENSE, DIR) &= ~(BIT(PIN_VCAP) | BIT(PIN_VBOOST) |
-                                BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ));
+    GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
+
+    // XT2 and XT1 crystal pins
+    P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
+
+#ifdef CONFIG_ROUTE_ACLK_TO_PIN
+    P1SEL |= BIT0;
+    P1DIR |= BIT0;
+#endif
+
+    GPIO(PORT_PWM_BYPASS, DIR) |= BIT(PIN_PWM_BYPASS); // if R3 is not populated
 }
 
 int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
+    unsigned count = 0;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
 
-    UCS_setup(); // set up unified clock system
     pin_setup();
+
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+
+    UCS_setup(); // set up unified clock system
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
     UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX); // USCI_A1 UART
@@ -237,7 +251,8 @@ int main(void)
 
     __enable_interrupt();                   // enable all interrupts
 
-    long count = 0;
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+
     while(1) {
         if(flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
@@ -296,10 +311,6 @@ int main(void)
                 }
 
                 ADC12_START;
-                ADC12_START; // I don't know why, but for some reason this seems to
-                			 // only work if the ADC12SC bit is set twice.  I hope
-                			 // this doesn't indicate that something is horribly,
-                			 // horribly wrong.
             }
         }
 
@@ -356,10 +367,8 @@ int main(void)
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
-        if(count++ > 500000) {
+        if (++count == 0)
             GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-        	count = 0;
-        }
     }
 }
 
