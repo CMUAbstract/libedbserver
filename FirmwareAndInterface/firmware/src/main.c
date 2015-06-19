@@ -231,6 +231,8 @@ static void pin_setup()
     P1DIR |= BIT0;
 #endif
 
+    // For measuring debugger energy interference only: configure interrupt line on boot
+    // unmask_target_signal();
 }
 
 int main(void)
