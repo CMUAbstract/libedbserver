@@ -81,7 +81,7 @@
 
 #define PORT_I2C_TARGET                         4 //!< GPIO port with taps into target I2C lines
 #define PIN_I2C_TARGET_SDA                      1 //!< target I2C SDA line
-#define PIN_I2C_TARGET_SCL                      1 //!< target I2C SCL line
+#define PIN_I2C_TARGET_SCL                      2 //!< target I2C SCL line
 
 /** @} End PORTS */
 
