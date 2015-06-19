@@ -8,9 +8,7 @@
 #include <msp430.h>
 #include "pin_assign.h"
 #include "ucs.h"
-
-//#define CONFIG_CLOCK_SOURCE_INTERNAL // 21.921792 Mhz DCO referenced to internal REFO
-#define CONFIG_CLOCK_SOURCE_CRYSTAL // 25 Mhz XT2 crystal
+#include "config.h"
 
 // #define CLOCK_TEST_MODE
 

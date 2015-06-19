@@ -10,6 +10,7 @@
 #include "uart.h"
 #include "minmax.h"
 #include "pin_assign.h"
+#include "config.h"
 
 static uint16_t *pUSBFlags;
 static uint16_t *pWISPFlags;
@@ -38,11 +39,24 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         UCA0CTL1 |= UCSWRST;                    // put state machine in reset
         UCA0CTL1 |= UCSSEL__SMCLK;
 
-        // baud rate 2000000 @ SMCLK 25/2=12.5 MHz
-        // N = SMCLK / BAUD = 6.25
-        UCA0BR0 = 6; // floor(N) & 0xff
-        UCA0BR1 = 0; // floor(N) >> 8
-        UCA0MCTL |= UCBRS_2; // (floor(N) - N) * 8
+        // N = SMCLK / BAUD
+        // UCA1BR0 = LSB(floor(N))
+        // UCA1BR1 = MSB(floor(N))
+        // UCA1MCTL = UCBRS_x where x = (floor(N) - N) * 8
+
+#ifdef CONFIG_CLOCK_SOURCE_INTERNAL
+        // baud rate 921600 @ SMCLK 25/2=12.5 MHz = 23.786666...
+        UCA0BR0 = 23;                           // baud rate 921600
+        UCA0BR1 = 0;
+        UCA0MCTL |= UCBRS_6;
+#endif
+
+#ifdef CONFIG_CLOCK_SOURCE_CRYSTAL
+        // baud rate 2000000 @ SMCLK 25/2=12.5 MHz: N = 6.25
+        UCA0BR0 = 6;
+        UCA0BR1 = 0;
+        UCA0MCTL |= UCBRS_2;
+#endif
 
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
@@ -59,11 +73,24 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         UCA1CTL1 |= UCSWRST;                    // put state machine in reset
         UCA1CTL1 |= UCSSEL__SMCLK;              // use SMCLK
 
-        // baud rate 9600 @ SMCLK 25/2=12.5 MHz
-        // N = SMCLK / BAUD = 1302.083333...
-        UCA1BR0 = 0x16; // floor(N) & 0xff
-        UCA1BR1 = 0x05; // floor(N) >> 8
-        UCA1MCTL |= UCBRS_1; // (floor(N) - N) * 8
+        // N = SMCLK / BAUD
+        // UCA1BR0 = LSB(floor(N))
+        // UCA1BR1 = MSB(floor(N))
+        // UCA1MCTL = UCBRS_x where x = (floor(N) - N) * 8
+
+#ifdef CONFIG_CLOCK_SOURCE_INTERNAL
+        // baud rate 9600 @ SMCLK 21.921792: N = 2283.52
+        UCA1BR0 = 0xeb;
+        UCA1BR1 = 0x08;
+        UCA1MCTL |= UCBRS_4;
+#endif
+
+#ifdef CONFIG_CLOCK_SOURCE_CRYSTAL
+        // baud rate 9600 @ SMCLK 25/2=12.5 MHz: N = 1302.083333...
+        UCA1BR0 = 0x16;
+        UCA1BR1 = 0x05;
+        UCA1MCTL |= UCBRS_1;
+#endif
 
         UCA1CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA1IE |= UCRXIE;                       // enable USCI_A1 Tx + Rx interrupts
