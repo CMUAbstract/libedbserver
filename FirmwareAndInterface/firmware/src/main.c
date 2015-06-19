@@ -202,13 +202,19 @@ static void reset_state()
  */
 static void pin_setup()
 {
-    // Set unconnected pins to output mode
+    // Set unconnected pins to output low (note: OUT value is undefined on reset)
     P1DIR |= BIT7;
+    P1OUT &= ~(BIT7);
     P2DIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P2OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
     P3DIR |= BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7;
+    P3OUT &= ~(BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7);
     P4DIR |= BIT0 | BIT3 | BIT7;
+    P4OUT &= ~(BIT0 | BIT3 | BIT7);
     P5DIR |= BIT0 | BIT1 | BIT6;
+    P5OUT &= ~(BIT0 | BIT1 | BIT6);
     P6DIR |= BIT0 | BIT6 | BIT7;
+    P6OUT &= ~(BIT0 | BIT6 | BIT7);
     // PJDIR |= <none>
 
     GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
