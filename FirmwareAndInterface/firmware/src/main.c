@@ -217,6 +217,10 @@ static void pin_setup()
     P6OUT &= ~(BIT0 | BIT6 | BIT7);
     // PJDIR |= <none>
 
+    // Uncomment this if R3 is not populated since in that case pin is unconnected
+    // GPIO(PORT_PWM_BYPASS, DIR) |= BIT(PIN_PWM_BYPASS);
+    // GPIO(PORT_PWM_BYPASS, OUT) &= ~BIT(PIN_PWM_BYPASS);
+
     GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
 
     // XT2 and XT1 crystal pins
@@ -227,7 +231,6 @@ static void pin_setup()
     P1DIR |= BIT0;
 #endif
 
-    GPIO(PORT_PWM_BYPASS, DIR) |= BIT(PIN_PWM_BYPASS); // if R3 is not populated
 }
 
 int main(void)
