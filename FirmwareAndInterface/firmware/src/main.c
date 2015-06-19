@@ -231,6 +231,8 @@ static void pin_setup()
     P1DIR |= BIT0;
 #endif
 
+    GPIO(PORT_I2C_TARGET, SEL) |= BIT(PIN_I2C_TARGET_SCL) | BIT(PIN_I2C_TARGET_SDA);
+
     // For measuring debugger energy interference only: configure interrupt line on boot
     // unmask_target_signal();
 }
