@@ -85,4 +85,15 @@
 
 /** @} End PORTS */
 
+/**
+ * @defgroup    ADC_CHANNELS   ADC input channel names to pins
+ * @{
+ */
+#define ADC_CHAN_VCAP                          ADC12INCH_1 //!< ADC input channel select for Vcap
+#define ADC_CHAN_VBOOST                        ADC12INCH_2 //!< ADC input channel select for Vboost
+#define ADC_CHAN_VREG                          ADC12INCH_3 //!< ADC input channel select for Vreg
+#define ADC_CHAN_VRECT                         ADC12INCH_4 //!< ADC input channel select for Vrect
+#define ADC_CHAN_VINJ                          ADC12INCH_5 //!< ADC input channel select for VINJ
+/** @} End ADC_CHANNELS */
+
 #endif // PIN_ASSIGN_H

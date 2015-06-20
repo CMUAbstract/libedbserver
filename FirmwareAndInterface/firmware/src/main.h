@@ -17,36 +17,6 @@
 static void executeUSBCmd(uartPkt_t *pkt);
 
 /**
- * @brief   Add an ADC channel to the adc12 configuration structure
- * @param   pResults_index  Pointer to any of vcap_index, vboost_index, vreg_index, or vrect_index.
- *                          Must correspond to the ADC measurement that will be added
- * @param   channel         Channel to add.  See @ref ADC12_CHANNELS
- */
-static void addAdcChannel(uint16_t channel, int8_t *pResults_index);
-
-/**
- * @brief   Remove an ADC channel from the adc12 configuration structure
- * @param   results_index   Any of vcap_index, vboost_index, vreg_index, or vrect_index.
- *                          Must correspond to the ADC measurement that will be removed.
- */
-static void removeAdcChannel(int8_t *pResults_index);
-
-/**
- * @brief   Reconfigure and restart ADC defined by the adc12 configuration structure
- */
-static void restartAdc();
-
-/**
- * @brief   Blocking read of an ADC channel
- * @param   channel Channel to read
- * @return  ADC12 conversion result
- * @details This function reconfigures the ADC to read only the channel
- *          requested, and returns the result.  It then restores the ADC
- *          to the configuration defined by the adc12 structure.
- */
-static uint16_t adc12Read_block(uint16_t channel);
-
-/**
  * @brief	Charge WISP capacitor to the specified voltage level
  * @param	target			Target voltage level to charge to (in ADC units)
  * @return  final actual measured voltage level (ADC units)
@@ -62,13 +32,10 @@ static uint16_t discharge_block(uint16_t target);
 
 /**
  * @brief	Block until setting the voltage read at channel to the ADC reading target.
- * @param	channel	ADC channel measuring the voltage at the node that is being set.
- * @param	pResults_index	Pointer to any of vcap_index, vboost_index, vreg_index,
- * 							or vrect_index.  Must correspond to the ADC channel
- * 							represented by channel.
+ * @param	adc_chan_index  Permanent index statically assigned to the ADC channel
  * @param	target			Target ADC reading when the voltage is set, from 0 to 4095
  */
-static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target);
+static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target);
 
 /**
  * @brief	Compare two unsigned 16-bit numbers.

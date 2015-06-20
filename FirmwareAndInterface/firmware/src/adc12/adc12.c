@@ -13,19 +13,31 @@
 
 static adc12_t *_pAdc12;
 
+void ADC12_init(adc12_t *adc12)
+{
+    uint16_t i;
+
+    // init indices in the adc12.config.channels and adc12.results arrays
+    for (i = 0; i < ADC12_MAX_CHANNELS; ++i)
+        adc12->indexes[i] = -1;
+}
+
 void ADC12_configure(adc12_t *adc12)
 {
+    adc12Chan_t *chan_info;
+
     _pAdc12 = adc12;
 
     ADC12CTL0 &= ~ADC12ENC; // disable conversion so we can set control bits
     uint8_t num_channels = _pAdc12->config.num_channels;
     if(num_channels == 1) {
         // single channel, single conversion
-        uint16_t channel = _pAdc12->config.channels[0];
-        ADC12_pinSelect(channel);
+        uint16_t chan_index = adc12->config.channels[0];
+        chan_info = &adc12->config.chan_assigns[chan_index];
+        *chan_info->port |= chan_info->pin;
         ADC12CTL0 = ADC12SHT0_2 + ADC12ON; // sampling time, ADC12 on
         ADC12CTL1 = ADC12SHP + ADC12CONSEQ_0; // use sampling timer, single-channel, single-conversion
-        ADC12MCTL0 = channel; // set ADC memory control register
+        ADC12MCTL0 = chan_info->chan_mask; // set ADC memory control register
         ADC12IE = ADC12IE0; // enable interrupt
     } else if(num_channels > 1) {
         // sequence of channels, single conversion
@@ -40,9 +52,10 @@ void ADC12_configure(adc12_t *adc12)
                                                      &ADC12MCTL4 };
         uint8_t i;
         for(i = 0; i < num_channels; i++) {
-            uint16_t channel = _pAdc12->config.channels[i];
-            ADC12_pinSelect(channel);
-            *(adc12mctl_registers[i]) = channel;
+            uint16_t chan_index = adc12->config.channels[i];
+            chan_info = &adc12->config.chan_assigns[chan_index];
+            *chan_info->port |= chan_info->pin;
+            *(adc12mctl_registers[i]) = chan_info->chan_mask;
         }
         uint8_t last_channel_index = num_channels - 1;
         *(adc12mctl_registers[last_channel_index]) |= ADC12EOS;
@@ -53,29 +66,104 @@ void ADC12_configure(adc12_t *adc12)
     ADC12CTL0 |= ADC12ENC;
 }
 
-static void ADC12_pinSelect(uint16_t channel)
+void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index)
 {
-    switch(channel)
-    {
-    case ADC12INCH_VCAP:
-        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VCAP);
-        break;
-    case ADC12INCH_VBOOST:
-        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VBOOST);
-        break;
-    case ADC12INCH_VREG:
-        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VREG);
-        break;
-    case ADC12INCH_VRECT:
-        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VRECT);
-        break;
-    case ADC12INCH_VINJ:
-        GPIO(PORT_VSENSE, SEL) |= BIT(PIN_VINJ);
-        break;
-    default:
-        break;
+    // note that the results index corresponds to the
+    // index in the channels array
+
+    // first check if the channel is already present
+	if(adc12->indexes[chan_index] == -1) {
+        // channel isn't present in the configuration, so add it
+        adc12->config.channels[adc12->config.num_channels] = chan_index;
+        adc12->indexes[chan_index] = adc12->config.num_channels++;
     }
 }
+
+void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index)
+{
+    // note that chan_index is also the corresponding
+    // index in the channels array
+
+	if(adc12->indexes[chan_index] != -1) {
+		// the channel is present in the configuration
+		adc12->config.num_channels--;
+
+		if(adc12->indexes[chan_index] != adc12->config.num_channels) {
+			// We're removing this channel, but it wasn't the last channel
+			// configured.  We need to move the other channels in the channels
+			// array so there are no missing channels in the array.
+			uint8_t i;
+			for(i = adc12->indexes[chan_index] + 1; i < adc12->config.num_channels + 1; i++) {
+				adc12->config.channels[i - 1] = adc12->config.channels[i];
+			}
+
+			// update the results array indices
+            for (i = 0; i < ADC12_MAX_CHANNELS; ++i) {
+                if(adc12->indexes[i] >= adc12->config.num_channels)
+                    adc12->indexes[i]--;
+			}
+		}
+
+		adc12->indexes[chan_index] = -1; // remove the channel
+	}
+}
+
+void ADC12_start()
+{
+    ADC12CTL0 |= ADC12SC | ADC12ENC; // enable ADC and start conversion
+}
+
+void ADC12_stop()
+{
+    ADC12CTL0 &= ~(ADC12SC | ADC12ENC);  // stop conversion and disable ADC
+}
+
+void ADC12_wait()
+{
+    while (ADC12CTL1 & ADC12BUSY);
+}
+
+void ADC12_restart(adc12_t *adc12)
+{
+    // don't need to worry about restarting if there are no active channels
+    if(adc12->config.num_channels > 0) {
+        ADC12_stop();
+        ADC12_wait(); // need to complete conversion if multiple channels are active
+        ADC12_configure(adc12); // reconfigure
+        ADC12_start();
+    }
+}
+
+uint16_t ADC12_read(adc12_t *adc12, uint16_t chan_index)
+{
+    uint16_t adc12Result;
+    adc12_t adc12_temp = { .pFlags = 0, /* interrupt disabled, so never accessed */
+                            .config.channels[0] = chan_index,
+                            .config.num_channels = 1 };
+    memcpy(adc12_temp.config.chan_assigns, adc12->config.chan_assigns,
+           sizeof(adc12_temp.config.chan_assigns));
+    ADC12_init(&adc12_temp);
+
+    ADC12_stop(); // stop any active conversion
+    ADC12_wait();  // wait for conversion to complete so ADC is stopped
+
+    ADC12_configure(&adc12_temp); // reconfigure ADC
+    ADC12IE = 0; // disable ADC interrupt
+
+    ADC12_start(); // start conversion
+    ADC12_wait(); // wait for conversion to complete
+    adc12Result = ADC12MEM0;
+
+    ADC12_configure(adc12); // restore previous configuration, enable interrupt
+
+    return adc12Result;
+}
+
+uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index)
+{
+    return adc12->results[adc12->indexes[chan_index]];
+}
+
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector = ADC12_VECTOR
