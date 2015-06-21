@@ -95,7 +95,9 @@ void UART_teardown(uint8_t interface)
             // current continues to flow into the WISP after the UART has been disabled (into
             // high-Z). "Discharging" manually by shorting to ground stopped the flow, hence
             // this workaround here. Maybe this is effectively a MOSFET remaining open due
-            // to charge at the gate that can't drain anywhere.
+            // to charge at the gate that can't drain anywhere. Might have to do with
+            // the level shifter remaining in the drive state instead of detecting high-Z
+            // and releasing the output.
             GPIO(PORT_UART_TARGET, OUT) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
             GPIO(PORT_UART_TARGET, DIR) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
 
