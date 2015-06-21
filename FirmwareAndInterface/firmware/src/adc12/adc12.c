@@ -12,6 +12,7 @@
 #include "pin_assign.h"
 
 static adc12_t *_pAdc12;
+static adc12_t adc12_single;
 
 void ADC12_init(adc12_t *adc12)
 {
@@ -137,12 +138,12 @@ void ADC12_restart(adc12_t *adc12)
 uint16_t ADC12_read(adc12_t *adc12, uint16_t chan_index)
 {
     uint16_t adc12Result;
-    adc12_t adc12_temp = { .pFlags = 0, /* interrupt disabled, so never accessed */
-                            .config.channels[0] = chan_index,
-                            .config.num_channels = 1 };
-    memcpy(adc12_temp.config.chan_assigns, adc12->config.chan_assigns,
-           sizeof(adc12_temp.config.chan_assigns));
-    ADC12_init(&adc12_temp);
+
+    adc12_single.pFlags = 0; /* interrupt disabled, so never accessed */
+    adc12_single.config.channels[0] = chan_index;
+    adc12_single.indexes[chan_index] = 0;
+    adc12_single.config.num_channels = 1;
+    adc12_single.config.chan_assigns[chan_index] = adc12->config.chan_assigns[chan_index];
 
     ADC12_stop(); // stop any active conversion
     ADC12_wait();  // wait for conversion to complete so ADC is stopped
