@@ -246,13 +246,13 @@ static inline void handle_debugger_signal()
             signal_debugger();
             debug_main();
             // debug loop exited (due to UART cmd to exit debugger)
+            set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
             signal_debugger(); // tell debugger we have shutdown UART
             unmask_debugger_signal();
-            set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
             break;
         case STATE_SUSPENDED: // debugger finished restoring the energy level
-            unmask_debugger_signal(); // listen for the next enter request
             set_state(STATE_IDLE); // return to the application code
+            unmask_debugger_signal(); // listen for the next enter request
             break;
         default:
             // received an unexpected signal from the debugger
