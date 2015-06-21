@@ -265,6 +265,8 @@ static void pin_setup()
     GPIO(PORT_VSENSE, SEL) |=
         BIT(PIN_VCAP) | BIT(PIN_VBOOST) | BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ);
 
+    GPIO(PORT_I2C_TARGET, SEL) |= BIT(PIN_I2C_TARGET_SCL) | BIT(PIN_I2C_TARGET_SDA);
+
     // XT2 and XT1 crystal pins
     P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
 
@@ -272,8 +274,6 @@ static void pin_setup()
     P1SEL |= BIT0;
     P1DIR |= BIT0;
 #endif
-
-    GPIO(PORT_I2C_TARGET, SEL) |= BIT(PIN_I2C_TARGET_SCL) | BIT(PIN_I2C_TARGET_SDA);
 
     // For measuring debugger energy interference only: configure interrupt line on boot
     // unmask_target_signal();
