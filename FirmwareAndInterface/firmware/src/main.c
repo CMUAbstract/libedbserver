@@ -30,8 +30,6 @@
 #include "main.h"
 #include "config.h"
 
-// #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
-
 /**
  * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
  * @brief       Flags to set in a bit mask to check in the main loop
