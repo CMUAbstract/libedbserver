@@ -224,6 +224,10 @@ void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
 #error Compiler not supported!
 #endif
 {
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    if (UCSCTL7 & XT2OFFG)
+        GPIO(PORT_LED, OUT) |= BIT(PIN_LED_GREEN);
+
     while (1);
 }
