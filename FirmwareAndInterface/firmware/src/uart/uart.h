@@ -123,6 +123,7 @@
 #define USB_CMD_RESET_STATE                     0x28 //!< Reset the state machine
 #define USB_CMD_CHARGE                          0x29 //!< Charge WISP capacitor to a given level
 #define USB_CMD_DISCHARGE                       0x30 //!< Discharge WISP capacitor to a given level
+#define USB_CMD_BREAK_AT_VCAP_LEVEL             0x31 //!< Interrupt execution when Vcap reaches a given level
 /** @} End USB_CMD */
 
 /**

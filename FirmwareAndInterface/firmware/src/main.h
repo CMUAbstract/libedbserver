@@ -38,6 +38,12 @@ static uint16_t discharge_block(uint16_t target);
 static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target);
 
 /**
+ * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
+ * @param   level   Vcap level to interrupt at
+ */
+static void break_at_vcap_level(uint16_t level);
+
+/**
  * @brief	Compare two unsigned 16-bit numbers.
  * @param	n1	One number
  * @param	n2	Another number

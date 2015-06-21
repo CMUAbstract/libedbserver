@@ -56,6 +56,7 @@ USB_CMD_MONITOR_MARKER_END           = 0x27
 USB_CMD_RESET_STATE                  = 0x28
 USB_CMD_CHARGE                       = 0x29
 USB_CMD_DISCHARGE                    = 0x30
+USB_CMD_BREAK_AT_VCAP_LEVEL          = 0x31
 
 # Serial receive message descriptors
 USB_RSP_VCAP                         = 0x00
@@ -227,6 +228,12 @@ class WispMonitor:
 
     def exit_debug_mode(self):
         self.sendCmd(USB_CMD_EXIT_ACTIVE_DEBUG)
+        return self.receive_vcap_reply()
+
+    def break_at_vcap_level(self, level):
+        level_adc = self.voltage_to_adc(level)
+        cmd_data = self.uint16_to_bytes(level_adc)
+        self.sendCmd(USB_CMD_BREAK_AT_VCAP_LEVEL, data=cmd_data)
         return self.receive_vcap_reply()
 
 class RxPkt():
