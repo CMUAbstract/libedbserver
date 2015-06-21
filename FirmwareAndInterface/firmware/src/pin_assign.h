@@ -45,8 +45,8 @@
 #define PORT_DISCHARGE                          J //!< GPIO port for target capacitor discharge pin
 #define PIN_DISCHARGE                           0 //!< target capacitor discharge pin
 
-#define PORT_PWM_BYPASS                         4 //!< GPIO port with PWM bypass power supply line
-#define PIN_PWM_BYPASS                          6 //!< pin for supplying continuous power
+#define PORT_CONT_POWER                         4 //!< GPIO port with PWM bypass power supply line
+#define PIN_CONT_POWER                          6 //!< pin for supplying continuous power
 
 #define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
 #define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable

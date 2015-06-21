@@ -162,12 +162,13 @@ static void mask_target_signal()
 
 static void continuous_power_on()
 {
-    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE);
+    // The output level was configured high on boot up
+    GPIO(PORT_CONT_POWER, DIR) |= BIT(PIN_CONT_POWER);
 }
 
 static void continuous_power_off()
 {
-    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);
+    GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
 }
 
 static void send_vcap(uint16_t vcap)
@@ -255,8 +256,8 @@ static void pin_setup()
     // PJDIR |= <none>
 
     // Uncomment this if R3 is not populated since in that case pin is unconnected
-    // GPIO(PORT_PWM_BYPASS, DIR) |= BIT(PIN_PWM_BYPASS);
-    // GPIO(PORT_PWM_BYPASS, OUT) &= ~BIT(PIN_PWM_BYPASS);
+    // GPIO(PORT_CONT_POWER, DIR) |= BIT(PIN_CONT_POWER);
+    // GPIO(PORT_CONT_POWER, OUT) &= ~BIT(PIN_CONT_POWER);
 
     GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
     GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
@@ -264,6 +265,9 @@ static void pin_setup()
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+
+    // Configure the output level for continous power pin ahead of time
+    GPIO(PORT_CONT_POWER, OUT) |= BIT(PIN_CONT_POWER);
 
     // Voltage sense pins as ADC channels
     GPIO(PORT_VSENSE, SEL) |=
