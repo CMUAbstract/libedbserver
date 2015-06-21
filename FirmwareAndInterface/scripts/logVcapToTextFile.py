@@ -32,7 +32,7 @@ def cleanup():
     mon.destroy()
     
     print "%d data points (%d B) in %f seconds: %.02f KB/s" % \
-            (numSamples, total_bytes, curTime, total_bytes / curTime)
+            (numSamples, total_bytes, curTime, float(total_bytes) / 1000 / curTime)
     exit()
 
 def main():
