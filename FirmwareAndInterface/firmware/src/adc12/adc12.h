@@ -29,6 +29,11 @@ typedef struct {
     uint8_t pin;
 } adc12Chan_t;
 
+typedef enum {
+    ADC12_MODE_INTERRUPT,
+    ADC12_MODE_POLLING,
+} adc12Mode_t;
+
 /**
  * @brief   ADC12 channel configuration
  */
@@ -64,7 +69,7 @@ void ADC12_init(adc12_t *adc12);
  *              configured channels.  The interrupt sets the flag bit mask
  *              present in the adc12_t data structure.
  */
-void ADC12_configure(adc12_t *adc12);
+void ADC12_configure(adc12_t *adc12, adc12Mode_t mode);
 
 /**
  * @brief   Add an ADC channel to the adc12 configuration structure

@@ -23,23 +23,27 @@ void ADC12_init(adc12_t *adc12)
         adc12->indexes[i] = -1;
 }
 
-void ADC12_configure(adc12_t *adc12)
+void ADC12_configure(adc12_t *adc12, adc12Mode_t mode)
 {
     adc12Chan_t *chan_info;
 
     _pAdc12 = adc12;
 
     ADC12CTL0 &= ~ADC12ENC; // disable conversion so we can set control bits
+    ADC12IE = 0; // disable interrupt
+
     uint8_t num_channels = _pAdc12->config.num_channels;
     if(num_channels == 1) {
         // single channel, single conversion
         uint16_t chan_index = adc12->config.channels[0];
         chan_info = &adc12->config.chan_assigns[chan_index];
         *chan_info->port |= chan_info->pin;
+
         ADC12CTL0 = ADC12SHT0_2 + ADC12ON; // sampling time, ADC12 on
         ADC12CTL1 = ADC12SHP + ADC12CONSEQ_0; // use sampling timer, single-channel, single-conversion
         ADC12MCTL0 = chan_info->chan_mask; // set ADC memory control register
-        ADC12IE = ADC12IE0; // enable interrupt
+        if (mode == ADC12_MODE_INTERRUPT)
+            ADC12IE = ADC12IE0; // enable interrupt
     } else if(num_channels > 1) {
         // sequence of channels, single conversion
         ADC12CTL0 = ADC12SHT0_2 + ADC12ON + ADC12MSC; // sampling time, ADC12 on, multiple sample conversion
@@ -62,7 +66,9 @@ void ADC12_configure(adc12_t *adc12)
         *(adc12mctl_registers[last_channel_index]) |= ADC12EOS;
 
         // set the correct interrupt
-        ADC12IE = (0x0001 << last_channel_index);
+        if (mode == ADC12_MODE_INTERRUPT) {
+            ADC12IE = (0x0001 << last_channel_index);
+        }
     }
     ADC12CTL0 |= ADC12ENC;
 }
@@ -130,7 +136,7 @@ void ADC12_restart(adc12_t *adc12)
     if(adc12->config.num_channels > 0) {
         ADC12_stop();
         ADC12_wait(); // need to complete conversion if multiple channels are active
-        ADC12_configure(adc12); // reconfigure
+        ADC12_configure(adc12, ADC12_MODE_INTERRUPT); // reconfigure
         ADC12_start();
     }
 }
@@ -148,14 +154,12 @@ uint16_t ADC12_read(adc12_t *adc12, uint16_t chan_index)
     ADC12_stop(); // stop any active conversion
     ADC12_wait();  // wait for conversion to complete so ADC is stopped
 
-    ADC12_configure(&adc12_temp); // reconfigure ADC
-    ADC12IE = 0; // disable ADC interrupt
-
+    ADC12_configure(&adc12_single, ADC12_MODE_POLLING); // reconfigure ADC
     ADC12_start(); // start conversion
     ADC12_wait(); // wait for conversion to complete
     adc12Result = ADC12MEM0;
 
-    ADC12_configure(adc12); // restore previous configuration, enable interrupt
+    ADC12_configure(adc12, ADC12_MODE_INTERRUPT); // restore previous configuration, enable interrupt
 
     return adc12Result;
 }
