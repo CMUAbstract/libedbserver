@@ -230,6 +230,12 @@ typedef struct {
 void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag);
 
 /**
+ * @brief       Unsetup UART (put pins into high-z state)
+ * @param		interface	UART interface to use.  See @ref UART_INTERFACES
+ */
+void UART_teardown(uint8_t interface);
+
+/**
  * @brief       Block until all bytes are queued in the UART TX buffer
  * @param		interface	UART interface to use.  See @ref UART_INTERFACES
  * @param       buf         Pointer to a buffer to send

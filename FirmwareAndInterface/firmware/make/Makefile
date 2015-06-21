@@ -44,6 +44,7 @@ CFLAGS = \
 	--include_path="$(SRC_ROOT)/rfid" \
 	--include_path="$(SRC_ROOT)/timers" \
 	--include_path="$(SRC_ROOT)/uart" \
+	--include_path="$(SRC_ROOT)/i2c" \
 	--include_path="$(SRC_ROOT)/ucs" \
 
 ASFLAGS = $(CFLAGS)
@@ -73,6 +74,7 @@ C_SRCS = \
 	main.c \
 	ucs/ucs.c \
 	uart/uart.c \
+	i2c/i2c.c \
 	timers/pwm.c \
 	timers/timeLog.c \
 	timers/timer1.c \

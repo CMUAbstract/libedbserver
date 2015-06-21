@@ -74,6 +74,36 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
     }
 } // UART_setup
 
+void UART_teardown(uint8_t interface)
+{
+    // Put pins into High-Z state
+    switch(interface)
+    {
+        case UART_INTERFACE_USB:
+            UCA0IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
+            UCA0CTL1 |= UCSWRST;                    // put state machine in reset
+            GPIO(PORT_UART_USB, SEL) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
+            GPIO(PORT_UART_USB, DIR) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
+            break;
+        case UART_INTERFACE_WISP:
+            UCA1IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
+            UCA1CTL1 |= UCSWRST;                    // put state machine in reset
+            GPIO(PORT_UART_TARGET, SEL) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+
+            // Briefly pull low to "discharge". WISP is already in High-Z state, so this
+            // will not cause energy interference. This is necessary because otherwise,
+            // current continues to flow into the WISP after the UART has been disabled (into
+            // high-Z). "Discharging" manually by shorting to ground stopped the flow, hence
+            // this workaround here. Maybe this is effectively a MOSFET remaining open due
+            // to charge at the gate that can't drain anywhere.
+            GPIO(PORT_UART_TARGET, OUT) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+            GPIO(PORT_UART_TARGET, DIR) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
+
+            GPIO(PORT_UART_TARGET, DIR) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+            break;
+    }
+}
+
 void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 {
 	volatile uint8_t *pUCAXIE;

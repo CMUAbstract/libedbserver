@@ -21,6 +21,7 @@
 #include "ucs.h"
 #include "adc12.h"
 #include "uart.h"
+#include "i2c.h"
 #include "pwm.h"
 #include "timeLog.h"
 #include "timer1.h"
@@ -188,10 +189,14 @@ static void handle_target_signal()
             set_state(STATE_DEBUG);
             GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
             continuous_power_on();
+            UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
+            I2C_setup();
             send_vcap(saved_vcap); // do it here: reply marks completion
             break;
         case STATE_EXITING:
             // WISP has shutdown UART and is asleep waiting for int to resume
+            UART_teardown(UART_INTERFACE_WISP);
+            I2C_teardown();
             continuous_power_off();
             restored_vcap = discharge_block(saved_vcap); // restore energy level
             signal_target();
@@ -264,8 +269,6 @@ static void pin_setup()
     GPIO(PORT_VSENSE, SEL) |=
         BIT(PIN_VCAP) | BIT(PIN_VBOOST) | BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ);
 
-    GPIO(PORT_I2C_TARGET, SEL) |= BIT(PIN_I2C_TARGET_SCL) | BIT(PIN_I2C_TARGET_SDA);
-
     // XT2 and XT1 crystal pins
 #ifdef CONFIG_CLOCK_SOURCE_CRYSTAL
     P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
@@ -296,7 +299,6 @@ int main(void)
     UCS_setup(); // set up unified clock system
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
-    UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX); // USCI_A1 UART
 
     RFID_setup(&flags, FLAG_RF_DATA, FLAG_RF_DATA); // use the same flag for Rx and Tx so
     												// we only have to check one flag
