@@ -122,6 +122,17 @@ static void set_state(state_t new_state)
 }
 
 /**
+ * @brief       Pulse a designated pin for triggering an oscilloscope
+ */
+static void trigger_scope()
+{
+    GPIO(PORT_TRIGGER, OUT) |= BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
+}
+
+
+/**
  * @brief	Send an interrupt to the target device
  */
 static void signal_target()
@@ -412,16 +423,6 @@ int main(void)
         if (++count == 0)
             GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
     }
-}
-
-/**
- * @brief       Pulse a designated pin for triggering an oscilloscope
- */
-static void trigger_scope()
-{
-    GPIO(PORT_TRIGGER, OUT) |= BIT(PIN_TRIGGER);
-    GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
-    GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
 }
 
 /**
