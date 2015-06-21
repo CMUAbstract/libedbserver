@@ -20,15 +20,6 @@
 
 #define ADC12_MAX_CHANNELS  5
 
-/**
- * @brief   Static info about ADC channels
- */
-typedef struct {
-    uint8_t chan_mask;
-    volatile uint8_t *port;
-    uint8_t pin;
-} adc12Chan_t;
-
 typedef enum {
     ADC12_MODE_INTERRUPT,
     ADC12_MODE_POLLING,
@@ -38,7 +29,7 @@ typedef enum {
  * @brief   ADC12 channel configuration
  */
 typedef struct {
-    adc12Chan_t chan_assigns[ADC12_MAX_CHANNELS]; //<! maps a permanent index to a pin designation (must be filled out by the user statically or before first call to ADC12_addChannel)
+    uint16_t channel_masks[ADC12_MAX_CHANNELS]; //<! maps a permanent software index to a hardware channel (must be filled out by the user statically or before first call to ADC12_addChannel)
     uint16_t channels[ADC12_MAX_CHANNELS];           //!< ADC channels that will be sampled
     uint16_t num_channels;           //!< number of channels in the channels array to sample in order
 } adc12Cfg_t;

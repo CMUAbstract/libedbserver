@@ -91,18 +91,14 @@ static uint16_t saved_vcap; // energy level before entering active debug mode
 
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
-#define ADC_CHAN_ENTRY(name) \
-    [ADC_CHAN_INDEX_ ## name] = { ADC_CHAN_ ## name, &GPIO(PORT_VSENSE, SEL), BIT(PIN_ ## name) }
-
 static adc12_t adc12 = {
-    // Communicate pin assignments defined in pin_assign.h to the ADC driver
     .config = {
-        .chan_assigns = {
-            ADC_CHAN_ENTRY(VCAP),
-            ADC_CHAN_ENTRY(VBOOST),
-            ADC_CHAN_ENTRY(VREG),
-            ADC_CHAN_ENTRY(VRECT),
-            ADC_CHAN_ENTRY(VINJ),
+        .channel_masks = { // map permanent software indexes to hardware ADC channels
+            ADC_CHAN_VCAP,
+            ADC_CHAN_VBOOST,
+            ADC_CHAN_VREG,
+            ADC_CHAN_VRECT,
+            ADC_CHAN_VINJ,
         },
         .num_channels = 0, // maintained at runtime
     },
@@ -264,6 +260,10 @@ static void pin_setup()
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+
+    // Voltage sense pins as ADC channels
+    GPIO(PORT_VSENSE, SEL) |=
+        BIT(PIN_VCAP) | BIT(PIN_VBOOST) | BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ);
 
     // XT2 and XT1 crystal pins
     P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
