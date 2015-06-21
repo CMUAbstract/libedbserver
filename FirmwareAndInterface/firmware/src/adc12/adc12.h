@@ -40,7 +40,7 @@ typedef enum {
 typedef struct {
     adc12Chan_t chan_assigns[ADC12_MAX_CHANNELS]; //<! maps a permanent index to a pin designation (must be filled out by the user statically or before first call to ADC12_addChannel)
     uint16_t channels[ADC12_MAX_CHANNELS];           //!< ADC channels that will be sampled
-    uint8_t num_channels;           //!< number of channels in the channels array to sample in order
+    uint16_t num_channels;           //!< number of channels in the channels array to sample in order
 } adc12Cfg_t;
 
 /**
@@ -50,7 +50,7 @@ typedef struct {
 	uint32_t timeComplete;			//!< time ADC completed conversion, updated in ADC ISR
     adc12Cfg_t config;              //!< channel configuration
     uint16_t results[ADC12_MAX_CHANNELS];            //!< ADC conversion results
-    int8_t indexes[ADC12_MAX_CHANNELS];            //!< channel index (never changes) -> index in 'results' array
+    int16_t indexes[ADC12_MAX_CHANNELS];            //!< channel index (never changes) -> index in 'results' array
     uint16_t *pFlags;               //!< pointer to a bit mask that will be set in the ISR - should be checked in main loop
     uint16_t flag_adc12Complete;    //!< flag that will be set in pFlags when conversion completes
 } adc12_t;
