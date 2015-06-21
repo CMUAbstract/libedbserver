@@ -28,6 +28,7 @@
 #include "marker.h"
 #include "minmax.h"
 #include "main.h"
+#include "config.h"
 
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
 
@@ -268,7 +269,9 @@ static void pin_setup()
     GPIO(PORT_I2C_TARGET, SEL) |= BIT(PIN_I2C_TARGET_SCL) | BIT(PIN_I2C_TARGET_SDA);
 
     // XT2 and XT1 crystal pins
+#ifdef CONFIG_CLOCK_SOURCE_CRYSTAL
     P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
+#endif
 
 #ifdef CONFIG_ROUTE_ACLK_TO_PIN
     P1SEL |= BIT0;
