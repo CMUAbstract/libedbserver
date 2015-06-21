@@ -17,22 +17,20 @@ def main():
         actual_voltage = mon.charge(target_voltage)
         print "Charged to %.4f V" % (actual_voltage)
 
-        # WISP Boot latency (TODO: why is it taking this long?)
-        time.sleep(0.004)
+        # WISP Boot latency (TODO: why is it taking this long? about 6 ms)
+        time.sleep(0.015) # let it run
 
     saved_vcap = mon.enter_debug_mode()
     print "Entered debug mode: saved Vcap = %.4f V" % saved_vcap
-    time.sleep(0.010)
+    time.sleep(0.020)
     restored_vcap = mon.exit_debug_mode()
     print "Exited debug mode: restored Vcap = %.4f V" % restored_vcap
 
-    # This can't be much longer than ~5ms if the LED on the WISP is on in debug
-    # mode because the WISP discharges quickly in that case
-    time.sleep(0.005)
+    time.sleep(0.015)
 
     saved_vcap = mon.enter_debug_mode()
     print "Entered debug mode: saved Vcap = %.4f V" % saved_vcap
-    time.sleep(0.010)
+    time.sleep(0.020)
     restored_vcap = mon.exit_debug_mode()
     print "Exited debug mode: restored Vcap = %.4f V" % restored_vcap
 
