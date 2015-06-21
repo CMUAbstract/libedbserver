@@ -5,8 +5,10 @@ import math
 from binascii import hexlify
 
 SERIAL_PORT                         = '/dev/ttyUSB0'
-#BAUD_RATE                           = 921600 # CONFIG_CLOCK_SOURCE_INTERNAL in config.h
-BAUD_RATE                           = 2000000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
+BAUD_RATE                           = 921600 # CONFIG_CLOCK_SOURCE_INTERNAL in config.h
+#BAUD_RATE                           = 2000000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
+#BAUD_RATE                           = 1000000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
+#BAUD_RATE                           = 115200 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
 
 UART_USB_IDENTIFIER                 = 0xF0
 
