@@ -683,6 +683,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
         marker_monitor_end();
         break;
 
+    case USB_CMD_BREAK_AT_VCAP_LEVEL:
+        target_vcap = *((uint16_t *)(&pkt->data[0]));
+        break_at_vcap_level(target_vcap);
+        break;
+
     default:
         break;
     }
@@ -788,6 +793,19 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 		ADC12_removeChannel(&adc12, adc_chan_index);
 		ADC12_restart(&adc12);
 	}
+}
+
+static void break_at_vcap_level(uint16_t level)
+{
+    uint16_t cur_voltage;
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } while (cur_voltage > level);
+
+    enter_debug_mode();
 }
 
 static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
