@@ -290,7 +290,7 @@ static void pin_setup()
 int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
-    unsigned count = 0;
+    uint32_t count = 0;
     uint16_t adc_sample;
 
     // Stop watchdog timer to prevent time out reset
@@ -432,8 +432,11 @@ int main(void)
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
-        if (++count == 0)
+        if (++count == 0xffff) {
             GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+            count = 0;
+        }
+
     }
 }
 
