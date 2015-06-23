@@ -23,6 +23,7 @@
 #include <msp430.h>
 #include <stdint.h>
 
+#include "config.h"
 #include "timeLog.h"
 
 uint16_t overflowCycles = 0;
@@ -41,9 +42,12 @@ void TimeLog_request(uint8_t request)
 
 		overflowCycles = 0;
 
-		// start relative timer
-		// SMCLK, continuous mode, clear TAR, enable interrupt
-		TA2CTL = TASSEL__SMCLK + MC__CONTINUOUS + TACLR + TAIE;
+		// configure relative timer
+		TA2CTL |= TACLR | TAIE | CONFIG_TIMELOG_TIMER_SOURCE | CONFIG_TIMELOG_TIMER_DIV_BITS;
+		TA2EX0 |= CONFIG_TIMELOG_TIMER_DIV_BITS_EX;
+
+		// continuous mode, clear TAR, enable interrupt
+		TA2CTL |= MC__CONTINUOUS; // start
 	} else {
 		// don't subtract from unsigned 0
 		if(time_log_requests != 0) {

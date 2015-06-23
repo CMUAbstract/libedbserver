@@ -8,7 +8,15 @@ SERIAL_PORT                         = '/dev/ttyUSB0'
 BAUD_RATE                           = 921600 # CONFIG_CLOCK_SOURCE_INTERNAL in config.h
 #BAUD_RATE                           = 2000000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
 #BAUD_RATE                           = 1000000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
+#BAUD_RATE                           = 500000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
 #BAUD_RATE                           = 115200 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
+
+ACLK_FREQ = 32768 # Hz
+#SMCLK_FREQ = 24000000 # Hz
+SMCLK_FREQ = 21921792 # Hz
+
+TIME_TIMER_FREQ = ACLK_FREQ
+#TIME_TIMER_FREQ = SMCLK_FREQ
 
 UART_USB_IDENTIFIER                 = 0xF0
 
@@ -83,7 +91,7 @@ CONSTRUCT_STATE_DATA                = 0x03
 
 class WispMonitor:
     VDD                                 = 3.35 # V
-    CLK_FREQ                            = 25000000 / 2 # Hz (SMCLK = XT2CLK / 2)
+    CLK_FREQ                            = TIME_TIMER_FREQ # Hz
     CLK_PERIOD                          = 1.0 / CLK_FREQ # seconds
 
     def __init__(self):

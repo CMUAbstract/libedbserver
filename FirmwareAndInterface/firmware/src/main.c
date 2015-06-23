@@ -273,11 +273,6 @@ static void pin_setup()
     GPIO(PORT_VSENSE, SEL) |=
         BIT(PIN_VCAP) | BIT(PIN_VBOOST) | BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ);
 
-    // XT2 and XT1 crystal pins
-#ifdef CONFIG_CLOCK_SOURCE_CRYSTAL
-    P5SEL |= BIT2 | BIT3 | BIT4 | BIT5;
-#endif
-
 #ifdef CONFIG_ROUTE_ACLK_TO_PIN
     P1SEL |= BIT0;
     P1DIR |= BIT0;
@@ -286,6 +281,16 @@ static void pin_setup()
     // For measuring debugger energy interference only: configure interrupt line on boot
     // unmask_target_signal();
 }
+
+#ifdef CONFIG_CLOCK_TEST_MODE
+// For debugging clock configurations
+static void blink_loop() {
+    while (1) {
+        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+        __delay_cycles(1000000);
+    }
+}
+#endif
 
 int main(void)
 {
@@ -301,6 +306,11 @@ int main(void)
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
 
     UCS_setup(); // set up unified clock system
+#ifdef CONFIG_CLOCK_TEST_MODE
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    blink_loop(); // to check clock configuration
+#endif
+
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
 
