@@ -43,6 +43,9 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
 
         UCA0CTL1 |= UCSWRST;                    // put state machine in reset
         UCA0CTL1 |= UCSSEL__SMCLK;
+#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+        UCA0CTL1 |= UCRXEIE;
+#endif
 
         UCA0BR0 = CONFIG_USB_UART_BAUDRATE_BR0;
         UCA0BR1 = CONFIG_USB_UART_BAUDRATE_BR1;
@@ -405,6 +408,18 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
 
     case USCI_UCRXIFG:                      // Vector 2 - RXIFG
     {
+
+#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+        if (UCA0STAT & UCRXERR) {
+                GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+                GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+                while(1) {
+                    if (UCA0STAT & UCOE)
+                        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+                    __delay_cycles(10000);
+                }
+        }
+#endif
         usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
         usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
         *pUSBFlags |= USBRxFlag;        // alert the main loop

@@ -42,6 +42,8 @@
 
 #define CONFIG_TARGET_UART_BAUDRATE 9600
 
+#define CONFIG_ABORT_ON_USB_UART_ERROR // red led on, and if error is overflow, green led blinking
+
 // #define CONFIG_CLOCK_TEST_MODE // enter a blinker loop after configuring clocks
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
 
