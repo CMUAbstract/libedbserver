@@ -16,7 +16,7 @@
  * 				here, so we don't want to have to send more time data.
  * 				The functions in this file allow a request to be made to log
  * 				time data.  When the request is made, Timer2 starts.  The
- * 				function getTime can then be called to get the 32-bit time
+ * 				macro TIMELOG_CURRENT_TIME can then be called to get the 32-bit time
  * 				in SMCLK cycles.
  ******************************************************************************/
 
@@ -25,7 +25,7 @@
 
 #include "timeLog.h"
 
-static uint32_t overflowCycles = 0;
+uint16_t overflowCycles = 0;
 
 void TimeLog_request(uint8_t request)
 {
@@ -55,11 +55,6 @@ void TimeLog_request(uint8_t request)
 	}
 }
 
-uint32_t getTime()
-{
-	return TA2R + overflowCycles;
-}
-
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER2_A1_VECTOR
 __interrupt void TIMER2_A1_ISR(void)
@@ -80,8 +75,7 @@ void __attribute__ ((interrupt(TIMER2_A1_VECTOR))) TIMER2_A1_ISR (void)
 	case TA2IV_6:
 		break;
 	case TA2IV_TAIFG:
-		// overflow
-		overflowCycles += 0x00010000;
+		overflowCycles++;
 		break;
 	default:
 		break;

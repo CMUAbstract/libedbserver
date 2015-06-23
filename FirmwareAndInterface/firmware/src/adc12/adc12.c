@@ -172,7 +172,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 #error Compiler not supported!
 #endif
 {
-	_pAdc12->timeComplete = getTime(); // record time
+	_pAdc12->timeComplete = TIMELOG_CURRENT_TIME;
 
     switch(__even_in_range(ADC12IV,34))
     {

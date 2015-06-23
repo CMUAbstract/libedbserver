@@ -830,7 +830,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	switch(__even_in_range(P1IV, 16))
 	{
 	case INTFLAG(PORT_RF, PIN_RF_TX):
-		RFID_TxHandler(getTime());
+		RFID_TxHandler(TIMELOG_CURRENT_TIME);
 		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
 		break;
 	case INTFLAG(PORT_RF, PIN_RF_RX):

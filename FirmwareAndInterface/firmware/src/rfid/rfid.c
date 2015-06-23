@@ -116,147 +116,147 @@ void RFID_stopRxLog()
 
 void handleQR(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();				// record relative time
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;				// record relative time
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_QUERYREP;		// record decoded command
 	*pFlags |= rxActivityFlag;							// alert the main loop
 }
 
 void handleAck(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_ACK;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleQuery(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_QUERY;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleQA(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_QUERYADJUST;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleSelect(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_SELECT;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleNak(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_NAK;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleReqRN(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_REQRN;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleRead(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_READ;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleWrite(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_WRITE;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleKill(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_KILL;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleLock(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_LOCK;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleAccess(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_ACCESS;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleBlockWrite(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_BLOCKWRITE;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleBlockErase(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_BLOCKERASE;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleBlockPermalock(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_BLOCKPERMALOCK;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleReadBuffer(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_READBUFFER;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleFileOpen(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_FILEOPEN;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleChallenge(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_CHALLENGE;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleAuthenticate(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_AUTHENTICATE;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleSecureComm(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_SECURECOMM;
 	*pFlags |= rxActivityFlag;
 }
 
 void handleAuthComm(void)
 {
-	rxTimeBuf[rxDataBufLen] = getTime();
+	rxTimeBuf[rxDataBufLen] = TIMELOG_CURRENT_TIME;
 	rxDataBuf[rxDataBufLen++] = RFID_CMD_AUTHCOMM;
 	*pFlags |= rxActivityFlag;
 }
