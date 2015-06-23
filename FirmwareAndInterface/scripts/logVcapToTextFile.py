@@ -8,7 +8,7 @@
 # Time is also obtained from the WISP monitor.
 
 import wispmon
-import atexit
+import signal
 
 
 SAMPLE_TIME                 = 5.0 # s
@@ -21,28 +21,40 @@ fp = open(LOG_FILE, 'w')
 numSamples = 0
 total_bytes = 0
 
-def cleanup():
+def cleanup(interrupted):
     global curTime, numSamples, total_bytes
     
-    print("Stopping")
+    if interrupted:
+        print " Interrupted"
+    else:
+        print "Stopping"
+
     mon.sendCmd(wispmon.USB_CMD_LOG_VCAP_END) # stop logging Vcap
     
     # clean up
     fp.close()
     mon.destroy()
-    
+
+    if curTime > 0:
+        data_rate_kbps = float(total_bytes) / 1000 / curTime
+    else:
+        data_rate_kbps = 0
     print "%d data points (%d B) in %f seconds: %.02f KB/s" % \
-            (numSamples, total_bytes, curTime, float(total_bytes) / 1000 / curTime)
+            (numSamples, total_bytes, curTime, data_rate_kbps)
+
+def sigint_handler(signum, frame):
+    cleanup(interrupted=True)
     exit()
 
 def main():
     global curTime, numSamples, total_bytes
-    atexit.register(cleanup)
+
+    signal.signal(signal.SIGINT, sigint_handler)
+
     buf = bytearray()
     
     mon.sendCmd(wispmon.USB_CMD_LOG_VCAP_BEGIN) # start logging Vcap
     print("Logging... Ctrl-C to stop")
-
     startCycles = -1
     curCycles = 0
     curTime = 0
@@ -87,6 +99,8 @@ def main():
                 # with no corresponding Vcap value
                 fp.write("%f,%f\n" % (curTime, Vcap))
             mon.rxPkt.processed = True
+
+    cleanup(interrupted=False)
 
 if __name__ == '__main__':
     main()
