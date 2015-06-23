@@ -124,6 +124,8 @@
 #define USB_CMD_CHARGE                          0x29 //!< Charge WISP capacitor to a given level
 #define USB_CMD_DISCHARGE                       0x30 //!< Discharge WISP capacitor to a given level
 #define USB_CMD_BREAK_AT_VCAP_LEVEL             0x31 //!< Interrupt execution when Vcap reaches a given level
+#define USB_CMD_READ_MEM                        0x32 //!< Read memory contents at an address
+#define USB_CMD_WRITE_MEM                       0x33 //!< Write memory contents at an address
 /** @} End USB_CMD */
 
 /**
@@ -166,6 +168,8 @@
 #define WISP_CMD_GET_PC							0x00 //!< get program counter
 #define WISP_CMD_EXAMINE_MEMORY					0x01 //!< examine WISP memory
 #define WISP_CMD_EXIT_ACTIVE_DEBUG				0x02 //!< prepare to exit active debug mode
+#define WISP_CMD_READ_MEM         				0x03 //!< read memory contents at an address
+#define WISP_CMD_WRITE_MEM         				0x04 //!< write memory contents at an address
 /** @} End WISP_CMD */
 
 /**

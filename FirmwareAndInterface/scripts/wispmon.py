@@ -65,6 +65,8 @@ USB_CMD_RESET_STATE                  = 0x28
 USB_CMD_CHARGE                       = 0x29
 USB_CMD_DISCHARGE                    = 0x30
 USB_CMD_BREAK_AT_VCAP_LEVEL          = 0x31
+USB_CMD_READ_MEM                     = 0x32
+USB_CMD_WRITE_MEM                    = 0x33
 
 # Serial receive message descriptors
 USB_RSP_VCAP                         = 0x00
@@ -204,6 +206,12 @@ class WispMonitor:
     def bytes_to_uint16(self, bytes):
         return (bytes[1] << 8) | bytes[0]
 
+    def uint32_to_bytes(self, val):
+        return [val & 0xFF, (val>> 8) & 0xFF, (val >> 16) & 0xFF, (val >> 24) & 0xFF]
+
+    def bytes_to_uint32(self, bytes):
+        return (bytes[3] << 24) | (bytes[2] << 16) | (bytes[1] << 8) | (bytes[0] << 0)
+
     def voltage_to_adc(self, voltage):
         return int(math.ceil(voltage * 4096 / self.VDD))
 
@@ -217,6 +225,23 @@ class WispMonitor:
         vcap = self.adc_to_voltage(self.bytes_to_uint16(reply.data))
         reply.processed = True
         return vcap
+
+    def receive_mem_addr_reply(self):
+        reply = self.receive()
+        if reply.descriptor != USB_RSP_WISP_MEMORY:
+            raise Exception("invalid reply to memory cmd: " + str(reply.descriptor))
+        mem_addr = (reply.data[3] << 24) | (reply.data[2] << 16) | \
+                   (reply.data[1] << 8) | (reply.data[0] << 0)
+        reply.processed = True
+        return mem_addr
+
+    def receive_mem_value_reply(self):
+        reply = self.receive()
+        if reply.descriptor != USB_RSP_WISP_MEMORY:
+            raise Exception("invalid reply to memory cmd: " + str(reply.descriptor))
+        mem_value = reply.data[0]
+        reply.processed = True
+        return mem_value
 
     def charge(self, target_voltage):
         target_voltage_adc = self.voltage_to_adc(target_voltage)
@@ -243,6 +268,16 @@ class WispMonitor:
         cmd_data = self.uint16_to_bytes(level_adc)
         self.sendCmd(USB_CMD_BREAK_AT_VCAP_LEVEL, data=cmd_data)
         return self.receive_vcap_reply()
+
+    def read_mem(self, addr):
+        cmd_data = self.uint32_to_bytes(addr)
+        self.sendCmd(USB_CMD_READ_MEM, data=cmd_data)
+        return self.receive_mem_value_reply()
+
+    def write_mem(self, addr, value):
+        cmd_data = self.uint32_to_bytes(addr) + [value]
+        self.sendCmd(USB_CMD_WRITE_MEM, data=cmd_data)
+        return self.receive_mem_addr_reply()
 
 class RxPkt():
     def __init__(self):

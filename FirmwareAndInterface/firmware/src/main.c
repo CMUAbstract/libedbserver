@@ -57,6 +57,8 @@
 #define LOG_VINJ					0x10 //!< Logging Vinj
 /** @} End LOG_DEFINES */
 
+#define WISP_CMD_MAX_LEN 16
+
 /**
  * @brief   Assigns a permanent index to each ADC channels
  *
@@ -90,6 +92,8 @@ static uint16_t adc12Target; // target ADC reading
 static uint16_t saved_vcap; // energy level before entering active debug mode
 
 static uartPkt_t wispRxPkt = { .processed = 1 };
+
+static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 
 static adc12_t adc12 = {
     .config = {
@@ -458,6 +462,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
 {
     uint16_t adc12Result;
     uint16_t target_vcap, actual_vcap;
+    uint32_t address;
+    uint8_t cmd_len;
 
     trigger_scope();
 
@@ -700,6 +706,47 @@ static void executeUSBCmd(uartPkt_t *pkt)
         target_vcap = *((uint16_t *)(&pkt->data[0]));
         break_at_vcap_level(target_vcap);
         break;
+
+    case USB_CMD_READ_MEM:
+        address = *((uint32_t *)(&pkt->data[0]));
+
+        cmd_len = 0;
+        wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
+
+        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_READ_MEM,
+                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
+        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_MEMORY, &(wispRxPkt.data[0]),
+                     wispRxPkt.length, UART_TX_FORCE); // send PC over USB
+        wispRxPkt.processed = 1;
+        break;
+
+    case USB_CMD_WRITE_MEM:
+    {
+        address = *((uint32_t *)(&pkt->data[0]));
+        uint8_t value = pkt->data[sizeof(uint32_t)];
+
+        cmd_len = 0;
+        wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
+        wisp_cmd_buf[cmd_len++] = value;
+
+        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_WRITE_MEM,
+                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
+        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_MEMORY, &(wispRxPkt.data[0]),
+                     wispRxPkt.length, UART_TX_FORCE); // send PC over USB
+        wispRxPkt.processed = 1;
+        break;
+    }
+
 
     default:
         break;

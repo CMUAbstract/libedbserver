@@ -22,7 +22,21 @@ def main():
 
     saved_vcap = mon.enter_debug_mode()
     print "Entered debug mode: saved Vcap = %.4f V" % saved_vcap
-    time.sleep(0.020)
+
+    #time.sleep(0.020)
+
+    time.sleep(0.010)
+
+    # write-read a memory location
+    addr = 0x1d0d
+    value = 0xab
+    addr = mon.write_mem(addr, value)
+    print "Mem: write: 0x%x: 0x%x" % (addr, value)
+    value = mon.read_mem(addr)
+    print "Mem: read: 0x%x: 0x%x" % (addr, value)
+
+    time.sleep(0.010)
+
     restored_vcap = mon.exit_debug_mode()
     print "Exited debug mode: restored Vcap = %.4f V" % restored_vcap
 

@@ -16,6 +16,8 @@
 
 // #define LED_IN_DEBUG_STATE
 
+static uint8_t tx_buf[16];
+
 typedef enum {
     STATE_OFF = 0,
     STATE_IDLE,
@@ -156,7 +158,14 @@ void exit_debug_mode()
     debug_flags |= DEBUG_RETURN;
 }
 
-static uint8_t tx_buf[16];
+uint8_t *mem_addr_from_bytes(uint8_t *buf)
+{
+    return (uint8_t *)
+        (((uint32_t)buf[3] << 24) |
+        ((uint32_t)buf[2] << 16) |
+        ((uint32_t)buf[1] << 8) |
+        ((uint32_t)buf[0] << 0));
+}
 
 static void execute_cmd(cmd_t *cmd)
 {
@@ -179,6 +188,49 @@ static void execute_cmd(cmd_t *cmd)
             txBuf[4] = (wisp_pc >> 8) & 0xFF;
             UART_send(txBuf, 6); // For some reason, UART_send seems to send size - 1 bytes.
                                  // This message is only 5 bytes long.
+            break;
+        }
+        case WISP_CMD_READ_MEM:
+        {
+            // TODO: assert(msg->len == 4)
+
+            offset = 0;
+            address = mem_addr_from_bytes(&cmd->data[offset]);
+            offset += sizeof(uint32_t);
+
+            value = *address;
+
+            msg_len = 0;
+            tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
+            tx_buf[msg_len++] = WISP_RSP_MEMORY;
+            tx_buf[msg_len++] = sizeof(uint8_t);
+            tx_buf[msg_len++] = value;
+
+            UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
+            break;
+        }
+        case WISP_CMD_WRITE_MEM:
+        {
+            // TODO: assert(msg->len == 5)
+
+            offset = 0;
+            address = mem_addr_from_bytes(&cmd->data[offset]);
+            offset += sizeof(uint32_t);
+            value = cmd->data[offset];
+            offset += sizeof(uint8_t);
+
+            *address = value;
+
+            msg_len = 0;
+            tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
+            tx_buf[msg_len++] = WISP_RSP_MEMORY;
+            tx_buf[msg_len++] = sizeof(uint32_t);
+            tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
+
+            UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
             break;
         }
         case WISP_CMD_EXIT_ACTIVE_DEBUG:
@@ -231,6 +283,12 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
                     case WISP_CMD_EXIT_ACTIVE_DEBUG:
                         msg_state = MSG_STATE_IDENTIFIER;
                         return true;
+
+                        // cmds with data
+                    case WISP_CMD_READ_MEM:
+                    case WISP_CMD_WRITE_MEM:
+                        msg_state = MSG_STATE_DATALEN;
+                        break;
 
                     default: // unknown cmd
                         break;

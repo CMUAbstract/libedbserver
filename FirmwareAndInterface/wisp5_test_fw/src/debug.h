@@ -30,6 +30,8 @@
 #define WISP_CMD_GET_PC					0x00 //!< get WISP program counter
 #define WISP_CMD_EXAMINE_MEMORY			0x01 //!< examine WISP memory
 #define WISP_CMD_EXIT_ACTIVE_DEBUG		0x02 //!< prepare to exit active debug mode
+#define WISP_CMD_READ_MEM               0x03 //!< read memory contents at an address
+#define WISP_CMD_WRITE_MEM              0x04 //!< read memory contents at an address
 /** @} End WISP_CMD */
 
 /**

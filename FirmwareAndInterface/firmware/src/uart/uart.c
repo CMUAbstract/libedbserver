@@ -292,6 +292,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_SET_PWM_FREQUENCY:		// expecting 2 data bytes (TB0CCR0 register)
 				case USB_CMD_SET_PWM_DUTY_CYCLE:	// expecting 2 data bytes (TB0CCR1 register)
 				case USB_CMD_BREAK_AT_VCAP_LEVEL:	// expecting 2 data bytes (voltage level)
+				case USB_CMD_READ_MEM:	            // expecting 2 data bytes (mem address)
+				case USB_CMD_WRITE_MEM:	            // expecting 3 data bytes (mem address, value)
 					// additional data is needed
 					state = CONSTRUCT_STATE_DATA_LEN;
 					break;
