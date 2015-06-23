@@ -25,6 +25,8 @@ static uartBuf_t usbTx = { .head = 0, .tail = 0 };
 static uartBuf_t wispRx = { .head = 0, .tail = 0 };
 static uartBuf_t wispTx = { .head = 0, .tail = 0 };
 
+static uint8_t msg[UART_BUF_MAX_LEN];
+
 extern inline uint8_t uartBuf_len(uartBuf_t *buf);
 
 void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)
@@ -348,7 +350,6 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
 				  uint8_t data_len, uint8_t force)
 {
-    uint8_t msg[UART_BUF_MAX_LEN];
     uint8_t msg_len = 0;
 
     switch(interface)
