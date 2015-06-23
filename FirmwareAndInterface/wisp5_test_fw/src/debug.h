@@ -11,6 +11,7 @@
 #include "wisp-base.h"
 
 #define DEBUG_UART_BUF_LEN				2
+#define DEBUG_CMD_MAX_LEN               16
 
 #define UART_IDENTIFIER_WISP			0xF1
 

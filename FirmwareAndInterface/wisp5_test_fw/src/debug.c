@@ -6,6 +6,7 @@
  */
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "debug.h"
 #include "wisp-base.h"
@@ -39,16 +40,22 @@ typedef enum {
 	MSG_STATE_DATA			//!< UART data
 } msgState_t;
 
+typedef struct {
+    uint8_t descriptor;
+    uint8_t len;
+    uint8_t *data;
+} cmd_t;
+
 static state_t state = STATE_OFF;
 
 static uint16_t debug_flags = 0;
-
-static clkInfo_t clkInfo;
 
 static uint16_t *wisp_sp; // stack pointer on debug entry
 
 // expecting 2-byte messages from the debugger (identifier byte + descriptor byte)
 static uint8_t uartRxBuf[DEBUG_UART_BUF_LEN];
+
+static uint8_t cmd_data_buf[DEBUG_CMD_MAX_LEN];
 
 static void set_state(state_t new_state)
 {
@@ -149,68 +156,105 @@ void exit_debug_mode()
     debug_flags |= DEBUG_RETURN;
 }
 
+static uint8_t tx_buf[16];
+
+static void execute_cmd(cmd_t *cmd)
+{
+    uint8_t msg_len;
+    uint8_t *address;
+    uint8_t value;
+    uint8_t offset;
+
+    switch (cmd->descriptor)
+    {
+        case WISP_CMD_GET_PC:
+        {
+            // get the program counter
+            uint16_t wisp_pc = *(wisp_sp + 11); // 22-byte offset to PC
+
+            // stick to the UART message structure
+            uint8_t txBuf[5] = { UART_IDENTIFIER_WISP, WISP_RSP_PC,
+                                 sizeof(uint16_t), 0x00, 0x00 };
+            txBuf[3] = wisp_pc & 0xFF;
+            txBuf[4] = (wisp_pc >> 8) & 0xFF;
+            UART_send(txBuf, 6); // For some reason, UART_send seems to send size - 1 bytes.
+                                 // This message is only 5 bytes long.
+            break;
+        }
+        case WISP_CMD_EXIT_ACTIVE_DEBUG:
+            exit_debug_mode();
+            break;
+
+        default: // invalid cmd
+            break;
+    }
+}
+
 /**
  * @brief	Parse and handle cmds that come from the debugger over UART
+ * @return  Whether a command was parsed and is ready for execution
  */
-static void parseAndExecute(uint8_t *msg, uint8_t len)
+static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
 {
-	static msgState_t msg_state = MSG_STATE_IDENTIFIER;
+    static msgState_t msg_state = MSG_STATE_IDENTIFIER;
+    static uint8_t data_len = 0;
 
-	uint8_t i;
-	for(i = 0; i < len; i++) {
-		switch(msg_state)
-		{
-		case MSG_STATE_IDENTIFIER:
-		{
-			uint8_t identifier = msg[i];
-			if(identifier == UART_IDENTIFIER_WISP) {
-				// good identifier byte
-				msg_state = MSG_STATE_DESCRIPTOR;
-			}
+    uint8_t i;
+    for(i = 0; i < len; i++) {
+        switch(msg_state)
+        {
+            case MSG_STATE_IDENTIFIER:
+                {
+                    uint8_t identifier = msg[i];
+                    if(identifier == UART_IDENTIFIER_WISP) {
+                        // good identifier byte
+                        msg_state = MSG_STATE_DESCRIPTOR;
+                    }
 
-			// else we had a bad identifier byte, so don't change the state
-			break;
-		}
+                    // else we had a bad identifier byte, so don't change the state
+                    break;
+                }
 
-		case MSG_STATE_DESCRIPTOR:
-			switch(msg[i])
-			{
-			case WISP_CMD_GET_PC:
-			{
-				// get the program counter
-				uint16_t wisp_pc = *(wisp_sp + 11); // 22-byte offset to PC
+            case MSG_STATE_DESCRIPTOR:
+                data_len = 0;
+                cmd->descriptor = msg[i];
+                cmd->len = 0;
 
-				// stick to the UART message structure
-				uint8_t txBuf[5] = { UART_IDENTIFIER_WISP, WISP_RSP_PC,
-									 sizeof(uint16_t), 0x00, 0x00 };
-				txBuf[3] = wisp_pc & 0xFF;
-				txBuf[4] = (wisp_pc >> 8) & 0xFF;
-				UART_send(txBuf, 6); // For some reason, UART_send seems to send size - 1 bytes.
-									 // This message is only 5 bytes long.
+                // TODO: info about whether there is more data or not should be
+                // implicit in the length field. This function should be agnostic
+                // to actual descriptor values cmds.
+                switch(msg[i])
+                {
+                    // cmds without any data
+                    case WISP_CMD_GET_PC:
+                    case WISP_CMD_EXAMINE_MEMORY:
+                    case WISP_CMD_EXIT_ACTIVE_DEBUG:
+                        msg_state = MSG_STATE_IDENTIFIER;
+                        return true;
 
-				msg_state = MSG_STATE_IDENTIFIER;
-				break;
-			}
+                    default: // unknown cmd
+                        break;
+                }
+                break;
 
-			case WISP_CMD_EXAMINE_MEMORY:
-				// not yet implemented
-				break;
+            case MSG_STATE_DATALEN:
+                data_len = msg[i]; // decremented as data bytes are parsed
+                msg_state = MSG_STATE_DATA;
+                break;
+            case MSG_STATE_DATA:
+                if (data_len)
+                    cmd->data[cmd->len++] = msg[i];
+                if (--data_len == 0) {
+                    msg_state = MSG_STATE_IDENTIFIER;
+                    return true;
+                }
+                break;
+            default:
+                break;
+        }
+    }
 
-			case WISP_CMD_EXIT_ACTIVE_DEBUG:
-                exit_debug_mode();
-				return;
-
-			default:
-				break;
-			}
-			break;
-
-		case MSG_STATE_DATALEN:
-		case MSG_STATE_DATA:
-		default:
-			break;
-		}
-	}
+    return false;
 }
 
 /**
@@ -219,13 +263,16 @@ static void parseAndExecute(uint8_t *msg, uint8_t len)
  */
 static void debug_main()
 {
+    cmd_t cmd = { .data = cmd_data_buf };
+
 #ifdef LED_IN_DEBUG_STATE
     PLED2OUT |= PIN_LED2;
 #endif
 
     while(1) {
-        UART_receive(uartRxBuf, DEBUG_UART_BUF_LEN, 0xFF); // block until we receive a message
-        parseAndExecute(uartRxBuf, DEBUG_UART_BUF_LEN); // parse the message and perform actions
+        UART_receive(uartRxBuf, 1, 0xFF); // block until we receive a message
+        if (parse_cmd(&cmd, uartRxBuf, 1))
+            execute_cmd(&cmd);
 
         if(debug_flags & DEBUG_RETURN) {
             debug_flags &= ~DEBUG_RETURN;
