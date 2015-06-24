@@ -9,14 +9,22 @@
 
 import wispmon
 import signal
+import argparse
+import sys
 
-
-SAMPLE_TIME                 = 5.0 # s
-
-LOG_FILE                    = 'data/vcap.csv'
+parser = argparse.ArgumentParser()
+parser.add_argument('--duration', '-d', type=float, default=-1,
+    help='how long to record data (seconds), by default indefinitely')
+parser.add_argument('--out', '-o',
+    help='output filename where to save data, standard out if not specified')
+args = parser.parse_args()
 
 mon = wispmon.WispMonitor()
-fp = open(LOG_FILE, 'w')
+
+if args.out is not None:
+    fp = open(LOG_FILE, 'w')
+else:
+    fp = sys.stdout
 
 numSamples = 0
 total_bytes = 0
@@ -32,7 +40,6 @@ def cleanup(interrupted):
     mon.sendCmd(wispmon.USB_CMD_LOG_VCAP_END) # stop logging Vcap
     
     # clean up
-    fp.close()
     mon.destroy()
 
     if curTime > 0:
@@ -61,7 +68,7 @@ def main():
 
     fp.write("time,Vcap\n")
     
-    while(curTime < SAMPLE_TIME):
+    while(args.duration < 0 or curTime < args.duration):
         bufLen = mon.serial.inWaiting() # get the number of bytes available
         if(bufLen == 0):
             continue
@@ -70,7 +77,8 @@ def main():
         buf.extend(newBytes)
 
         total_bytes += len(newBytes)
-        print "\r", total_bytes, "B",
+        if args.out is not None: # only show progress if not outputing to console
+            print "\r", total_bytes, "B",
 
         while mon.buildRxPkt(buf):
             # packet construction succeeded
