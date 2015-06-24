@@ -22,4 +22,14 @@
 #define PORT_SIG   1
 #define PIN_SIG    4
 
+// Code point pins must be on same port and consecutive
+// NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
+// NOTE: Cannot use macros in inline assembly, so debug.h has these hardcoded!
+#define PORT_CODEPOINT  3
+#define PIN_CODEPOINT_0 4 // lsb
+#define PIN_CODEPOINT_1 5 // msb
+#define PIN_CODEPOINT_MASK 0x30
+// TODO: see if preprocessor fully processes inline assembly (I don't think so)
+#define PIN_CODEPOINT_REG P3OUT
+
 #endif // PIN_ASSIGN_H

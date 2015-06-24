@@ -7,6 +7,7 @@
  *
  */
 
+#include <msp430.h>
 #include "wisp-base.h"
 #include "debug.h"
 
@@ -58,6 +59,10 @@ void my_blockWriteCallback  (void) {
  */
 void main(void) {
 
+#ifdef CONFIG_BREAKPOINT_TEST
+  uint16_t count = 0;
+#endif
+
   WISP_init();
   debug_setup();
   
@@ -87,9 +92,19 @@ void main(void) {
   wispData.epcBuf[9] = 0x99;
   wispData.epcBuf[10]= 0xAA;
   wispData.epcBuf[11]= 0xBB;
+
+#ifdef CONFIG_BREAKPOINT_TEST
+  __enable_interrupt();
+#endif
   
   // Talk to the RFID reader.
   while (FOREVER) {
+#ifdef CONFIG_BREAKPOINT_TEST
+    count++;
+    if (count % 100 == 0)
+        BREAKPOINT(1);
+#else
     WISP_doRFID();
+#endif
   }
 }

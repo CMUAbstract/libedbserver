@@ -50,6 +50,8 @@
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
 
+#define CONFIG_ENABLE_CODEPOINTS
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44

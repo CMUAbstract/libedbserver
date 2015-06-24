@@ -16,6 +16,7 @@
 
 #include <msp430.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "pin_assign.h"
 #include "ucs.h"
@@ -95,6 +96,8 @@ static uint16_t saved_vcap; // energy level before entering active debug mode
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
+
+static bool bkpt_group_enable[NUM_CODEPOINT_PINS] = {0}; // group index -> is group enabled
 
 static adc12_t adc12 = {
     .config = {
@@ -274,6 +277,12 @@ static void pin_setup()
 #ifdef CONFIG_STATE_PINS
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+#endif
+
+#ifdef CONFIG_ENABLE_CODEPOINTS
+    // Monitor code points TODO: enable only when a breakpoint is set
+    GPIO(PORT_CODEPOINT, IE) |= BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1);   // enable interrupt
+    GPIO(PORT_CODEPOINT, IES) &= ~BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1); // rising edge
 #endif
 
     // Configure the output level for continous power pin ahead of time
@@ -897,6 +906,19 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 		handle_target_signal();
 		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
 		break;
+
+#ifdef CONFIG_ENABLE_CODEPOINTS
+	case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
+	case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
+        if (bkpt_group_enable[(BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)) >> PIN_CODEPOINT_0]) {
+            if (state == STATE_DEBUG)
+                error(ERROR_UNEXPECTED_CODEPOINT);
+
+            enter_debug_mode();
+        }
+        break;
+#endif
+
 	default:
 		break;
 	}

@@ -61,6 +61,13 @@
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             1 //!< scope trigger pin
 
+// Code point pins must be on same port and consecutive
+// NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
+#define PORT_CODEPOINT                          1
+#define PIN_CODEPOINT_0                         5 // lsb
+#define PIN_CODEPOINT_1                         4 // msb
+#define NUM_CODEPOINT_PINS                      2
+
 /* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
 #define PIN_RF_TX                               1 //!< RF TX line
