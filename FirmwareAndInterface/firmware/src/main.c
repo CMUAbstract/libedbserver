@@ -116,10 +116,12 @@ static void set_state(state_t new_state)
 {
     state = new_state;
 
+#ifdef CONFIG_STATE_PINS
     // Encode state onto two indicator pins
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? BIT(PIN_STATE_0) : 0) |
                              (new_state & 0x2 ? BIT(PIN_STATE_1) : 0);
+#endif
 }
 
 /**
@@ -268,8 +270,11 @@ static void pin_setup()
     GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
+
+#ifdef CONFIG_STATE_PINS
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+#endif
 
     // Configure the output level for continous power pin ahead of time
     GPIO(PORT_CONT_POWER, OUT) |= BIT(PIN_CONT_POWER);

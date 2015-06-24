@@ -47,6 +47,8 @@
 // #define CONFIG_CLOCK_TEST_MODE // enter a blinker loop after configuring clocks
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
 
+// Encode debugger state machine state onto pins
+// #define CONFIG_STATE_PINS
 
 // The rest essentially defines the register settings that carry out the above
 

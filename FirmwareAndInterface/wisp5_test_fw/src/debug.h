@@ -9,6 +9,10 @@
 #define DEBUG_H
 
 #include "wisp-base.h"
+#include "pin_assign.h"
+
+// Encode debugger state machine state onto pins
+// #define CONFIG_STATE_PINS
 
 #define DEBUG_UART_BUF_LEN				2
 #define DEBUG_CMD_MAX_LEN               16

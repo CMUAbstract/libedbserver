@@ -61,16 +61,20 @@ static uint8_t cmd_data_buf[DEBUG_CMD_MAX_LEN];
 
 static void set_state(state_t new_state)
 {
+#if CONFIG_STATE_PINS
     uint8_t port_value;
+#endif
 
     state = new_state;
 
+#if CONFIG_STATE_PINS
     // Encode state onto two indicator pins
     port_value = GPIO(PORT_STATE, OUT);
     port_value &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1)); // clear
     port_value |= (new_state & 0x1 ? BIT(PIN_STATE_0) : 0) |
                   (new_state & 0x2 ? BIT(PIN_STATE_1) : 0);
     GPIO(PORT_STATE, OUT) = port_value;
+#endif
 }
 
 static void signal_debugger()
