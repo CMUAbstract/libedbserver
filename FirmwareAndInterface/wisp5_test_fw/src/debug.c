@@ -14,7 +14,7 @@
 
 #define DEBUG_RETURN			0x0001 // signals debug main loop to stop
 
-// #define LED_IN_DEBUG_STATE
+#define LED_IN_DEBUG_STATE
 
 static uint8_t tx_buf[16];
 
