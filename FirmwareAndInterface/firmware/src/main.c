@@ -30,6 +30,7 @@
 #include "minmax.h"
 #include "main.h"
 #include "config.h"
+#include "error.h"
 
 /**
  * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
@@ -286,16 +287,6 @@ static void pin_setup()
     // unmask_target_signal();
 }
 
-#ifdef CONFIG_CLOCK_TEST_MODE
-// For debugging clock configurations
-static void blink_loop() {
-    while (1) {
-        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-        __delay_cycles(1000000);
-    }
-}
-#endif
-
 int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
@@ -312,7 +303,7 @@ int main(void)
     UCS_setup(); // set up unified clock system
 #ifdef CONFIG_CLOCK_TEST_MODE
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-    blink_loop(); // to check clock configuration
+    BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
 #endif
 
     PWM_setup(1024-1, 512); // dummy default values

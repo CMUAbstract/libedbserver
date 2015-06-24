@@ -72,6 +72,7 @@ VPATH += $(SRC_ROOT)
 # sure the build (esp. linker) doesn't pick up stray files
 C_SRCS = \
 	main.c \
+	error.c \
 	ucs/ucs.c \
 	uart/uart.c \
 	i2c/i2c.c \
