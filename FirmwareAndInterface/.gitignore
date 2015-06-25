@@ -5,5 +5,6 @@
 *.obj
 *.d
 *.hex
+*.map
 
 *.pyc

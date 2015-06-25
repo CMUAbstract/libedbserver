@@ -52,6 +52,7 @@ LDFLAGS = \
 	--cinit_hold_wdt=on \
 	--reread_libs \
 	--warn_sections \
+	-m=$(EXEC).map \
 	-i"$(CG_TOOL_ROOT)/lib" \
 	-i"$(CG_TOOL_ROOT)/include" \
 	-i"$(PLATFORM_ROOT)/include" \
