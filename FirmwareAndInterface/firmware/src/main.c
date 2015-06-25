@@ -97,7 +97,7 @@ static uartPkt_t wispRxPkt = { .processed = 1 };
 
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 
-static bool bkpt_group_enable[NUM_CODEPOINT_PINS] = {0}; // group index -> is group enabled
+static bool bkpt_group_enable[NUM_CODEPOINT_PINS] = {0xff, 0xff}; // group index -> is group enabled
 
 static adc12_t adc12 = {
     .config = {
@@ -925,13 +925,17 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #ifdef CONFIG_ENABLE_CODEPOINTS
 	case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
 	case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
-        if (bkpt_group_enable[(BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)) >> PIN_CODEPOINT_0]) {
+    {
+        uint8_t codept_idx = GPIO(PORT_CODEPOINT, OUT) &
+            (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)) >> PIN_CODEPOINT_0;
+        if (bkpt_group_enable[codept_idx]) {
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
 
             enter_debug_mode();
         }
         break;
+    }
 #endif
 
 	default:
