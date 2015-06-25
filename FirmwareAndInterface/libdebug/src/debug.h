@@ -80,11 +80,11 @@
 
 // Start counting at 1 to correspond to bit values.
 #define CODEPOINT_1 do { \
-        asm ( " BIS.B #0x20, &0x0222 " ); \
+        asm ( " BIS.B #0x10, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
     } while (0)
 #define CODEPOINT_2 do { \
-        asm ( " BIS.B #0x10, &0x0222 " ); \
+        asm ( " BIS.B #0x20, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
     } while (0)
 #define CODEPOINT_3 do { \
