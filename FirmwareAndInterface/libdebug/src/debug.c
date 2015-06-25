@@ -379,6 +379,8 @@ void debug_setup()
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
     GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
 
+    __enable_interrupt();
+
     unmask_debugger_signal();
 
     set_state(STATE_IDLE);
