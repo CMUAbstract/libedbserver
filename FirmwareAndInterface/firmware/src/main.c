@@ -752,6 +752,21 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
     }
 
+    case USB_CMD_CONT_POWER:
+    {
+        bool power_on = (bool)pkt->data[0];
+        if (power_on)
+            continuous_power_on();
+        else
+            continuous_power_off();
+
+        /* Reply with Vcap level */
+        adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
+                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
+						UART_TX_FORCE);
+        break;
+    }
 
     default:
         break;

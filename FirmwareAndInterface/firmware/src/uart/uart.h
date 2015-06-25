@@ -126,6 +126,7 @@
 #define USB_CMD_BREAK_AT_VCAP_LEVEL             0x31 //!< Interrupt execution when Vcap reaches a given level
 #define USB_CMD_READ_MEM                        0x32 //!< Read memory contents at an address
 #define USB_CMD_WRITE_MEM                       0x33 //!< Write memory contents at an address
+#define USB_CMD_CONT_POWER                      0x34 //!< Turn on a continuous power supply to the target
 /** @} End USB_CMD */
 
 /**

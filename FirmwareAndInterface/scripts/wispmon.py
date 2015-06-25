@@ -67,6 +67,7 @@ USB_CMD_DISCHARGE                    = 0x30
 USB_CMD_BREAK_AT_VCAP_LEVEL          = 0x31
 USB_CMD_READ_MEM                     = 0x32
 USB_CMD_WRITE_MEM                    = 0x33
+USB_CMD_CONT_POWER                   = 0x34
 
 # Serial receive message descriptors
 USB_RSP_VCAP                         = 0x00
@@ -282,6 +283,11 @@ class WispMonitor:
         cmd_data = self.uint32_to_bytes(addr) + [value]
         self.sendCmd(USB_CMD_WRITE_MEM, data=cmd_data)
         return self.receive_mem_addr_reply()
+
+    def cont_power(self, on):
+        cmd_data = [on]
+        self.sendCmd(USB_CMD_CONT_POWER, data=cmd_data)
+        return self.receive_vcap_reply()
 
 class RxPkt():
     def __init__(self):
