@@ -8,7 +8,6 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "wisp-base.h"
 #include "pin_assign.h"
 
 // Encode debugger state machine state onto pins

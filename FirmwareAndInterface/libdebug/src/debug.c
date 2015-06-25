@@ -5,11 +5,12 @@
  * @brief	Functions allowing debugging functionality on the WISP.
  */
 
+#include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <wisp-base.h>
 
 #include "debug.h"
-#include "wisp-base.h"
 #include "pin_assign.h"
 
 #define DEBUG_RETURN			0x0001 // signals debug main loop to stop
