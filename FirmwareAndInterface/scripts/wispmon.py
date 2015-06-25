@@ -243,6 +243,10 @@ class WispMonitor:
         reply.processed = True
         return mem_value
 
+    def get_vcap(self):
+        self.sendCmd(USB_CMD_GET_VCAP)
+        return self.receive_vcap_reply()
+
     def charge(self, target_voltage):
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
