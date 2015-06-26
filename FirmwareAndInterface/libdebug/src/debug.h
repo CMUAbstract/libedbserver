@@ -53,15 +53,22 @@
 
 /** @} End WISP_MSG_DESCRIPTORS */
 
+/** @brief Latency between a code point marker GPIO setting and the signal to enter debug mode 
+ *  @details The execution on the target continues for this long after the codepoint.
+ */
+#define ENTER_DEBUG_MODE_LATENCY_CYCLES 100
+
 // The index argument to breakpoint macros identifies a breakpoint *group*.
 // All breakpionts in a group can be enabled/disabled together (not separately).
 
 #if defined(CONFIG_BREAKPOINT_IMPL_C)
 
-#define CODEPOINT(idx) \
+#define CODEPOINT(idx) do { \
         GPIO(PORT_CODEPOINT, OUT) = \
             (GPIO(PORT_CODEPOINT, OUT) & ~(BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1))) | \
-            (idx << PIN_CODEPOINT_0);
+            (idx << PIN_CODEPOINT_0); \
+            __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
+        } while (0)
 #define BREAKPOINT(idx) CODEPOINT(idx)
 
 #elif defined(CONFIG_BREAKPOINT_IMPL_ASM)
@@ -82,14 +89,17 @@
 #define CODEPOINT_1 do { \
         asm ( " BIS.B #0x10, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
+        __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
     } while (0)
 #define CODEPOINT_2 do { \
         asm ( " BIS.B #0x20, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
+        __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
     } while (0)
 #define CODEPOINT_3 do { \
         asm ( " BIS.B #0x30, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
+        __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
     } while (0)
 
 #define BREAKPOINT_INNER(idx) CODEPOINT_ ## idx
