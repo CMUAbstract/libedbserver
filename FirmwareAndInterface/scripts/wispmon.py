@@ -336,7 +336,6 @@ class WispMonitor:
 
     def write_mem(self, addr, value):
         cmd_data = self.uint32_to_bytes(addr) + [len(value)] + value
-        print cmd_data
         self.sendCmd(USB_CMD_WRITE_MEM, data=cmd_data)
         self.receive_reply(USB_RSP_RETURN_CODE)
 
