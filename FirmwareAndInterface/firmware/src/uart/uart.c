@@ -239,26 +239,16 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             uartBuf_copyFrom(uartBuf, &(pkt->descriptor), sizeof(uint8_t));
             minUartBufLen -= sizeof(uint8_t);
 
+            // TODO: parser should not be aware of specific commands
             // check if additional data is needed for this message
             if(interface == UART_INTERFACE_USB) {
 				switch(pkt->descriptor)
 				{
-				case USB_CMD_GET_VCAP:
-				case USB_CMD_GET_VBOOST:
-				case USB_CMD_GET_VREG:
-				case USB_CMD_GET_VRECT:
+				case USB_CMD_SENSE:
 				case USB_CMD_RELEASE_POWER:
 				case USB_CMD_ENTER_ACTIVE_DEBUG:
 				case USB_CMD_EXIT_ACTIVE_DEBUG:
 				case USB_CMD_GET_WISP_PC:
-				case USB_CMD_LOG_VCAP_BEGIN:
-				case USB_CMD_LOG_VCAP_END:
-				case USB_CMD_LOG_VBOOST_BEGIN:
-				case USB_CMD_LOG_VBOOST_END:
-				case USB_CMD_LOG_VREG_BEGIN:
-				case USB_CMD_LOG_VREG_END:
-				case USB_CMD_LOG_VRECT_BEGIN:
-				case USB_CMD_LOG_VRECT_END:
 				case USB_CMD_LOG_RF_RX_BEGIN:
 				case USB_CMD_LOG_RF_RX_END:
 				case USB_CMD_LOG_RF_TX_BEGIN:
@@ -269,8 +259,6 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_DISABLE_PORT_INT_TAG_PWR:
 				case USB_CMD_PWM_ON:
 				case USB_CMD_PWM_OFF:
-				case USB_CMD_LOG_VINJ_BEGIN:
-				case USB_CMD_LOG_VINJ_END:
 				case USB_CMD_PWM_HIGH:
 				case USB_CMD_PWM_LOW:
 				case USB_CMD_MONITOR_MARKER_BEGIN:
@@ -281,6 +269,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 					pkt->processed = 0;
 					state = CONSTRUCT_STATE_IDENTIFIER;
 					return 0;   // packet construction succeeded
+				case USB_CMD_STREAM_BEGIN:          // expecting channel list
+				case USB_CMD_STREAM_END:            // expecting channel list
 				case USB_CMD_SET_VCAP:				// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VBOOST:			// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VREG:				// expecting 2 data bytes (ADC reading)

@@ -208,7 +208,11 @@ static void execute_cmd(cmd_t *cmd)
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
-            tx_buf[msg_len++] = sizeof(uint8_t);
+            tx_buf[msg_len++] = sizeof(uint32_t) + sizeof(uint8_t);
+            tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
             tx_buf[msg_len++] = value;
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
@@ -229,11 +233,12 @@ static void execute_cmd(cmd_t *cmd)
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
-            tx_buf[msg_len++] = sizeof(uint32_t);
+            tx_buf[msg_len++] = sizeof(uint32_t) + sizeof(uint8_t);
             tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
             tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
             tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
             tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
+            tx_buf[msg_len++] = *address;
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
             break;

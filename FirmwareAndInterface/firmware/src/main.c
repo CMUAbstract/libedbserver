@@ -60,6 +60,7 @@
 /** @} End LOG_DEFINES */
 
 #define WISP_CMD_MAX_LEN 16
+#define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
 
 /**
  * @brief   Assigns a permanent index to each ADC channels
@@ -96,6 +97,7 @@ static uint16_t saved_vcap; // energy level before entering active debug mode
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
+static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
 
 static bool bkpt_group_enable[NUM_CODEPOINT_PINS] = {0xff, 0xff}; // group index -> is group enabled
 
@@ -183,7 +185,7 @@ static void continuous_power_off()
 
 static void send_vcap(uint16_t vcap)
 {
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
                  (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
 }
 
@@ -305,7 +307,6 @@ int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
     uint32_t count = 0;
-    uint16_t adc_sample;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
@@ -337,62 +338,19 @@ int main(void)
             flags &= ~FLAG_ADC12_COMPLETE;
 
             if(flags & FLAG_LOGGING) {
-                // check if we need to send Vcap
-                // TODO: this can be made generic
-                if(log_flags & LOG_VCAP) {
-                	// send ADC conversion time and conversion result
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-                			(uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-							UART_TX_DROP);
-                    adc_sample = ADC12_getSample(&adc12, ADC_CHAN_INDEX_VCAP);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                        (uint8_t *)(&adc_sample), sizeof(uint16_t),
+                // send ADC conversion time and conversion results
+                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
+                        (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
                         UART_TX_DROP);
-                }
 
-                // check if we need to send Vboost
-                if(log_flags & LOG_VBOOST) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-                	             (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-								 UART_TX_DROP);
-                    adc_sample = ADC12_getSample(&adc12, ADC_CHAN_INDEX_VBOOST);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VBOOST,
-                        (uint8_t *)(&adc_sample), sizeof(uint16_t),
-                        UART_TX_DROP);
-                }
+                /* TODO: inefficient: try to get rid of the this copy */
+                stream_buf[0] = adc12.config.num_channels;
+                memcpy(stream_buf + sizeof(uint8_t), adc12.results,
+                       adc12.config.num_channels * sizeof(uint16_t));
 
-                // check if we need to send Vreg
-                if(log_flags & LOG_VREG) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-									(uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-									UART_TX_DROP);
-                    adc_sample = ADC12_getSample(&adc12, ADC_CHAN_INDEX_VREG);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VREG,
-                            (uint8_t *)(&adc_sample), sizeof(uint16_t),
-                            UART_TX_DROP);
-                }
-
-                // check if we need to send Vrect
-                if(log_flags & LOG_VRECT) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-								 (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-								 UART_TX_DROP);
-                    adc_sample = ADC12_getSample(&adc12, ADC_CHAN_INDEX_VRECT);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VRECT,
-                        (uint8_t *)(&adc_sample), sizeof(uint16_t),
-                        UART_TX_DROP);
-                }
-
-                // check if we need to send Vinj
-                if(log_flags & LOG_VINJ) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-							(uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-							UART_TX_DROP);
-                    adc_sample = ADC12_getSample(&adc12, ADC_CHAN_INDEX_VINJ);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VINJ,
-                            (uint8_t *)(&adc_sample), sizeof(uint16_t),
-                            UART_TX_DROP);
-                }
+                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGES, stream_buf,
+                    sizeof(uint8_t) + adc12.config.num_channels * sizeof(uint16_t),
+                    UART_TX_DROP);
 
                 ADC12_start();
             }
@@ -469,39 +427,21 @@ static void executeUSBCmd(uartPkt_t *pkt)
     uint16_t target_vcap, actual_vcap;
     uint32_t address;
     uint8_t cmd_len;
+    uint8_t i;
 
     trigger_scope();
 
     switch(pkt->descriptor)
     {
-    case USB_CMD_GET_VCAP:
-        adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
-    case USB_CMD_GET_VBOOST:
-        adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VBOOST);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VBOOST,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
-    case USB_CMD_GET_VREG:
-        adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VREG,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
-    case USB_CMD_GET_VRECT:
-        adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VRECT);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VRECT,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
+    case USB_CMD_SENSE:
+        {
+            adc_chan_index_t chan_idx = (adc_chan_index_t)pkt->data[0];
+            adc12Result = ADC12_read(&adc12, chan_idx);
+            UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
+                            (uint8_t *)(&adc12Result), sizeof(uint16_t),
+                            UART_TX_FORCE);
+            break;
+        }
     case USB_CMD_SET_VCAP:
         adc12Target = *((uint16_t *)(pkt->data));
         setWispVoltage_block(ADC_CHAN_INDEX_VCAP, adc12Target);
@@ -534,79 +474,27 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	// not implemented
         break;
 
-    case USB_CMD_LOG_VCAP_BEGIN:
+    case USB_CMD_STREAM_BEGIN: {
+        uint8_t num_chans = pkt->data[0];
+        adc_chan_index_t *chan_indexes = (adc_chan_index_t *)&pkt->data[1];
         flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VCAP; // for main loop
         TimeLog_request(1); // request timer overflow notifications
-        ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VCAP);
+        for (i = 0; i < num_chans; ++i)
+            ADC12_addChannel(&adc12, chan_indexes[i]);
         ADC12_restart(&adc12);
         break;
+    }
 
-    case USB_CMD_LOG_VCAP_END:
-        log_flags &= ~LOG_VCAP;
-        if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
+    case USB_CMD_STREAM_END: {
+        uint8_t num_chans = pkt->data[0];
+        adc_chan_index_t *chan_indexes = (adc_chan_index_t *)&pkt->data[1];
+		flags &= ~FLAG_LOGGING; // for main loop
         TimeLog_request(0);
-
-        ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VCAP);
+        for (i = 0; i < num_chans; ++i)
+            ADC12_removeChannel(&adc12, chan_indexes[i]);
         ADC12_restart(&adc12);
         break;
-
-    case USB_CMD_LOG_VBOOST_BEGIN:
-        flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VBOOST; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VBOOST);
-        ADC12_restart(&adc12);
-        break;
-
-    case USB_CMD_LOG_VBOOST_END:
-        log_flags &= ~LOG_VBOOST;
-        if(!log_flags) {
-        	flags &= ~FLAG_LOGGING; // for main loop
-        }
-        TimeLog_request(0);
-
-        ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VBOOST);
-        ADC12_restart(&adc12);
-        break;
-
-    case USB_CMD_LOG_VREG_BEGIN:
-        flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VREG; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VREG);
-        ADC12_restart(&adc12);
-        break;
-
-    case USB_CMD_LOG_VREG_END:
-        log_flags &= ~LOG_VREG;
-        if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
-        TimeLog_request(0);
-        ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VREG);
-        ADC12_restart(&adc12);
-        break;
-
-    case USB_CMD_LOG_VRECT_BEGIN:
-        flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VRECT; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VRECT);
-        ADC12_restart(&adc12);
-        break;
-
-    case USB_CMD_LOG_VRECT_END:
-        log_flags &= ~LOG_VRECT;
-        if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
-        TimeLog_request(0);
-        ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VRECT);
-        ADC12_restart(&adc12);
-        break;
+    }
 
     case USB_CMD_LOG_RF_RX_BEGIN:
     	TimeLog_request(1); // request timer overflow notifications
@@ -672,24 +560,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_SET_PWM_DUTY_CYCLE:
     	TB0CCR1 = *((uint16_t *)(pkt->data));
-    	break;
-
-    case USB_CMD_LOG_VINJ_BEGIN:
-    	flags |= FLAG_LOGGING; // for main loop
-		log_flags |= LOG_VINJ; // for main loop
-		TimeLog_request(1);
-		ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VINJ);
-		ADC12_restart(&adc12);
-    	break;
-
-    case USB_CMD_LOG_VINJ_END:
-		log_flags &= ~LOG_VINJ;
-		if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
-		TimeLog_request(0);
-		ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VINJ);
-		ADC12_restart(&adc12);
     	break;
 
     case USB_CMD_PWM_HIGH:
@@ -762,7 +632,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
         /* Reply with Vcap level */
         adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
+        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
                         (uint8_t *)(&adc12Result), sizeof(uint16_t),
 						UART_TX_FORCE);
         break;
