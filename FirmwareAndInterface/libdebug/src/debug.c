@@ -17,7 +17,9 @@
 
 #define LED_IN_DEBUG_STATE
 
-static uint8_t tx_buf[16];
+#define TX_BUF_SIZE 16
+
+static uint8_t tx_buf[TX_BUF_SIZE];
 
 typedef enum {
     STATE_OFF = 0,
@@ -176,8 +178,9 @@ static void execute_cmd(cmd_t *cmd)
 {
     uint8_t msg_len;
     uint8_t *address;
-    uint8_t value;
     uint8_t offset;
+    uint8_t len;
+    uint8_t i;
 
     switch (cmd->descriptor)
     {
@@ -198,37 +201,47 @@ static void execute_cmd(cmd_t *cmd)
         case WISP_CMD_READ_MEM:
         {
             // TODO: assert(msg->len == 4)
+            uint8_t max_len = TX_BUF_SIZE - (1 + 1 + sizeof(uint32_t)); /* id, desc, addr */
 
             offset = 0;
             address = mem_addr_from_bytes(&cmd->data[offset]);
             offset += sizeof(uint32_t);
+            len = cmd->data[offset];
+            offset += sizeof(uint8_t);
 
-            value = *address;
+            if (len > max_len)
+                len = max_len;
 
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
-            tx_buf[msg_len++] = sizeof(uint32_t) + sizeof(uint8_t);
+            tx_buf[msg_len++] = sizeof(uint32_t) + len;
             tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
             tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
             tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
             tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
-            tx_buf[msg_len++] = value;
+
+            for (i = 0; i < len; ++i)
+                tx_buf[msg_len++] = *address++;
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
             break;
         }
         case WISP_CMD_WRITE_MEM:
         {
-            // TODO: assert(msg->len == 5)
+            // TODO: assert(msg->len >= 5)
 
             offset = 0;
             address = mem_addr_from_bytes(&cmd->data[offset]);
             offset += sizeof(uint32_t);
-            value = cmd->data[offset];
+            len = cmd->data[offset];
             offset += sizeof(uint8_t);
+            uint8_t *value = &cmd->data[offset];
 
-            *address = value;
+            for (i =  0; i < len; ++i) {
+                *address = *value++;
+                address++;
+            }
 
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;

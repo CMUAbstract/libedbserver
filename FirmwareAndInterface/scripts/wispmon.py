@@ -223,7 +223,7 @@ class WispMonitor:
             elif self.rxPkt.descriptor == USB_RSP_WISP_MEMORY:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
-                pkt["value"] = self.rxPkt.data[4]
+                pkt["value"] = self.rxPkt.data[4:]
 
             return pkt
 
@@ -328,17 +328,17 @@ class WispMonitor:
         self.sendCmd(USB_CMD_BREAKPOINT, data=[idx, enable])
         self.receive_reply(USB_RSP_RETURN_CODE)
 
-    def read_mem(self, addr):
-        cmd_data = self.uint32_to_bytes(addr)
+    def read_mem(self, addr, len):
+        cmd_data = self.uint32_to_bytes(addr) + [len]
         self.sendCmd(USB_CMD_READ_MEM, data=cmd_data)
         reply = self.receive_reply(USB_RSP_WISP_MEMORY)
         return reply["address"], reply["value"]
 
     def write_mem(self, addr, value):
-        cmd_data = self.uint32_to_bytes(addr) + [value]
+        cmd_data = self.uint32_to_bytes(addr) + [len(value)] + value
+        print cmd_data
         self.sendCmd(USB_CMD_WRITE_MEM, data=cmd_data)
-        reply = self.receive_reply(USB_RSP_WISP_MEMORY)
-        return reply["address"], reply["value"]
+        self.receive_reply(USB_RSP_RETURN_CODE)
 
     def cont_power(self, on):
         cmd_data = [on]

@@ -440,6 +440,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     uint16_t adc12Result;
     uint16_t target_vcap, actual_vcap;
     uint32_t address;
+    uint8_t len;
     uint8_t cmd_len;
     uint8_t i;
 
@@ -598,12 +599,14 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_READ_MEM:
         address = *((uint32_t *)(&pkt->data[0]));
+        len = pkt->data[4];
 
         cmd_len = 0;
         wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
         wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
         wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
         wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
+        wisp_cmd_buf[cmd_len++] = len;
 
         UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_READ_MEM,
                      wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
@@ -617,22 +620,33 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_WRITE_MEM:
     {
         address = *((uint32_t *)(&pkt->data[0]));
-        uint8_t value = pkt->data[sizeof(uint32_t)];
+        len = pkt->data[4];
+        uint8_t *value = &pkt->data[5];
+
+        if (len > WISP_CMD_MAX_LEN - sizeof(uint32_t) - sizeof(uint8_t)) {
+            send_return_code(RETURN_CODE_BUFFER_TOO_SMALL);
+            break;
+        }
 
         cmd_len = 0;
         wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
         wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
         wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
         wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
-        wisp_cmd_buf[cmd_len++] = value;
+        wisp_cmd_buf[cmd_len++] = len;
+
+        for (i = 0; i < len; ++i) {
+            wisp_cmd_buf[cmd_len++] = *value;
+            value++;
+        }
 
         UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_WRITE_MEM,
                      wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                 (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_MEMORY, &(wispRxPkt.data[0]),
-                     wispRxPkt.length, UART_TX_FORCE); // send PC over USB
         wispRxPkt.processed = 1;
+
+        send_return_code(RETURN_CODE_SUCCESS); // TODO: have WISP return a code
         break;
     }
 

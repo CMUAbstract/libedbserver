@@ -7,6 +7,12 @@ import wispmon
 monitor = None
 active_mode = False
 
+def to_int(s):
+    if s.startswith("0x"):
+        return int(s, 16)
+    else:
+        return int(s)
+
 def cmd_echo(mon, args):
     print args
 
@@ -122,19 +128,19 @@ def cmd_wait(mon):
             active_mode = True
             break
 
-def cmd_read(mon, addr):
+def cmd_read(mon, addr, len):
     addr = int(addr, 16)
-    addr, value = mon.read_mem(addr)
-    print "0x%08x: 0x%02x" % (addr, value)
+    len = int(len)
+    addr, value = mon.read_mem(addr, len)
+    print "0x%08x: " % addr,
+    for byte in value:
+        print "0x%02x " % byte,
+    print
 
-def cmd_write(mon, addr, value):
+def cmd_write(mon, addr, *value):
     addr = int(addr, 16)
-    if value.startswith("0x"):
-        value = int(value, 16)
-    else:
-        value = int(value)
-    addr, value = mon.write_mem(addr, value)
-    print "0x%08x: 0x%02x" % (addr, value)
+    value = map(to_int, value)
+    mon.write_mem(addr, value)
 
 
 def print_prompt(active_mode=False):
