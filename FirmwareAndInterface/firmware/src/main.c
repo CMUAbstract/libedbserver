@@ -779,13 +779,14 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 
 static void break_at_vcap_level(uint16_t level)
 {
-    uint16_t cur_voltage;
+    uint16_t cur_vcap, cur_vreg;
 
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
-        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-    } while (cur_voltage > level);
+        cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    } while (cur_vreg < MCU_ON_THRES || cur_vcap > level);
 
     enter_debug_mode();
 }
