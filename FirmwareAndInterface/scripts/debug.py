@@ -102,6 +102,9 @@ def cmd_ebreak(mon, target_voltage):
     print "Vcap_saved = %.4f" % vcap
     active_mode = True
 
+def cmd_break(mon, idx, enable):
+    mon.breakpoint(idx, enable)
+
 def cmd_read_mem(mon, addr):
     addr = int(addr)
     addr, value = mon.read_mem(addr)

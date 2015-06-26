@@ -99,7 +99,7 @@ static uartPkt_t wispRxPkt = { .processed = 1 };
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
 
-static bool bkpt_group_enable[NUM_CODEPOINT_PINS] = {0xff, 0xff}; // group index -> is group enabled
+static bool bkpt_group_enable[1 << NUM_CODEPOINT_PINS] = {0}; // group index -> is group enabled
 
 static adc12_t adc12 = {
     .config = {
@@ -636,6 +636,15 @@ static void executeUSBCmd(uartPkt_t *pkt)
         else
             continuous_power_off();
         send_return_code(0);
+        break;
+    }
+
+    case USB_CMD_BREAKPOINT:
+    {
+        uint8_t index = (uint8_t)pkt->data[0];
+        bool enable = (bool)pkt->data[1];
+        // TODO: assert(index < 2**NUM_BREAKPOINT_PINS - 1)
+        bkpt_group_enable[index] = enable;
         break;
     }
 
