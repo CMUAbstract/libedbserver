@@ -210,10 +210,13 @@ class WispMonitor:
                 pkt["voltage"] = self.adc_to_voltage(adc_reading)
 
             elif self.rxPkt.descriptor == USB_RSP_VOLTAGES:
-                num_channels = self.rxPkt.data[0]
+                offset = 0
+                num_channels = self.rxPkt.data[offset]
+                offset += 1
                 pkt["voltages"] = []
                 for i in range(num_channels):
-                    adc_reading = (self.rxPkt.data[2 * i + 1] << 8) | self.rxPkt.data[2 * i]
+                    adc_reading = (self.rxPkt.data[offset + 2 * i + 1] << 8) | \
+                                   self.rxPkt.data[offset + 2 * i]
                     pkt["voltages"].append(self.adc_to_voltage(adc_reading))
 
             elif self.rxPkt.descriptor == USB_RSP_INTERRUPTED:
