@@ -159,11 +159,13 @@ while True:
     line = line.strip()
     if len(line) == 0: # new-line character only (blank command)
         continue
-    tokens = line.split()
-    cmd = tokens[0]
-    glob = globals()
+    cmd_lines = line.split(';')
     try:
-        glob["cmd_" + cmd](monitor, *tokens[1:])
+        for cmd_line in cmd_lines:
+            tokens = cmd_line.split()
+            cmd = tokens[0]
+            glob = globals()
+            glob["cmd_" + cmd](monitor, *tokens[1:])
     except Exception as e:
         print type(e)
         print traceback.format_exc()
