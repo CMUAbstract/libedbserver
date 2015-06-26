@@ -62,6 +62,8 @@
 #define WISP_CMD_MAX_LEN 16
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
 
+#define NUM_CODEPOINTS (1 << NUM_CODEPOINT_PINS)
+
 /**
  * @brief   Assigns a permanent index to each ADC channels
  *
@@ -99,7 +101,7 @@ static uartPkt_t wispRxPkt = { .processed = 1 };
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
 
-static bool bkpt_group_enable[1 << NUM_CODEPOINT_PINS] = {0}; // group index -> is group enabled
+static bool bkpt_group_enable[NUM_CODEPOINTS] = {0}; // group index -> is group enabled
 
 static adc12_t adc12 = {
     .config = {
@@ -649,8 +651,12 @@ static void executeUSBCmd(uartPkt_t *pkt)
     {
         uint8_t index = (uint8_t)pkt->data[0];
         bool enable = (bool)pkt->data[1];
-        // TODO: assert(index < 2**NUM_BREAKPOINT_PINS - 1)
-        bkpt_group_enable[index] = enable;
+        uint8_t rc = RETURN_CODE_SUCCESS;
+        if (index > 0 && index < NUM_CODEPOINTS)
+            bkpt_group_enable[index] = enable;
+        else
+            rc = RETURN_CODE_INVALID_ARGS;
+        send_return_code(rc);
         break;
     }
 
@@ -793,6 +799,8 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #error Compiler not supported!
 #endif
 {
+    uint8_t pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
+
 	switch(__even_in_range(P1IV, 16))
 	{
 	case INTFLAG(PORT_RF, PIN_RF_TX):
@@ -809,11 +817,14 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 		break;
 
 #ifdef CONFIG_ENABLE_CODEPOINTS
-	case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
-	case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
-        uint8_t codept_idx = GPIO(PORT_CODEPOINT, OUT) &
-            (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)) >> PIN_CODEPOINT_0;
+        /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
+        pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                    (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+        uint8_t codept_idx = (pin_state & (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)))
+            >> PIN_CODEPOINT_0;
         if (bkpt_group_enable[codept_idx]) {
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
