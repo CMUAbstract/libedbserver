@@ -81,6 +81,7 @@ USB_RSP_UART_MONITOR_TO_WISP         = 0x0B
 USB_RSP_TAG_PWR                      = 0x0C
 USB_RSP_TIME                         = 0x0D
 USB_RSP_VINJ                         = 0x0E
+USB_RSP_RETURN_CODE                  = 0x0F
 
 # Packet construction states
 CONSTRUCT_STATE_IDENTIFIER          = 0x00
@@ -133,7 +134,8 @@ class WispMonitor:
                     # no additional data is needed
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
                     return True # packet construction succeeded
-                elif(self.rxPkt.descriptor in (USB_RSP_VOLTAGE, USB_RSP_VOLTAGES,
+                elif(self.rxPkt.descriptor in (USB_RSP_RETURN_CODE,
+                                USB_RSP_VOLTAGE, USB_RSP_VOLTAGES,
                                 USB_RSP_WISP_PC, USB_RSP_WISP_MEMORY,
                                 USB_RSP_RF_RX,
                                 USB_RSP_UART_WISP_TO_MONITOR, USB_RSP_UART_MONITOR_TO_WISP,
@@ -189,7 +191,10 @@ class WispMonitor:
         if self.buildRxPkt(self.rcv_buf):
             pkt = { "descriptor" : self.rxPkt.descriptor }
 
-            if self.rxPkt.descriptor == USB_RSP_TIME:
+            if self.rxPkt.descriptor == USB_RSP_RETURN_CODE:
+                pkt["code"] = self.rxPkt.data[0]
+
+            elif self.rxPkt.descriptor == USB_RSP_TIME:
                 cycles = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                          (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0])
                 pkt["time_sec"] = float(cycles) * self.CLK_PERIOD
@@ -227,6 +232,9 @@ class WispMonitor:
         if reply["descriptor"] != descriptor:
             raise Exception("unexpected reply: " + \
                     str(reply["descriptor"]) + "(exp " + str(descriptor) + ")")
+        if descriptor == USB_CMD_RETURN_CODE: # this one is generic, so handle it here
+            if reply["code"] != 0:
+                raise Exception("Command failed: return code " + str(reply["code"]))
         return reply
 
     def flush(self):
@@ -321,8 +329,8 @@ class WispMonitor:
     def cont_power(self, on):
         cmd_data = [on]
         self.sendCmd(USB_CMD_CONT_POWER, data=cmd_data)
-        reply = self.receive_reply(USB_RSP_VOLTAGE)
-        return reply["voltage"]
+        self.receive_reply(USB_RSP_RETURN_CODE)
+
 
 class RxPkt():
     def __init__(self):

@@ -137,6 +137,7 @@
 #define USB_RSP_TAG_PWR                         0x0C //!< message signaling that the power trace has been tagged here
 #define USB_RSP_TIME							0x0D //!< message containing a relative time in current execution (careful: timer will overflow!)
 #define USB_RSP_VINJ							0x0E //!< message containing Vinj ADC12 reading
+#define USB_RSP_RETURN_CODE                     0x0F //!< message containing a return code indicating success or failure
 
 /** @} End USB_RSP */
 /** @} End USB_MSG_DESCRIPTORS */

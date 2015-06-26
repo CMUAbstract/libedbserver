@@ -189,6 +189,12 @@ static void send_vcap(uint16_t vcap)
                  (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
 }
 
+static void send_return_code(uint8_t code)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_RETURN_CODE,
+                 (uint8_t *)(&code), sizeof(uint8_t), UART_TX_FORCE);
+}
+
 /**
  * @brief	Handle an interrupt from the target device
  */
@@ -629,12 +635,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
             continuous_power_on();
         else
             continuous_power_off();
-
-        /* Reply with Vcap level */
-        adc12Result = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
+        send_return_code(0);
         break;
     }
 
