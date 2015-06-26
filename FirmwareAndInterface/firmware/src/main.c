@@ -635,7 +635,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
             continuous_power_on();
         else
             continuous_power_off();
-        send_return_code(0);
+        send_return_code(RETURN_CODE_SUCCESS);
         break;
     }
 

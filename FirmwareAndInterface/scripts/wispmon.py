@@ -84,6 +84,9 @@ USB_RSP_TIME                         = 0x0D
 USB_RSP_VINJ                         = 0x0E
 USB_RSP_RETURN_CODE                  = 0x0F
 
+RETURN_CODE_SUCCESS                  = 0x0
+RETURN_CODE_INVALID_ARGS             = 0x1
+
 # Packet construction states
 CONSTRUCT_STATE_IDENTIFIER          = 0x00
 CONSTRUCT_STATE_DESCRIPTOR          = 0x01
@@ -233,7 +236,7 @@ class WispMonitor:
         if reply["descriptor"] != descriptor:
             raise Exception("unexpected reply: " + \
                     str(reply["descriptor"]) + "(exp " + str(descriptor) + ")")
-        if descriptor == USB_CMD_RETURN_CODE: # this one is generic, so handle it here
+        if descriptor == USB_RSP_RETURN_CODE: # this one is generic, so handle it here
             if reply["code"] != 0:
                 raise Exception("Command failed: return code " + str(reply["code"]))
         return reply

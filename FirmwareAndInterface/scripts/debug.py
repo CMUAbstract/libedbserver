@@ -18,7 +18,7 @@ def cmd_detach(mon):
     mon.destroy()
 
 def cmd_power(mon, state):
-    print mon.cont_power(state == "on")
+    mon.cont_power(state == "on")
 
 def cmd_sense(mon, channel):
     print mon.sense(wispmon.ADC_CHANNEL_INDEX[channel])

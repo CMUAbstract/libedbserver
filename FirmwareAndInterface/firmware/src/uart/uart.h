@@ -144,6 +144,14 @@
 /** @} End USB_MSG_DESCRIPTORS */
 
 /**
+ * @defgroup    RETURN_CODE Return codes for return code message
+ * @{
+ */
+#define RETURN_CODE_SUCCESS 0
+#define RETURN_CODE_INVALID_ARGS 1
+/** @} End RETURN_CODE */
+
+/**
  * @defgroup    WISP_MSG_DESCRIPTORS    WISP message descriptors
  * @brief       Message descriptors for use with the WISP interface.
  * @{
