@@ -83,6 +83,7 @@ USB_RSP_TAG_PWR                      = 0x0C
 USB_RSP_TIME                         = 0x0D
 USB_RSP_VINJ                         = 0x0E
 USB_RSP_RETURN_CODE                  = 0x0F
+USB_RSP_INTERRUPTED                  = 0x10
 
 RETURN_CODE_SUCCESS                  = 0x0
 RETURN_CODE_INVALID_ARGS             = 0x1
@@ -143,7 +144,8 @@ class WispMonitor:
                                 USB_RSP_WISP_PC, USB_RSP_WISP_MEMORY,
                                 USB_RSP_RF_RX,
                                 USB_RSP_UART_WISP_TO_MONITOR, USB_RSP_UART_MONITOR_TO_WISP,
-                                USB_RSP_TAG_PWR, USB_RSP_TIME, USB_RSP_VINJ)):
+                                USB_RSP_TAG_PWR, USB_RSP_TIME, USB_RSP_VINJ,
+                                USB_RSP_INTERRUPTED)):
                     # additional data is needed to complete the packet
                     self.rxPkt.constructState = CONSTRUCT_STATE_DATA_LEN
                     continue
@@ -213,6 +215,10 @@ class WispMonitor:
                 for i in range(num_channels):
                     adc_reading = (self.rxPkt.data[2 * i + 1] << 8) | self.rxPkt.data[2 * i]
                     pkt["voltages"].append(self.adc_to_voltage(adc_reading))
+
+            elif self.rxPkt.descriptor == USB_RSP_INTERRUPTED:
+                saved_vcap_adc_reading = (self.rxPkt.data[1] << 8) | self.rxPkt.data[0]
+                pkt["saved_vcap"] = self.adc_to_voltage(saved_vcap_adc_reading)
 
             elif self.rxPkt.descriptor == USB_RSP_WISP_MEMORY:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \

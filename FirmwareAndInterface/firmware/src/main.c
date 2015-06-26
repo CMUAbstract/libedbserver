@@ -195,6 +195,12 @@ static void send_return_code(uint8_t code)
                  (uint8_t *)(&code), sizeof(uint8_t), UART_TX_FORCE);
 }
 
+static void send_interrupted(uint16_t saved_vcap)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
+                 (uint8_t *)(&saved_vcap), sizeof(uint16_t), UART_TX_FORCE);
+}
+
 /**
  * @brief	Handle an interrupt from the target device
  */
@@ -210,7 +216,7 @@ static void handle_target_signal()
             continuous_power_on();
             UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
             I2C_setup();
-            send_vcap(saved_vcap); // do it here: reply marks completion
+            send_interrupted(saved_vcap); // do it here: reply marks completion
             break;
         case STATE_EXITING:
             // WISP has shutdown UART and is asleep waiting for int to resume

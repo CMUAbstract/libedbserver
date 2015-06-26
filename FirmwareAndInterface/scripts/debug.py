@@ -105,6 +105,21 @@ def cmd_ebreak(mon, target_voltage):
 def cmd_break(mon, idx, enable):
     mon.breakpoint(idx, enable)
 
+def cmd_wait(mon):
+    """Wait to enter active debug mode"""
+    global active_mode
+    while True:
+        try:
+            pkt = mon.receive()
+        except KeyboardInterrupt:
+            break
+        if pkt is None:
+            continue
+
+        if pkt["descriptor"] == wispmon.USB_RSP_INTERRUPTED:
+            active_mode = True
+            break
+
 def cmd_read_mem(mon, addr):
     addr = int(addr)
     addr, value = mon.read_mem(addr)

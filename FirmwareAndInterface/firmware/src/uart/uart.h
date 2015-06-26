@@ -139,6 +139,7 @@
 #define USB_RSP_TIME							0x0D //!< message containing a relative time in current execution (careful: timer will overflow!)
 #define USB_RSP_VINJ							0x0E //!< message containing Vinj ADC12 reading
 #define USB_RSP_RETURN_CODE                     0x0F //!< message containing a return code indicating success or failure
+#define USB_RSP_INTERRUPTED                     0x10 //!< message sent upon entering debug mode (includes saved Vcap level)
 
 /** @} End USB_RSP */
 /** @} End USB_MSG_DESCRIPTORS */
