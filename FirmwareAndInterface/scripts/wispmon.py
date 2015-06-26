@@ -104,6 +104,7 @@ class WispMonitor:
         self.serial.open()
 
         self.rcv_buf = bytearray()
+        self.stream_bytes = 0
         
     def destroy(self):
         self.serial.close()

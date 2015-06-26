@@ -5,6 +5,7 @@ import traceback
 import wispmon
 
 monitor = None
+active_mode = False
 
 def cmd_echo(mon, args):
     print args
@@ -72,6 +73,35 @@ def cmd_stream(mon, out_file, duration_sec, *channels):
         mon.stream_end(channel_indexes)
         print "%d samples in %f seconds (target time)" % (num_samples, time_sec)
 
+def cmd_charge(mon, target_voltage):
+    target_voltage = float(target_voltage)
+    vcap = mon.charge(target_voltage)
+    print "Vcap = %.4f" % vcap
+
+def cmd_discharge(mon, target_voltage):
+    target_voltage = float(target_voltage)
+    vcap = mon.discharge(target_voltage)
+    print "Vcap = %.4f" % vcap
+
+def cmd_enter(mon):
+    global active_mode
+    saved_vcap = mon.enter_debug_mode()
+    print "Vcap_saved = %.4f" % saved_vcap
+    active_mode = True
+
+def cmd_exit(mon):
+    global active_mode
+    restored_vcap = mon.exit_debug_mode()
+    print "Vcap_restored = %.4f" % restored_vcap
+    active_mode = False
+
+def cmd_ebreak(mon, target_voltage):
+    global active_mode
+    target_voltage = float(target_voltage)
+    vcap = mon.break_at_vcap_level(target_voltage)
+    print "Vcap_saved = %.4f" % vcap
+    active_mode = True
+
 def cmd_read_mem(mon, addr):
     addr = int(addr)
     addr, value = mon.read_mem(addr)
@@ -84,11 +114,14 @@ def cmd_write_mem(mon, addr, value):
     print "0x%08x: 0x%02x" % (addr, value)
 
 
-def print_prompt():
-    print "> ",
+def print_prompt(active_mode=False):
+    if active_mode:
+        print "*> ",
+    else:
+        print "> ",
 
 while True:
-    print_prompt()
+    print_prompt(active_mode)
     line = sys.stdin.readline()
     if len(line) == 0: # EOF
         break
