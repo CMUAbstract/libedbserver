@@ -104,8 +104,8 @@ def cmd_exit(mon):
 def cmd_ebreak(mon, target_voltage):
     global active_mode
     target_voltage = float(target_voltage)
-    vcap = mon.break_at_vcap_level(target_voltage)
-    print "Vcap_saved = %.4f" % vcap
+    saved_vcap = mon.break_at_vcap_level(target_voltage)
+    print "Vcap_saved = %.4f" % saved_vcap
     active_mode = True
 
 def cmd_break(mon, idx, op):

@@ -325,8 +325,8 @@ class WispMonitor:
         level_adc = self.voltage_to_adc(level)
         cmd_data = self.uint16_to_bytes(level_adc)
         self.sendCmd(USB_CMD_BREAK_AT_VCAP_LEVEL, data=cmd_data)
-        reply = self.receive_reply(USB_RSP_VOLTAGE)
-        return reply["voltage"]
+        reply = self.receive_reply(USB_RSP_INTERRUPTED)
+        return reply["saved_vcap"]
 
     def breakpoint(self, idx, enable):
         self.sendCmd(USB_CMD_BREAKPOINT, data=[idx, enable])
