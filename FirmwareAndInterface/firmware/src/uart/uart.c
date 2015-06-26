@@ -277,7 +277,6 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_SET_VRECT:				// expecting 2 data bytes (ADC reading)
 				case USB_CMD_CHARGE:                // expecting 2 data bytes (target voltage)
 				case USB_CMD_DISCHARGE:             // expecting 2 data bytes (target voltage)
-				case USB_CMD_EXAMINE_MEMORY:
 				case USB_CMD_SEND_RF_TX_DATA:
 				case USB_CMD_SET_PWM_FREQUENCY:		// expecting 2 data bytes (TB0CCR0 register)
 				case USB_CMD_SET_PWM_DUTY_CYCLE:	// expecting 2 data bytes (TB0CCR1 register)
@@ -298,7 +297,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             } else if(interface == UART_INTERFACE_WISP) {
             	switch(pkt->descriptor)
             	{
-            	case WISP_RSP_PC:
+            	case WISP_RSP_ADDRESS:
             	case WISP_RSP_MEMORY:
             		// additional data is needed
             		state = CONSTRUCT_STATE_DATA_LEN;

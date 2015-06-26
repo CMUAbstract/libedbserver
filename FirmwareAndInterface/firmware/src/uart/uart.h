@@ -90,8 +90,7 @@
 #define USB_CMD_RELEASE_POWER                	0x08 //!< Release the hold on power state now
 #define USB_CMD_ENTER_ACTIVE_DEBUG             	0x09 //!< Enter active debug mode by triggering the WISP's port interrupt
 #define USB_CMD_EXIT_ACTIVE_DEBUG             	0x0A //!< Exit active debug mode
-#define USB_CMD_GET_WISP_PC                   	0x0B //!< Get the WISP program counter
-#define USB_CMD_EXAMINE_MEMORY               	0x0C //!< Examine WISP memory at an address
+#define USB_CMD_GET_WISP_PC                     0x0B //!< Get current program counter
 #define USB_CMD_LOG_RF_RX_BEGIN                 0x15 //!< Start streaming RF RX data over USB
 #define USB_CMD_LOG_RF_RX_END                   0x16 //!< Stop streaming RF RX data
 #define USB_CMD_LOG_RF_TX_BEGIN            		0x17 //!< Start streaming RF TX activity on the WISP
@@ -129,7 +128,7 @@
 #define USB_RSP_VOLTAGES                    	0x02 //!< message containing an list of ADC12 voltage reading
 #define USB_RSP_SET_POWER_COMPLETE              0x04 //!< message signaling that the power level has been set, data = last measured voltage
 #define USB_RSP_RELEASE_POWER_COMPLETE          0x05 //!< message signaling that the power state has been released
-#define USB_RSP_WISP_PC                         0x06 //!< message containing the WISP program counter
+#define USB_RSP_ADDRESS                         0x06 //!< message containing the WISP program counter
 #define USB_RSP_WISP_MEMORY                     0x07 //!< message containing a WISP memory address and contents at that address
 #define USB_RSP_RF_RX                           0x08 //!< message containing RF RX data
 #define USB_RSP_RF_TX                      		0x09 //!< message containing RF TX data sent by the WISP
@@ -178,7 +177,7 @@
  * 				WISP monitor through UART.
  * @{
  */
-#define WISP_RSP_PC								0x00 //!< message containing program counter
+#define WISP_RSP_ADDRESS						0x00 //!< message containing an address
 #define WISP_RSP_MEMORY							0x01 //!< message containing requested memory content
 /** @} End WISP_RSP */
 

@@ -142,6 +142,8 @@ def cmd_write(mon, addr, *value):
     value = map(to_int, value)
     mon.write_mem(addr, value)
 
+def cmd_pc(mon):
+    print "0x%08x" % mon.get_pc()
 
 def print_prompt(active_mode=False):
     if active_mode:

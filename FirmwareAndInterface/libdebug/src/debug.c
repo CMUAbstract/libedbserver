@@ -186,16 +186,18 @@ static void execute_cmd(cmd_t *cmd)
     {
         case WISP_CMD_GET_PC:
         {
-            // get the program counter
-            uint16_t wisp_pc = *(wisp_sp + 11); // 22-byte offset to PC
+            uint32_t address = *(wisp_sp + 11); // 22-byte offset to PC
 
-            // stick to the UART message structure
-            uint8_t txBuf[5] = { UART_IDENTIFIER_WISP, WISP_RSP_PC,
-                                 sizeof(uint16_t), 0x00, 0x00 };
-            txBuf[3] = wisp_pc & 0xFF;
-            txBuf[4] = (wisp_pc >> 8) & 0xFF;
-            UART_send(txBuf, 6); // For some reason, UART_send seems to send size - 1 bytes.
-                                 // This message is only 5 bytes long.
+            msg_len = 0;
+            tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
+            tx_buf[msg_len++] = WISP_RSP_ADDRESS;
+            tx_buf[msg_len++] = sizeof(uint32_t);
+            tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
+            tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
+
+            UART_send(tx_buf, msg_len + 1);  // +1 since send sends - 1 bytes (TODO)
             break;
         }
         case WISP_CMD_READ_MEM:

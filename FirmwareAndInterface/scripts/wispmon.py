@@ -73,7 +73,7 @@ USB_RSP_VOLTAGE                      = 0x01
 USB_RSP_VOLTAGES                     = 0x02
 USB_RSP_SET_POWER_COMPLETE           = 0x04
 USB_RSP_RELEASE_POWER_COMPLETE       = 0x05
-USB_RSP_WISP_PC                      = 0x06
+USB_RSP_ADDRESS                      = 0x06
 USB_RSP_WISP_MEMORY                  = 0x07
 USB_RSP_RF_RX                        = 0x08
 USB_RSP_RF_TX                        = 0x09
@@ -141,7 +141,7 @@ class WispMonitor:
                     return True # packet construction succeeded
                 elif(self.rxPkt.descriptor in (USB_RSP_RETURN_CODE,
                                 USB_RSP_VOLTAGE, USB_RSP_VOLTAGES,
-                                USB_RSP_WISP_PC, USB_RSP_WISP_MEMORY,
+                                USB_RSP_ADDRESS, USB_RSP_WISP_MEMORY,
                                 USB_RSP_RF_RX,
                                 USB_RSP_UART_WISP_TO_MONITOR, USB_RSP_UART_MONITOR_TO_WISP,
                                 USB_RSP_TAG_PWR, USB_RSP_TIME, USB_RSP_VINJ,
@@ -224,6 +224,10 @@ class WispMonitor:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
                 pkt["value"] = self.rxPkt.data[4:]
+
+            elif self.rxPkt.descriptor == USB_RSP_ADDRESS:
+                pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
+                                 (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
 
             return pkt
 
@@ -338,6 +342,11 @@ class WispMonitor:
         cmd_data = self.uint32_to_bytes(addr) + [len(value)] + value
         self.sendCmd(USB_CMD_WRITE_MEM, data=cmd_data)
         self.receive_reply(USB_RSP_RETURN_CODE)
+
+    def get_pc(self):
+        self.sendCmd(USB_CMD_GET_WISP_PC)
+        reply = self.receive_reply(USB_RSP_ADDRESS)
+        return reply["address"]
 
     def cont_power(self, on):
         cmd_data = [on]

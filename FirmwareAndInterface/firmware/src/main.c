@@ -479,15 +479,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_GET_WISP_PC:
     	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_PC, 0, 0, UART_TX_FORCE); // send request
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
-    			(wispRxPkt.descriptor != WISP_RSP_PC)); // wait for response
-    	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_PC, &(wispRxPkt.data[0]),
+    			(wispRxPkt.descriptor != WISP_RSP_ADDRESS)); // wait for response
+    	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_ADDRESS, &(wispRxPkt.data[0]),
     					wispRxPkt.length, UART_TX_FORCE); // send PC over USB
     	wispRxPkt.processed = 1;
     	break;
-
-    case USB_CMD_EXAMINE_MEMORY:
-    	// not implemented
-        break;
 
     case USB_CMD_STREAM_BEGIN: {
         uint8_t num_chans = pkt->data[0];

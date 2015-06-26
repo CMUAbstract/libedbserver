@@ -47,7 +47,7 @@
  * @brief		Response descriptors sent from the WISP to the debugger.
  * @{
  */
-#define WISP_RSP_PC						0x00 //!< message containing program counter
+#define WISP_RSP_ADDRESS                0x00 //!< message containing program counter
 #define WISP_RSP_MEMORY					0x01 //!< message containing requested memory content
 /** @} End WISP_RSP */
 
