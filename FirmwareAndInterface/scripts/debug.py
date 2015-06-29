@@ -89,13 +89,13 @@ def cmd_discharge(mon, target_voltage):
     vcap = mon.discharge(target_voltage)
     print "Vcap = %.4f" % vcap
 
-def cmd_enter(mon):
+def cmd_int(mon):
     global active_mode
     saved_vcap = mon.enter_debug_mode()
     print "Vcap_saved = %.4f" % saved_vcap
     active_mode = True
 
-def cmd_exit(mon):
+def cmd_cont(mon):
     global active_mode
     restored_vcap = mon.exit_debug_mode()
     print "Vcap_restored = %.4f" % restored_vcap
