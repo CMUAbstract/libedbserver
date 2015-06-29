@@ -316,8 +316,8 @@ class WispMonitor:
 
     def enter_debug_mode(self):
         self.sendCmd(USB_CMD_ENTER_ACTIVE_DEBUG)
-        reply = self.receive_reply(USB_RSP_VOLTAGE)
-        return reply["voltage"]
+        reply = self.receive_reply(USB_RSP_INTERRUPTED)
+        return reply["saved_vcap"]
 
     def exit_debug_mode(self):
         self.sendCmd(USB_CMD_EXIT_ACTIVE_DEBUG)
