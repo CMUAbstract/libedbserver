@@ -8,10 +8,17 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include <stdint.h>
+
 #include "pin_assign.h"
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
+
+// Breakpoint implementation selection (see docs in eval/interactive-debug)
+// Must match the same option in firmware/src/config.h
+// #define CONFIG_BREAKPOINTS_DEBUGGER_SIDE
+#define CONFIG_BREAKPOINTS_TARGET_SIDE
 
 // #define CONFIG_BREAKPOINT_IMPL_C
 #define CONFIG_BREAKPOINT_IMPL_ASM
@@ -40,6 +47,7 @@
 #define WISP_CMD_EXIT_ACTIVE_DEBUG		0x02 //!< prepare to exit active debug mode
 #define WISP_CMD_READ_MEM               0x03 //!< read memory contents at an address
 #define WISP_CMD_WRITE_MEM              0x04 //!< read memory contents at an address
+#define WISP_CMD_BREAKPOINT             0x05 //!< enable/disable target-side breakpoint
 /** @} End WISP_CMD */
 
 /**
@@ -49,9 +57,12 @@
  */
 #define WISP_RSP_ADDRESS                0x00 //!< message containing program counter
 #define WISP_RSP_MEMORY					0x01 //!< message containing requested memory content
+#define WISP_RSP_BREAKPOINT             0x02 //!< message acknowledging breakpoint cmd
 /** @} End WISP_RSP */
 
 /** @} End WISP_MSG_DESCRIPTORS */
+
+#if defined(CONFIG_BREAKPOINTS_DEBUGGER_SIDE)
 
 /** @brief Latency between a code point marker GPIO setting and the signal to enter debug mode 
  *  @details The execution on the target continues for this long after the codepoint.
@@ -106,6 +117,19 @@
 #define BREAKPOINT(idx) BREAKPOINT_INNER(idx)
 
 #endif // CONFIG_BREAKPOINT_IMPL_*
+
+#elif defined(CONFIG_BREAKPOINTS_TARGET_SIDE)
+
+extern volatile uint16_t _debug_breakpoint_enabled;
+
+void request_debug_mode();
+
+#define BREAKPOINT(idx) \
+    if (_debug_breakpoint_enabled & (1 << idx)) request_debug_mode()
+
+#else // CONFIG_BREAKPOINTS_*
+#error Invalid selection for breakpoint implementation: see CONFIG_BREAKPOINTS_*
+#endif // CONFIG_BREAKPOINTS_*
 
 /**
  * @brief	Initialize pins used by the debugger board

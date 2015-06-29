@@ -297,6 +297,12 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             } else if(interface == UART_INTERFACE_WISP) {
             	switch(pkt->descriptor)
             	{
+            	case WISP_RSP_BREAKPOINT:
+					// no additional data is needed
+					// mark this packet as unprocessed
+					pkt->processed = 0;
+					state = CONSTRUCT_STATE_IDENTIFIER;
+                    return 0; // packet construction succeeded
             	case WISP_RSP_ADDRESS:
             	case WISP_RSP_MEMORY:
             		// additional data is needed

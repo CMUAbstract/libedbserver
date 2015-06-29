@@ -13,6 +13,9 @@
 #include "debug.h"
 #include "pin_assign.h"
 
+/* The linker script needs to allocate .fram_vars section into FRAM region. */
+#define __fram __attribute__((section(".fram_vars")))
+
 #define DEBUG_RETURN			0x0001 // signals debug main loop to stop
 
 #define LED_IN_DEBUG_STATE
@@ -54,6 +57,10 @@ typedef struct {
 static state_t state = STATE_OFF;
 
 static uint16_t debug_flags = 0;
+
+#ifdef CONFIG_BREAKPOINTS_TARGET_SIDE
+volatile uint16_t __fram _debug_breakpoint_enabled = 0x00;
+#endif
 
 static uint16_t *wisp_sp; // stack pointer on debug entry
 
@@ -165,6 +172,14 @@ void exit_debug_mode()
     debug_flags |= DEBUG_RETURN;
 }
 
+void request_debug_mode()
+{
+    mask_debugger_signal();
+    signal_debugger();
+    unmask_debugger_signal();
+    __bis_SR_register(LPM4_bits + GIE); // go to sleep and wait for debugger interrupt
+}
+
 uint8_t *mem_addr_from_bytes(uint8_t *buf)
 {
     return (uint8_t *)
@@ -258,6 +273,23 @@ static void execute_cmd(cmd_t *cmd)
             UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
             break;
         }
+#ifdef CONFIG_BREAKPOINTS_TARGET_SIDE
+        case WISP_CMD_BREAKPOINT:
+        {
+            uint8_t index = cmd->data[0];
+            bool enable = cmd->data[1];
+
+            _debug_breakpoint_enabled = (_debug_breakpoint_enabled & ~(1 << index)) |
+                                        enable ? (1 << index) : 0x0;
+
+            msg_len = 0;
+            tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
+            tx_buf[msg_len++] = WISP_RSP_BREAKPOINT;
+
+            UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
+            break;
+        }
+#endif // CONFIG_BREAKPOINTS_TARGET_SIDE
         case WISP_CMD_EXIT_ACTIVE_DEBUG:
             exit_debug_mode();
             break;
@@ -312,6 +344,7 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
                         // cmds with data
                     case WISP_CMD_READ_MEM:
                     case WISP_CMD_WRITE_MEM:
+                    case WISP_CMD_BREAKPOINT:
                         msg_state = MSG_STATE_DATALEN;
                         break;
 

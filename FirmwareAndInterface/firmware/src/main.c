@@ -203,45 +203,12 @@ static void send_interrupted(uint16_t saved_vcap)
                  (uint8_t *)(&saved_vcap), sizeof(uint16_t), UART_TX_FORCE);
 }
 
-/**
- * @brief	Handle an interrupt from the target device
- */
-static void handle_target_signal()
-{
-    uint16_t restored_vcap;
-
-    switch (state) {
-        case STATE_ENTERING:
-            // WISP has entered debug main loop
-            set_state(STATE_DEBUG);
-            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-            continuous_power_on();
-            UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
-            I2C_setup();
-            send_interrupted(saved_vcap); // do it here: reply marks completion
-            break;
-        case STATE_EXITING:
-            // WISP has shutdown UART and is asleep waiting for int to resume
-            UART_teardown(UART_INTERFACE_WISP);
-            I2C_teardown();
-            continuous_power_off();
-            restored_vcap = discharge_block(saved_vcap); // restore energy level
-            signal_target();
-            send_vcap(restored_vcap);
-            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-            set_state(STATE_IDLE);
-            break;
-        default:
-            // received an unexpected signal
-            break;
-    }
-}
-
 static void enter_debug_mode()
 {
     set_state(STATE_ENTERING);
 
     saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP); // read Vcap and set as the target for exit
+    mask_target_signal();
     signal_target();
     unmask_target_signal();
 }
@@ -258,9 +225,50 @@ static void reset_state()
     continuous_power_off();
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
     set_state(STATE_IDLE);
-    mask_target_signal();
+    unmask_target_signal();
 }
 
+
+/**
+ * @brief	Handle an interrupt from the target device
+ */
+static void handle_target_signal()
+{
+    uint16_t restored_vcap;
+
+    switch (state) {
+        case STATE_IDLE: // target-initiated request to enter debug mode
+            // NOTE: if the debugger/target speedup is very high, then might need a delay here
+            // for the target to start listening for the interrupt
+            enter_debug_mode();
+            break;
+        case STATE_ENTERING:
+            // WISP has entered debug main loop
+            set_state(STATE_DEBUG);
+            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+            continuous_power_on();
+            UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
+            I2C_setup();
+            send_interrupted(saved_vcap); // do it here: reply marks completion
+            // leave target signal masked: no requests originate from the target
+            break;
+        case STATE_EXITING:
+            // WISP has shutdown UART and is asleep waiting for int to resume
+            UART_teardown(UART_INTERFACE_WISP);
+            I2C_teardown();
+            continuous_power_off();
+            restored_vcap = discharge_block(saved_vcap); // restore energy level
+            send_vcap(restored_vcap);
+            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+            set_state(STATE_IDLE);
+            signal_target(); // tell target to continue execution
+            unmask_target_signal(); // target may request to enter active debug mode
+            break;
+        default:
+            // received an unexpected signal
+            break;
+    }
+}
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
  */
@@ -313,8 +321,8 @@ static void pin_setup()
     P1DIR |= BIT0;
 #endif
 
-    // For measuring debugger energy interference only: configure interrupt line on boot
-    // unmask_target_signal();
+    // In our IDLE state, target might request to enter active debug mode
+    unmask_target_signal();
 }
 
 int main(void)
@@ -662,14 +670,26 @@ static void executeUSBCmd(uartPkt_t *pkt)
         uint8_t index = (uint8_t)pkt->data[0];
         bool enable = (bool)pkt->data[1];
         uint8_t rc = RETURN_CODE_SUCCESS;
+#if defined(CONFIG_BREAKPOINTS_DEBUGGER_SIDE)
         if (index > 0 && index < NUM_CODEPOINTS)
             bkpt_group_enable[index] = enable;
         else
             rc = RETURN_CODE_INVALID_ARGS;
         send_return_code(rc);
+#elif defined(CONFIG_BREAKPOINTS_TARGET_SIDE)
+        cmd_len = 0;
+        wisp_cmd_buf[cmd_len++] = index;
+        wisp_cmd_buf[cmd_len++] = enable ? 0x1 : 0x0;
+
+        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_BREAKPOINT,
+                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
+        wispRxPkt.processed = 1;
+        send_return_code(rc);
+#endif
         break;
     }
-
     default:
         break;
     }

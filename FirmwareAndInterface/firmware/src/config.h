@@ -54,6 +54,11 @@
 
 #define CONFIG_ENABLE_CODEPOINTS
 
+// Breakpoint implementation selection (see docs in eval/interactive-debug)
+// Must match the same option in libdebug/src/debug.h
+// #define CONFIG_BREAKPOINTS_DEBUGGER_SIDE
+#define CONFIG_BREAKPOINTS_TARGET_SIDE
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44
