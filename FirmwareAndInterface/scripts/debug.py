@@ -116,17 +116,12 @@ def cmd_break(mon, idx, op):
 def cmd_wait(mon):
     """Wait to enter active debug mode"""
     global active_mode
-    while True:
-        try:
-            pkt = mon.receive()
-        except KeyboardInterrupt:
-            break
-        if pkt is None:
-            continue
-
-        if pkt["descriptor"] == wispmon.USB_RSP_INTERRUPTED:
-            active_mode = True
-            break
+    try:
+        pkt = mon.receive_reply(wispmon.USB_RSP_INTERRUPTED)
+        print "Vcap_saved = %.4f" % pkt["saved_vcap"]
+        active_mode = True
+    except KeyboardInterrupt:
+        pass
 
 def cmd_read(mon, addr, len):
     addr = int(addr, 16)
