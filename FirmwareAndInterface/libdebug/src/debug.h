@@ -14,6 +14,7 @@
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
+// #define CONFIG_ENABLE_CODEPOINTS
 
 // Breakpoint implementation selection (see docs in eval/interactive-debug)
 // Must match the same option in firmware/src/config.h
@@ -24,6 +25,10 @@
 #define CONFIG_BREAKPOINT_IMPL_ASM
 
 #define CONFIG_BREAKPOINT_TEST
+
+#if defined(CONFIG_BREAKPOINTS_DEBUGGER_SIDE) && !defined(CONFIG_ENABLE_CODEPOINTS)
+#error Debugger-side breakpoints depend on codepoints: set CONFIG_ENABLE_CODEPOINTS
+#endif
 
 #define DEBUG_UART_BUF_LEN				2
 #define DEBUG_CMD_MAX_LEN               16
