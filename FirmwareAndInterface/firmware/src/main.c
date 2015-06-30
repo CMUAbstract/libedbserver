@@ -45,6 +45,7 @@
 #define FLAG_UART_WISP_TX           0x0010 //!< Bytes transmitted on the WISP UART
 #define FLAG_LOGGING                0x0020 //!< Logging ADC conversion results to USB
 #define FLAG_RF_DATA				0x0040 //!< RF Rx activity ready to be logged
+#define FLAG_CHARGER_COMPLETE		0x0080 //!< Charge or discharge operation completed
 /** @} End MAIN_FLAG_DEFINES */
 
 /**
@@ -63,6 +64,12 @@
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
 
 #define NUM_CODEPOINTS (1 << NUM_CODEPOINT_PINS)
+
+#define COMP_NEG_CHAN_INNER(idx) CBIMSEL_ ## idx
+#define COMP_NEG_CHAN(idx) COMP_NEG_CHAN_INNER(idx)
+
+#define COMP_PORT_DIS_INNER(idx) CBPD ## idx
+#define COMP_PORT_DIS(idx) COMP_PORT_DIS_INNER(idx)
 
 /**
  * @brief   Assigns a permanent index to each ADC channels
@@ -88,10 +95,20 @@ typedef enum {
     STATE_EXITING,
 } state_t;
 
+/**
+ * @brief State of async charge/discharge operation
+ */
+typedef enum {
+    CHARGER_OP_NONE = 0,
+    CHARGER_OP_CHARGE,
+    CHARGER_OP_DISCHARGE,
+} charger_op_t;
+
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
 static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
 static state_t state = STATE_IDLE;
+static charger_op_t charger_op = CHARGER_OP_NONE;
 
 static uint16_t adc12Target; // target ADC reading
 static uint16_t saved_vcap; // energy level before entering active debug mode
@@ -273,7 +290,7 @@ static void handle_target_signal()
             UART_teardown(UART_INTERFACE_WISP);
             I2C_teardown();
             continuous_power_off();
-            restored_vcap = discharge_block(saved_vcap); // restore energy level
+            restored_vcap = discharge_adc(saved_vcap); // restore energy level
             send_vcap(restored_vcap);
             GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
             set_state(STATE_IDLE);
@@ -392,6 +409,11 @@ int main(void)
 
                 ADC12_start();
             }
+        }
+
+        if (flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
+            flags &= ~FLAG_CHARGER_COMPLETE;
+            send_return_code(RETURN_CODE_SUCCESS);
         }
 
         if(flags & FLAG_UART_USB_RX) {
@@ -573,14 +595,24 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_CHARGE:
         target_vcap = *((uint16_t *)(&pkt->data[0]));
-        actual_vcap = charge_block(target_vcap);
+        actual_vcap = charge_adc(target_vcap);
         send_vcap(actual_vcap);
         break;
 
     case USB_CMD_DISCHARGE:
         target_vcap = *((uint16_t *)(pkt->data));
-        actual_vcap = discharge_block(target_vcap);
+        actual_vcap = discharge_adc(target_vcap);
         send_vcap(actual_vcap);
+        break;
+
+    case USB_CMD_CHARGE_CMP:
+        target_vcap = *((uint16_t *)(pkt->data));
+        charge_cmp(target_vcap);
+        break;
+
+    case USB_CMD_DISCHARGE_CMP:
+        target_vcap = *((uint16_t *)(pkt->data));
+        discharge_cmp(target_vcap);
         break;
 
     case USB_CMD_RESET_STATE:
@@ -717,7 +749,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     pkt->processed = 1;
 }
 
-static uint16_t charge_block(uint16_t target)
+static uint16_t charge_adc(uint16_t target)
 {
     uint16_t cur_voltage;
 
@@ -743,7 +775,7 @@ static uint16_t charge_block(uint16_t target)
     return cur_voltage;
 }
 
-static uint16_t discharge_block(uint16_t target)
+static uint16_t discharge_adc(uint16_t target)
 {
     uint16_t cur_voltage;
 
@@ -758,6 +790,53 @@ static uint16_t discharge_block(uint16_t target)
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
 
     return cur_voltage;
+}
+
+static void config_comparator(uint16_t target)
+{
+    // ref0 = ref1 = target = 2.5 / 2^32 * target_volts
+    CBCTL2 = CBREFL_3 | CBRS_2 | (target << 8) | target; // Vref = 2.5V and Vref to resistor ladder
+    CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
+    CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
+}
+
+static void charge_cmp(uint16_t target)
+{
+    charger_op = CHARGER_OP_CHARGE;
+
+    config_comparator(target);
+
+    CBCTL1 |= CBIES;             // interrupt edge: falling edge
+    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
+    CBINT |= CBIE;                // enable CompB interrupt
+
+    CBCTL1 |= CBON;               // turn on ComparatorB
+
+    // Configure the pin
+    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
+
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
+
+    // expect comparator interrupt
+}
+
+static void discharge_cmp(uint16_t target)
+{
+    charger_op = CHARGER_OP_DISCHARGE;
+
+    config_comparator(target);
+
+    CBCTL1 &= ~CBIES;             // interrupt edge: rising edge
+    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
+    CBINT |= CBIE;                // enable CompB interrupt
+
+    CBCTL1 |= CBON;               // turn on ComparatorB
+
+    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
+
+    // expect comparator interrupt
 }
 
 static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
@@ -889,4 +968,31 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	default:
 		break;
 	}
+}
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=COMP_B_VECTOR
+__interrupt void Comp_B_ISR (void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
+
+    flags |= FLAG_CHARGER_COMPLETE;
+
+    switch (charger_op) {
+        case CHARGER_OP_CHARGE:
+            GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
+            break;
+        case CHARGER_OP_DISCHARGE:
+            GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
+            break;
+        default:
+            error(ERROR_UNEXPECTED_INTERRUPT);
+            break;
+    }
+    charger_op = CHARGER_OP_NONE;
 }

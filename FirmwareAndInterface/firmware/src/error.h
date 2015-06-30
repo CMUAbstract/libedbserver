@@ -7,6 +7,7 @@
 typedef enum {
     ERROR_NONE = 0,
     ERROR_UNEXPECTED_CODEPOINT,
+    ERROR_UNEXPECTED_INTERRUPT,
 } error_t;
 
 /* @brief Blink led at a given rate indefinitely

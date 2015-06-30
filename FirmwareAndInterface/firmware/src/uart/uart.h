@@ -117,6 +117,8 @@
 #define USB_CMD_CONT_POWER                      0x34 //!< Turn on a continuous power supply to the target
 #define USB_CMD_BREAKPOINT                      0x35 //!< Enable/disable breakpoint
 #define USB_CMD_INTERRUPT                       0x36 //!< wait for target to be on and enter debug mode
+#define USB_CMD_CHARGE_CMP                      0x37 //!< charge Vcap to given level using comparator
+#define USB_CMD_DISCHARGE_CMP                   0x38 //!< discharge Vcap to given level using comparator
 /** @} End USB_CMD */
 
 /**

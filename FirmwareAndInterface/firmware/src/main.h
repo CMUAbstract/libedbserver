@@ -17,18 +17,32 @@
 static void executeUSBCmd(uartPkt_t *pkt);
 
 /**
- * @brief	Charge WISP capacitor to the specified voltage level
+ * @brief	Charge WISP capacitor to the specified voltage level using ADC
  * @param	target			Target voltage level to charge to (in ADC units)
  * @return  final actual measured voltage level (ADC units)
  */
-static uint16_t charge_block(uint16_t target);
+static uint16_t charge_adc(uint16_t target);
 
 /**
- * @brief	Discharge WISP capacitor to the specified voltage level
+ * @brief	Discharge WISP capacitor to the specified voltage level using ADC
  * @param	target			Target voltage level to discharge to (in ADC units)
  * @return  final actual measured voltage level (ADC units)
  */
-static uint16_t discharge_block(uint16_t target);
+static uint16_t discharge_adc(uint16_t target);
+
+/**
+ * @brief	Charge WISP capacitor to the specified voltage level using comparator
+ * @param	target			Target voltage level to charge to (as comparator ref value)
+ * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
+ */
+static void charge_cmp(uint16_t target);
+
+/**
+ * @brief	Discharge WISP capacitor to the specified voltage level using comparator
+ * @param	target			Target voltage level to discharge to (as comparator ref value)
+ * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
+ */
+static void discharge_cmp(uint16_t target);
 
 /**
  * @brief	Block until setting the voltage read at channel to the ADC reading target.

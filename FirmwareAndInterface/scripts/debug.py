@@ -79,15 +79,25 @@ def cmd_stream(mon, out_file, duration_sec, *channels):
         mon.stream_end(channel_indexes)
         print "%d samples in %f seconds (target time)" % (num_samples, time_sec)
 
-def cmd_charge(mon, target_voltage):
+def cmd_charge(mon, target_voltage, method="adc"):
     target_voltage = float(target_voltage)
-    vcap = mon.charge(target_voltage)
-    print "Vcap = %.4f" % vcap
+    if method == "adc":
+        vcap = mon.charge(target_voltage)
+        print "Vcap = %.4f" % vcap
+    elif method == "cmp":
+        mon.charge_cmp(target_voltage)
+    else:
+        raise Exception("Invalid charger method: " + method)
 
-def cmd_discharge(mon, target_voltage):
+def cmd_discharge(mon, target_voltage, method="adc"):
     target_voltage = float(target_voltage)
-    vcap = mon.discharge(target_voltage)
-    print "Vcap = %.4f" % vcap
+    if method == "adc":
+        vcap = mon.discharge(target_voltage)
+        print "Vcap = %.4f" % vcap
+    elif method == "cmp":
+        mon.discharge_cmp(target_voltage)
+    else:
+        raise Exception("Invalid charger method: " + method)
 
 def cmd_int(mon):
     global active_mode

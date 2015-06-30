@@ -286,6 +286,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_WRITE_MEM:	            // expecting 3 data bytes (mem address, value)
 				case USB_CMD_CONT_POWER:            // expecting 1 data byte  (on/off value)
 				case USB_CMD_BREAKPOINT:            // expecting 2 data byte  (index, en/dis value)
+				case USB_CMD_CHARGE_CMP:            // expecting 2 data bytes (target voltage)
+				case USB_CMD_DISCHARGE_CMP:         // expecting 2 data bytes (target voltage)
 					// additional data is needed
 					state = CONSTRUCT_STATE_DATA_LEN;
 					break;

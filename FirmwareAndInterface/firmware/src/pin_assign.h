@@ -92,6 +92,7 @@
 
 /** @} End PORTS */
 
+// TODO: define only numbers here and use a macro that takes a number (for consistency)
 /**
  * @defgroup    ADC_CHANNELS   ADC input channel names to pins
  * @{
@@ -102,5 +103,16 @@
 #define ADC_CHAN_VRECT                         ADC12INCH_4 //!< ADC input channel select for Vrect
 #define ADC_CHAN_VINJ                          ADC12INCH_5 //!< ADC input channel select for VINJ
 /** @} End ADC_CHANNELS */
+
+/**
+ * @defgroup    COMP_CHAN comparator input channel pins
+ * @{
+ */
+#define COMP_CHAN_VCAP                          1
+#define COMP_CHAN_VBOOST                        2
+#define COMP_CHAN_VREG                          3
+#define COMP_CHAN_VRECT                         4
+#define COMP_CHAN_VINJ                          5
+/** @} End COMP_CHAN */
 
 #endif // PIN_ASSIGN_H

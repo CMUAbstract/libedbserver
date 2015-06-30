@@ -68,6 +68,8 @@ USB_CMD_WRITE_MEM                    = 0x33
 USB_CMD_CONT_POWER                   = 0x34
 USB_CMD_BREAKPOINT                   = 0x35
 USB_CMD_INTERRUPT                    = 0x36
+USB_CMD_CHARGE_CMP                   = 0x37
+USB_CMD_DISCHARGE_CMP                = 0x38
 
 # Serial receive message descriptors
 USB_RSP_VOLTAGE                      = 0x01
@@ -102,6 +104,8 @@ class WispMonitor:
     VDD                                 = 3.35 # V
     CLK_FREQ                            = TIME_TIMER_FREQ # Hz
     CLK_PERIOD                          = 1.0 / CLK_FREQ # seconds
+    CMP_VREF                            = 2.5
+    CMP_BITS                            = 5
 
     def __init__(self):
         self.rxPkt = RxPkt()
@@ -278,6 +282,14 @@ class WispMonitor:
     def adc_to_voltage(self, value):
         return float(value) / 4096 * self.VDD
 
+    def voltage_to_cmp(self, voltage):
+        if voltage < self.CMP_VREF / 2**5 or voltage > self.CMP_VREF:
+            raise Exception("Unsupported comparator ref voltage: " + str(voltage))
+        return int(voltage / (self.CMP_VREF / 2**self.CMP_BITS)) - 1
+
+    def cmp_to_voltage(self, value):
+        return (float(value) + 1) * (CMP_VREF / 2**CMP_BITS)
+
     def sense(self, channel):
         self.sendCmd(USB_CMD_SENSE, data=[channel])
         reply = self.receive_reply(USB_RSP_VOLTAGE)
@@ -314,6 +326,19 @@ class WispMonitor:
         self.sendCmd(USB_CMD_DISCHARGE, data=cmd_data)
         reply = self.receive_reply(USB_RSP_VOLTAGE)
         return reply["voltage"]
+
+    def charge_cmp(self, target_voltage):
+        target_voltage_cmp = self.voltage_to_cmp(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_cmp)
+        print "cmd data=", target_voltage_cmp
+        self.sendCmd(USB_CMD_CHARGE_CMP, data=cmd_data)
+        self.receive_reply(USB_RSP_RETURN_CODE)
+
+    def discharge_cmp(self, target_voltage):
+        target_voltage_cmp = self.voltage_to_cmp(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_cmp)
+        self.sendCmd(USB_CMD_DISCHARGE_CMP, data=cmd_data)
+        self.receive_reply(USB_RSP_RETURN_CODE)
 
     def enter_debug_mode(self):
         self.sendCmd(USB_CMD_ENTER_ACTIVE_DEBUG)
