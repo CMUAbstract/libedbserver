@@ -52,7 +52,7 @@
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
 
-#define CONFIG_ENABLE_CODEPOINTS
+// #define CONFIG_ENABLE_CODEPOINTS
 
 // Breakpoint implementation selection (see docs in eval/interactive-debug)
 // Must match the same option in libdebug/src/debug.h
@@ -60,6 +60,10 @@
 #define CONFIG_BREAKPOINTS_TARGET_SIDE
 
 // The rest essentially defines the register settings that carry out the above
+
+#if defined(CONFIG_BREAKPOINTS_TARGET_SIDE) && defined(CONFIG_ENABLE_CODEPOINTS)
+#error Target-side breakpoints do not need codepoint support: disable CONFIG_ENABLE_CODEPOINTS
+#endif
 
 // See MSP430F5340 datasheet p44
 #if CONFIG_XT1_CAP >= 12
