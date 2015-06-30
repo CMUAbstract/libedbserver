@@ -114,10 +114,10 @@ def cmd_cont(mon):
     print "Vcap_restored = %.4f" % restored_vcap
     active_mode = False
 
-def cmd_ebreak(mon, target_voltage):
+def cmd_ebreak(mon, target_voltage, impl="adc"):
     global active_mode
     target_voltage = float(target_voltage)
-    saved_vcap = mon.break_at_vcap_level(target_voltage)
+    saved_vcap = mon.break_at_vcap_level(target_voltage, impl)
     print "Vcap_saved = %.4f" % saved_vcap
     active_mode = True
 

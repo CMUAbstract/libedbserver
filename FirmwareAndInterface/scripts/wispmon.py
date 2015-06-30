@@ -12,6 +12,7 @@ BAUD_RATE                           = 921600 # CONFIG_CLOCK_SOURCE_INTERNAL in c
 #BAUD_RATE                           = 500000 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
 #BAUD_RATE                           = 115200 # CONFIG_CLOCK_SOURCE_CRYSTAL in config.h
 
+VDD = 3.3
 ACLK_FREQ = 32768 # Hz
 #SMCLK_FREQ = 24000000 # Hz
 SMCLK_FREQ = 21921792 # Hz
@@ -27,6 +28,25 @@ ADC_CHANNEL_INDEX = {
     "boost" : 1,
     "reg" : 2,
     "rect" : 3,
+}
+
+ENERGY_BREAKPOINT_IMPL = {
+    "adc" : 0,
+    "cmp" : 1,
+}
+
+COMPARATOR_REF_ENUM = {
+    "vcc" : 0,
+    "vref2.5" : 1,
+    "vref2.0" : 2,
+    "vref1.5" : 3,
+}
+
+COMPARATOR_REF_VOLTAGE = {
+    "vcc" : VDD,
+    "vref2.5" : 2.5,
+    "vref2.0" : 2.0,
+    "vref1.5" : 1.5,
 }
 
 # Serial transmit message descriptors
@@ -282,13 +302,23 @@ class WispMonitor:
     def adc_to_voltage(self, value):
         return float(value) / 4096 * self.VDD
 
-    def voltage_to_cmp(self, voltage):
-        if voltage < self.CMP_VREF / 2**5 or voltage > self.CMP_VREF:
-            raise Exception("Unsupported comparator ref voltage: " + str(voltage))
-        return int(voltage / (self.CMP_VREF / 2**self.CMP_BITS)) - 1
+    def cmp_ref_for_v(self, voltage):
+        if voltage > 2.5:
+            ref = "vcc"
+        elif voltage > 2.0:
+            ref = "vref2.5"
+        elif voltage > 1.5:
+            ref = "vref2.0"
+        else:
+            ref = "vref1.5"
+        return ref
 
-    def cmp_to_voltage(self, value):
-        return (float(value) + 1) * (CMP_VREF / 2**CMP_BITS)
+    def voltage_to_cmp(self, voltage):
+        ref = self.cmp_ref_for_v(voltage)
+        return int(voltage / (COMPARATOR_REF_VOLTAGE[ref] / 2**self.CMP_BITS)) - 1, ref
+
+    def cmp_to_voltage(self, value, ref):
+        return (float(value) + 1) * (COMPARATOR_REF_VOLTAGE[ref] / 2**CMP_BITS)
 
     def sense(self, channel):
         self.sendCmd(USB_CMD_SENSE, data=[channel])
@@ -328,15 +358,14 @@ class WispMonitor:
         return reply["voltage"]
 
     def charge_cmp(self, target_voltage):
-        target_voltage_cmp = self.voltage_to_cmp(target_voltage)
-        cmd_data = self.uint16_to_bytes(target_voltage_cmp)
-        print "cmd data=", target_voltage_cmp
+        target_voltage_cmp, ref = self.voltage_to_cmp(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_cmp) + [COMPARATOR_REF_ENUM[ref]]
         self.sendCmd(USB_CMD_CHARGE_CMP, data=cmd_data)
         self.receive_reply(USB_RSP_RETURN_CODE)
 
     def discharge_cmp(self, target_voltage):
-        target_voltage_cmp = self.voltage_to_cmp(target_voltage)
-        cmd_data = self.uint16_to_bytes(target_voltage_cmp)
+        target_voltage_cmp, ref = self.voltage_to_cmp(target_voltage)
+        cmd_data = self.uint16_to_bytes(target_voltage_cmp) + [COMPARATOR_REF_ENUM[ref]]
         self.sendCmd(USB_CMD_DISCHARGE_CMP, data=cmd_data)
         self.receive_reply(USB_RSP_RETURN_CODE)
 
@@ -355,9 +384,16 @@ class WispMonitor:
         reply = self.receive_reply(USB_RSP_INTERRUPTED)
         return reply["saved_vcap"]
 
-    def break_at_vcap_level(self, level):
-        level_adc = self.voltage_to_adc(level)
-        cmd_data = self.uint16_to_bytes(level_adc)
+    def break_at_vcap_level(self, level, impl):
+        extra_args = []
+        if impl == "adc":
+            level = self.voltage_to_adc(level)
+        elif impl == "cmp":
+            level, ref = self.voltage_to_cmp(level)
+            extra_args += [COMPARATOR_REF_ENUM[ref]]
+        else:
+            raise Exception("Invalid energy breakpoint implementation method: " + impl)
+        cmd_data = self.uint16_to_bytes(level) + [ENERGY_BREAKPOINT_IMPL[impl]] + extra_args
         self.sendCmd(USB_CMD_BREAK_AT_VCAP_LEVEL, data=cmd_data)
         reply = self.receive_reply(USB_RSP_INTERRUPTED)
         return reply["saved_vcap"]

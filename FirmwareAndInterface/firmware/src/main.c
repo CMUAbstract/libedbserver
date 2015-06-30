@@ -99,16 +99,30 @@ typedef enum {
  * @brief State of async charge/discharge operation
  */
 typedef enum {
-    CHARGER_OP_NONE = 0,
-    CHARGER_OP_CHARGE,
-    CHARGER_OP_DISCHARGE,
-} charger_op_t;
+    CMP_OP_NONE = 0,
+    CMP_OP_CHARGE,
+    CMP_OP_DISCHARGE,
+    CMP_OP_ENERGY_BREAKPOINT,
+} comparator_op_t;
+
+/**
+ * @brief Select which implementation to use for energy breakpoints
+ */
+typedef enum {
+    ENERGY_BREAKPOINT_IMPL_ADC,
+    ENERGY_BREAKPOINT_IMPL_CMP,
+} energy_breakpoint_impl_t;
+
+typedef enum {
+    CMP_EDGE_FALLING,
+    CMP_EDGE_RISING,
+} comparator_edge_t;
 
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
 static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
 static state_t state = STATE_IDLE;
-static charger_op_t charger_op = CHARGER_OP_NONE;
+static comparator_op_t comparator_op = CMP_OP_NONE;
 
 static uint16_t adc12Target; // target ADC reading
 static uint16_t saved_vcap; // energy level before entering active debug mode
@@ -605,15 +619,19 @@ static void executeUSBCmd(uartPkt_t *pkt)
         send_vcap(actual_vcap);
         break;
 
-    case USB_CMD_CHARGE_CMP:
+    case USB_CMD_CHARGE_CMP: {
         target_vcap = *((uint16_t *)(pkt->data));
-        charge_cmp(target_vcap);
+        comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[2];
+        charge_cmp(target_vcap, cmp_ref);
         break;
+    }
 
-    case USB_CMD_DISCHARGE_CMP:
+    case USB_CMD_DISCHARGE_CMP: {
         target_vcap = *((uint16_t *)(pkt->data));
-        discharge_cmp(target_vcap);
+        comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[2];
+        discharge_cmp(target_vcap, cmp_ref);
         break;
+    }
 
     case USB_CMD_RESET_STATE:
         reset_state();
@@ -648,10 +666,21 @@ static void executeUSBCmd(uartPkt_t *pkt)
         marker_monitor_end();
         break;
 
-    case USB_CMD_BREAK_AT_VCAP_LEVEL:
+    case USB_CMD_BREAK_AT_VCAP_LEVEL: {
         target_vcap = *((uint16_t *)(&pkt->data[0]));
-        break_at_vcap_level(target_vcap);
+        energy_breakpoint_impl_t impl = (energy_breakpoint_impl_t)pkt->data[2];
+        switch (impl) {
+            case ENERGY_BREAKPOINT_IMPL_ADC:
+                break_at_vcap_level_adc(target_vcap);
+                break;
+            case ENERGY_BREAKPOINT_IMPL_CMP: {
+                comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[3];
+                break_at_vcap_level_cmp(target_vcap, cmp_ref);
+                break;
+            }
+        }
         break;
+    }
 
     case USB_CMD_READ_MEM:
         address = *((uint32_t *)(&pkt->data[0]));
@@ -792,25 +821,56 @@ static uint16_t discharge_adc(uint16_t target)
     return cur_voltage;
 }
 
-static void config_comparator(uint16_t target)
+static void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
+                           comparator_edge_t edge)
 {
-    // ref0 = ref1 = target = 2.5 / 2^32 * target_volts
-    CBCTL2 = CBREFL_3 | CBRS_2 | (target << 8) | target; // Vref = 2.5V and Vref to resistor ladder
+    comparator_op = op;
+
+    // ref0 = ref1 = target = Vref / 2^32 * target_volts
+    switch (ref) {
+        case CMP_REF_VCC:
+            CBCTL2 = CBRS_1;
+            break;
+        case CMP_REF_VREF_2_5:
+            CBCTL2 = CBREFL_3 | CBRS_2; // Vref = 2.5V and Vref to resistor ladder
+            break;
+        case CMP_REF_VREF_2_0:
+            CBCTL2 = CBREFL_2 | CBRS_2; // Vref = 2.0V and Vref to resistor ladder
+            break;
+        case CMP_REF_VREF_1_5:
+            CBCTL2 = CBREFL_1 | CBRS_2; // Vref = 1.5V and Vref to resistor ladder
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
+    }
+    CBCTL2 |= (target << 8) | target;
+
     CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
     CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
-}
+    CBCTL1 |= CBF | CBFDLY_3;
 
-static void charge_cmp(uint16_t target)
-{
-    charger_op = CHARGER_OP_CHARGE;
+    switch (edge) {
+        case CMP_EDGE_FALLING:
+            CBCTL1 |= CBIES;
+            break;
+        case CMP_EDGE_RISING:
+            CBCTL1 &= ~CBIES;
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
+    }
 
-    config_comparator(target);
-
-    CBCTL1 |= CBIES;             // interrupt edge: falling edge
     CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
     CBINT |= CBIE;                // enable CompB interrupt
 
     CBCTL1 |= CBON;               // turn on ComparatorB
+}
+
+static void charge_cmp(uint16_t target, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING);
 
     // Configure the pin
     GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
@@ -822,17 +882,9 @@ static void charge_cmp(uint16_t target)
     // expect comparator interrupt
 }
 
-static void discharge_cmp(uint16_t target)
+static void discharge_cmp(uint16_t target, comparator_ref_t ref)
 {
-    charger_op = CHARGER_OP_DISCHARGE;
-
-    config_comparator(target);
-
-    CBCTL1 &= ~CBIES;             // interrupt edge: rising edge
-    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
-    CBINT |= CBIE;                // enable CompB interrupt
-
-    CBCTL1 |= CBON;               // turn on ComparatorB
+    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING);
 
     GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
 
@@ -896,7 +948,7 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 	}
 }
 
-static void break_at_vcap_level(uint16_t level)
+static void break_at_vcap_level_adc(uint16_t level)
 {
     uint16_t cur_vcap, cur_vreg;
 
@@ -908,6 +960,12 @@ static void break_at_vcap_level(uint16_t level)
     } while (cur_vreg < MCU_ON_THRES || cur_vcap > level);
 
     enter_debug_mode();
+}
+
+static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
+    // expect comparator interrupt
 }
 
 static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
@@ -981,18 +1039,21 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
 {
     CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
 
-    flags |= FLAG_CHARGER_COMPLETE;
-
-    switch (charger_op) {
-        case CHARGER_OP_CHARGE:
+    switch (comparator_op) {
+        case CMP_OP_CHARGE:
             GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
+            flags |= FLAG_CHARGER_COMPLETE;
             break;
-        case CHARGER_OP_DISCHARGE:
+        case CMP_OP_DISCHARGE:
             GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
+            flags |= FLAG_CHARGER_COMPLETE;
+            break;
+        case CMP_OP_ENERGY_BREAKPOINT:
+            enter_debug_mode();
             break;
         default:
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
-    charger_op = CHARGER_OP_NONE;
+    comparator_op = CMP_OP_NONE;
 }

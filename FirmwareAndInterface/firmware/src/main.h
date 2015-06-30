@@ -10,6 +10,14 @@
 
 #include "uart.h"
 
+typedef enum {
+    CMP_REF_VCC = 0,
+    CMP_REF_VREF_2_5,
+    CMP_REF_VREF_2_0,
+    CMP_REF_VREF_1_5,
+} comparator_ref_t;
+
+
 /**
  * @brief   Execute a command received over USB
  * @param   pkt     UART packet containing message information
@@ -33,16 +41,18 @@ static uint16_t discharge_adc(uint16_t target);
 /**
  * @brief	Charge WISP capacitor to the specified voltage level using comparator
  * @param	target			Target voltage level to charge to (as comparator ref value)
+ * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
  * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
  */
-static void charge_cmp(uint16_t target);
+static void charge_cmp(uint16_t target, comparator_ref_t cmp_ref);
 
 /**
  * @brief	Discharge WISP capacitor to the specified voltage level using comparator
  * @param	target			Target voltage level to discharge to (as comparator ref value)
+ * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
  * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
  */
-static void discharge_cmp(uint16_t target);
+static void discharge_cmp(uint16_t target, comparator_ref_t cmp_ref);
 
 /**
  * @brief	Block until setting the voltage read at channel to the ADC reading target.
@@ -54,8 +64,17 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target);
 /**
  * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
  * @param   level   Vcap level to interrupt at
+ * @details Implemented by continuously sampling Vcap using the ADC
  */
-static void break_at_vcap_level(uint16_t level);
+static void break_at_vcap_level_adc(uint16_t level);
+
+/**
+ * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
+ * @param   level   Vcap level to interrupt at
+ * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
+ * @details Implemented by monitoring Vcap using the analog comparator
+ */
+static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t cmp_ref);
 
 /**
  * @brief	Compare two unsigned 16-bit numbers.
