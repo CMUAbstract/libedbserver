@@ -101,7 +101,9 @@ static uartPkt_t wispRxPkt = { .processed = 1 };
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
 
+#ifdef CONFIG_BREAKPOINTS_DEBUGGER_SIDE
 static bool bkpt_group_enable[NUM_CODEPOINTS] = {0}; // group index -> is group enabled
+#endif
 
 static adc12_t adc12 = {
     .config = {
