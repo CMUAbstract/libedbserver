@@ -426,8 +426,15 @@ static inline void handle_debugger_signal()
 void debug_setup()
 {
     // these pins report state of the debugger state machine on the target
+#ifdef CONFIG_STATE_PINS
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1)); // output low
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1); // output
+#endif
+
+#ifdef CONFIG_ENABLE_CODEPOINTS
+    GPIO(PORT_CODEPOINT, OUT) &= ~(BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)); // output low
+    GPIO(PORT_CODEPOINT, DIR) |= BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1); // output
+#endif
 
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
     GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
