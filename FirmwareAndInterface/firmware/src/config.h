@@ -8,7 +8,7 @@
 // #define CONFIG_XT2_FREQ 25000000
 #define CONFIG_REFO_FREQ 32768
 
-#define MCU_ON_THRES 1.9
+#define MCU_ON_THRES 2607 /* 2.1 V */ // int(math.ceil(voltage * 4096 / self.VDD))
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
