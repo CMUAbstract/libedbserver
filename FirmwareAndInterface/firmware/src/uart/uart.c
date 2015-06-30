@@ -244,7 +244,6 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             if(interface == UART_INTERFACE_USB) {
 				switch(pkt->descriptor)
 				{
-				case USB_CMD_SENSE:
 				case USB_CMD_RELEASE_POWER:
 				case USB_CMD_ENTER_ACTIVE_DEBUG:
 				case USB_CMD_EXIT_ACTIVE_DEBUG:
@@ -269,6 +268,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 					pkt->processed = 0;
 					state = CONSTRUCT_STATE_IDENTIFIER;
 					return 0;   // packet construction succeeded
+				case USB_CMD_SENSE:                 // expectin channel index
 				case USB_CMD_STREAM_BEGIN:          // expecting channel list
 				case USB_CMD_STREAM_END:            // expecting channel list
 				case USB_CMD_SET_VCAP:				// expecting 2 data bytes (ADC reading)
