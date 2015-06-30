@@ -9,6 +9,7 @@
 #define CONFIG_REFO_FREQ 32768
 
 #define MCU_ON_THRES 2607 /* 2.1 V */ // int(math.ceil(voltage * 4096 / self.VDD))
+#define MCU_BOOT_LATENCY_MS 3 // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
@@ -64,6 +65,8 @@
 #if defined(CONFIG_BREAKPOINTS_TARGET_SIDE) && defined(CONFIG_ENABLE_CODEPOINTS)
 #error Target-side breakpoints do not need codepoint support: disable CONFIG_ENABLE_CODEPOINTS
 #endif
+
+#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)
 
 // See MSP430F5340 datasheet p44
 #if CONFIG_XT1_CAP >= 12

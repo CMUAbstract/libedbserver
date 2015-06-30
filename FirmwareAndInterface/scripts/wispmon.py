@@ -67,6 +67,7 @@ USB_CMD_READ_MEM                     = 0x32
 USB_CMD_WRITE_MEM                    = 0x33
 USB_CMD_CONT_POWER                   = 0x34
 USB_CMD_BREAKPOINT                   = 0x35
+USB_CMD_INTERRUPT                    = 0x36
 
 # Serial receive message descriptors
 USB_RSP_VOLTAGE                      = 0x01
@@ -323,6 +324,11 @@ class WispMonitor:
         self.sendCmd(USB_CMD_EXIT_ACTIVE_DEBUG)
         reply = self.receive_reply(USB_RSP_VOLTAGE)
         return reply["voltage"]
+
+    def interrupt(self):
+        self.sendCmd(USB_CMD_INTERRUPT)
+        reply = self.receive_reply(USB_RSP_INTERRUPTED)
+        return reply["saved_vcap"]
 
     def break_at_vcap_level(self, level):
         level_adc = self.voltage_to_adc(level)

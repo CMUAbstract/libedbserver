@@ -91,9 +91,12 @@ def cmd_discharge(mon, target_voltage):
 
 def cmd_int(mon):
     global active_mode
-    saved_vcap = mon.enter_debug_mode()
-    print "Vcap_saved = %.4f" % saved_vcap
-    active_mode = True
+    try:
+        saved_vcap = mon.interrupt()
+        print "Vcap_saved = %.4f" % saved_vcap
+        active_mode = True
+    except KeyboardInterrupt:
+        pass
 
 def cmd_cont(mon):
     global active_mode

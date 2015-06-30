@@ -263,6 +263,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_MONITOR_MARKER_BEGIN:
 				case USB_CMD_MONITOR_MARKER_END:
 				case USB_CMD_RESET_STATE:
+				case USB_CMD_INTERRUPT:
 					// no additional data is needed
 					// mark this packet as unprocessed
 					pkt->processed = 0;

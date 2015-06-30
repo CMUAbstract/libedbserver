@@ -116,6 +116,7 @@
 #define USB_CMD_WRITE_MEM                       0x33 //!< Write memory contents at an address
 #define USB_CMD_CONT_POWER                      0x34 //!< Turn on a continuous power supply to the target
 #define USB_CMD_BREAKPOINT                      0x35 //!< Enable/disable breakpoint
+#define USB_CMD_INTERRUPT                       0x36 //!< wait for target to be on and enter debug mode
 /** @} End USB_CMD */
 
 /**

@@ -228,6 +228,20 @@ static void reset_state()
     unmask_target_signal();
 }
 
+static void interrupt_target()
+{
+    uint16_t cur_vreg;
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    } while (cur_vreg < MCU_ON_THRES);
+
+    __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
+
+    enter_debug_mode();
+}
 
 /**
  * @brief	Handle an interrupt from the target device
@@ -482,6 +496,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
         exit_debug_mode();
+        break;
+
+    case USB_CMD_INTERRUPT:
+        interrupt_target();
         break;
 
     case USB_CMD_GET_WISP_PC:

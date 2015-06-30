@@ -444,6 +444,9 @@ void debug_setup()
     unmask_debugger_signal();
 
     set_state(STATE_IDLE);
+
+    // For measuring boot latency
+    // GPIO(PORT_STATE, OUT) |= BIT(PIN_STATE_0);
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
