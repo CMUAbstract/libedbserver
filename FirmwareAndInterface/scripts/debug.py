@@ -13,6 +13,15 @@ def to_int(s):
     else:
         return int(s)
 
+def match_keyword(part, words):
+    match = None
+    for word in words:
+        if word.startswith(part):
+            if match is not None:
+                raise Exception("Ambiguous keyword: " + part)
+            match = word
+    return match
+
 def cmd_echo(mon, args):
     print args
 
