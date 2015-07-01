@@ -130,10 +130,11 @@ def cmd_ebreak(mon, target_voltage, impl="adc"):
     print "Vcap_saved = %.4f" % saved_vcap
     active_mode = True
 
-def cmd_break(mon, idx, op):
+def cmd_break(mon, type, idx, op):
     idx = int(idx)
     enable = "enable".startswith(op)
-    mon.breakpoint(idx, enable)
+    type = match_keyword(type, wispmon.BREAKPOINT_TYPE.keys())
+    mon.breakpoint(type, idx, enable)
 
 def cmd_wait(mon):
     """Wait to enter active debug mode"""

@@ -63,7 +63,10 @@
 #define WISP_CMD_MAX_LEN 16
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
 
-#define NUM_CODEPOINTS (1 << NUM_CODEPOINT_PINS)
+// See libdebug/debug.h for description
+#define MAX_PASSIVE_BREAKPOINTS ((1 << NUM_CODEPOINT_PINS) - 1)
+#define MAX_INTERNAL_BREAKPOINTS (sizeof(uint16_t) * 8) // _debug_breakpoints_enable in libdebug
+#define MAX_EXTERNAL_BREAKPOINTS NUM_CODEPOINT_PINS
 
 #define COMP_NEG_CHAN_INNER(idx) CBIMSEL_ ## idx
 #define COMP_NEG_CHAN(idx) COMP_NEG_CHAN_INNER(idx)
@@ -105,6 +108,12 @@ typedef enum {
     CMP_OP_ENERGY_BREAKPOINT,
 } comparator_op_t;
 
+typedef enum {
+    BREAKPOINT_TYPE_PASSIVE,
+    BREAKPOINT_TYPE_INTERNAL,
+    BREAKPOINT_TYPE_EXTERNAL,
+} breakpoint_type_t;
+
 /**
  * @brief Select which implementation to use for energy breakpoints
  */
@@ -132,9 +141,10 @@ static uartPkt_t wispRxPkt = { .processed = 1 };
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
 
-#ifdef CONFIG_BREAKPOINTS_DEBUGGER_SIDE
-static bool bkpt_group_enable[NUM_CODEPOINTS] = {0}; // group index -> is group enabled
-#endif
+// Bitmasks indicate whether a breakpoint (group) of given index is enabled
+static uint16_t passive_breakpoints = 0;
+static uint16_t external_breakpoints = 0;
+static uint16_t internal_breakpoints = 0;
 
 static adc12_t adc12 = {
     .config = {
@@ -276,6 +286,125 @@ static void interrupt_target()
     enter_debug_mode();
 }
 
+static void toggle_breakpoint(breakpoint_type_t type, uint8_t index, bool enable)
+{
+    uint8_t rc = RETURN_CODE_SUCCESS;
+    uint8_t cmd_len;
+    uint16_t prev_breakpoints_mask;
+#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
+    uint8_t codepoint_pins;
+#endif
+
+    switch (type) {
+        case BREAKPOINT_TYPE_PASSIVE:
+            if (index >= MAX_PASSIVE_BREAKPOINTS) {
+                rc = RETURN_CODE_INVALID_ARGS;
+                break;
+            }
+
+            if (enable) {
+                // passive and external bkpts cannot be used simultaneously since
+                // they reuse the codepoint pins in opposite directions
+                if (external_breakpoints) {
+                    rc = RETURN_CODE_UNSUPPORTED;
+                    break;
+                }
+                prev_breakpoints_mask = passive_breakpoints;
+                passive_breakpoints |= 1 << index; // must be before int is enabled
+                if (!prev_breakpoints_mask) {
+                    // enable rising-edge interrupt on codepoint pins (harmless to do every time)
+                    GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
+                    GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
+                    GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
+                }
+            } else {
+                passive_breakpoints &= ~(1 << index);
+                if (!passive_breakpoints) {
+                    GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
+                }
+            }
+            break;
+
+        case BREAKPOINT_TYPE_INTERNAL:
+            if (index >= MAX_INTERNAL_BREAKPOINTS) {
+                rc = RETURN_CODE_INVALID_ARGS;
+                break;
+            }
+            if (state != STATE_DEBUG) { // debugger (and target) must be in active debug mode
+                rc = RETURN_CODE_COMM_ERROR;
+                break;
+            }
+
+            if (enable)
+                internal_breakpoints |= 1 << index;
+            else
+                internal_breakpoints &= ~(1 << index);
+
+            cmd_len = 0;
+            wisp_cmd_buf[cmd_len++] = index;
+            wisp_cmd_buf[cmd_len++] = enable ? 0x1 : 0x0;
+
+            UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_BREAKPOINT,
+                         wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+            while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                    (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
+            wispRxPkt.processed = 1;
+            break;
+
+        case BREAKPOINT_TYPE_EXTERNAL:
+            if (index >= MAX_EXTERNAL_BREAKPOINTS) {
+                rc = RETURN_CODE_INVALID_ARGS;
+                break;
+            }
+
+            if (enable) {
+                // passive and external bkpts cannot be used simultaneously since
+                // they reuse the codepoint pins in opposite directions
+                if (passive_breakpoints) {
+                    rc = RETURN_CODE_UNSUPPORTED;
+                    break;
+                }
+
+#ifndef WORKAROUND_FLIP_CODEPOINT_PINS
+                GPIO(PORT_CODEPOINT, OUT) |= (1 << index) << PIN_CODEPOINT_0;
+#else
+                codepoint_pins = GPIO(PORT_CODEPOINT, OUT);
+                codepoint_pins |= (1 << index) << PIN_CODEPOINT_0;
+                codepoint_pins = (codepoint_pins & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                                 (codepoint_pins & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+                GPIO(PORT_CODEPOINT, OUT) = codepoint_pins;
+#endif
+
+                if (!external_breakpoints) {
+                    GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
+                }
+                external_breakpoints |= 1 << index;
+            } else {
+                external_breakpoints &= ~(1 << index);
+
+#ifndef WORKAROUND_FLIP_CODEPOINT_PINS
+                GPIO(PORT_CODEPOINT, OUT) &= ~((1 << index) << PIN_CODEPOINT_0);
+#else
+                codepoint_pins = GPIO(PORT_CODEPOINT, OUT);
+                codepoint_pins &= ~((1 << index) << PIN_CODEPOINT_0);
+                codepoint_pins = (codepoint_pins & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                                 (codepoint_pins & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+                GPIO(PORT_CODEPOINT, OUT) = codepoint_pins;
+#endif
+
+                if (!external_breakpoints) {
+                    GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
+                }
+            }
+
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
+    }
+    send_return_code(rc);
+}
+
 /**
  * @brief	Handle an interrupt from the target device
  */
@@ -350,10 +479,9 @@ static void pin_setup()
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
 #endif
 
-#ifdef CONFIG_ENABLE_CODEPOINTS
-    // Monitor code points TODO: enable only when a breakpoint is set
-    GPIO(PORT_CODEPOINT, IE) |= BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1);   // enable interrupt
-    GPIO(PORT_CODEPOINT, IES) &= ~BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1); // rising edge
+#ifdef CONFIG_PULL_DOWN_ON_SIG_LINE
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);
+    GPIO(PORT_SIG, REN) |= BIT(PIN_SIG);
 #endif
 
     // Configure the output level for continous power pin ahead of time
@@ -393,8 +521,11 @@ int main(void)
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
 
-    RFID_setup(&flags, FLAG_RF_DATA, FLAG_RF_DATA); // use the same flag for Rx and Tx so
-    												// we only have to check one flag
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+    // use the same flag for Rx and Tx so we only have to check one flag
+    RFID_setup(&flags, FLAG_RF_DATA, FLAG_RF_DATA);
+#endif
+
     ADC12_init(&adc12);
 
     __enable_interrupt();                   // enable all interrupts
@@ -748,27 +879,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_BREAKPOINT:
     {
-        uint8_t index = (uint8_t)pkt->data[0];
-        bool enable = (bool)pkt->data[1];
-        uint8_t rc = RETURN_CODE_SUCCESS;
-#if defined(CONFIG_BREAKPOINTS_DEBUGGER_SIDE)
-        if (index > 0 && index < NUM_CODEPOINTS)
-            bkpt_group_enable[index] = enable;
-        else
-            rc = RETURN_CODE_INVALID_ARGS;
-        send_return_code(rc);
-#elif defined(CONFIG_BREAKPOINTS_TARGET_SIDE)
-        cmd_len = 0;
-        wisp_cmd_buf[cmd_len++] = index;
-        wisp_cmd_buf[cmd_len++] = enable ? 0x1 : 0x0;
-
-        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_BREAKPOINT,
-                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
-        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
-                (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
-        wispRxPkt.processed = 1;
-        send_return_code(rc);
-#endif
+        breakpoint_type_t type = (breakpoint_type_t)pkt->data[0];
+        uint8_t index = (uint8_t)pkt->data[1];
+        bool enable = (bool)pkt->data[2];
+        toggle_breakpoint(type, index, enable);
         break;
     }
     default:
@@ -1004,16 +1118,22 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
 		break;
 
-#ifdef CONFIG_ENABLE_CODEPOINTS
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
+        if (!passive_breakpoints) {
+            error(ERROR_UNEXPECTED_INTERRUPT);
+            break;
+        }
+
         /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
         pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
                     (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-        uint8_t codept_idx = (pin_state & (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)))
-            >> PIN_CODEPOINT_0;
-        if (bkpt_group_enable[codept_idx]) {
+
+        // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
+        // -1 to convert from one-based to zero-based index
+        uint8_t index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0) - 1;
+        if (passive_breakpoints & (1 << index)) {
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
 
@@ -1021,7 +1141,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         }
         break;
     }
-#endif
 
 	default:
 		break;

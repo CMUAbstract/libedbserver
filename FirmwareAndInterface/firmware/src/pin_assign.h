@@ -66,7 +66,9 @@
 #define PORT_CODEPOINT                          1
 #define PIN_CODEPOINT_0                         4 // lsb
 #define PIN_CODEPOINT_1                         5 // msb
+#define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1))
 #define NUM_CODEPOINT_PINS                      2
+#define WORKAROUND_FLIP_CODEPOINT_PINS // the hardware routing routes AUX1,AUX2 to pins out of order
 
 /* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
@@ -74,7 +76,7 @@
 #define PIN_RF_RX                               2 //!< RF RX line
 
 /* The same as above, but for asm, which is limited to a simple pre-processor */
-#define PIN_RX BIT1
+#define PIN_RX BIT2
 #define PRXSEL P1SEL
 #define PRXIN P1IN
 #define PRXIE P1IE

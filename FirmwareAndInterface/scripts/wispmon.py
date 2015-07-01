@@ -49,6 +49,12 @@ COMPARATOR_REF_VOLTAGE = {
     "vref1.5" : 1.5,
 }
 
+BREAKPOINT_TYPE = {
+    "passive" : 0,
+    "internal" : 1,
+    "external" : 2,
+}
+
 # Serial transmit message descriptors
 USB_CMD_SENSE                        = 0x01
 USB_CMD_STREAM_BEGIN                 = 0x02
@@ -398,8 +404,8 @@ class WispMonitor:
         reply = self.receive_reply(USB_RSP_INTERRUPTED)
         return reply["saved_vcap"]
 
-    def breakpoint(self, idx, enable):
-        self.sendCmd(USB_CMD_BREAKPOINT, data=[idx, enable])
+    def breakpoint(self, type, idx, enable):
+        self.sendCmd(USB_CMD_BREAKPOINT, data=[BREAKPOINT_TYPE[type], idx, enable])
         self.receive_reply(USB_RSP_RETURN_CODE)
 
     def read_mem(self, addr, len):

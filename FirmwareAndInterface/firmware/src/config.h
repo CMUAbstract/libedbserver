@@ -53,18 +53,34 @@
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
 
-// #define CONFIG_ENABLE_CODEPOINTS
+/**
+ * @brief Enable pull-down on the debugger<->target interrupt line.
+ *
+ * @details We watch for interrupts the target raises when the target requests
+ *          to enter active debug mode, such as upon hitting an internal or
+ *          external breakpoint. If the target is off or not present, then both
+ *          ends of this line are in high impedence mode (effectively
+ *          floating?). This does not seem to cause spurious interrupts, but if
+ *          this problem did arise, enabling pull-down resistors should solve
+ *          it.
+ *
+ *          NOTE: The pull-down causes energy interference (current is sourced
+ *          from the target when target drives this pin high), but the target
+ *          only drives this pin high for at most one cycle (signal
+ *          communication is exclusively done using one-cycle-long pulses).
+ */
+// #define CONFIG_PULL_DOWN_ON_SIG_LINE
 
-// Breakpoint implementation selection (see docs in eval/interactive-debug)
-// Must match the same option in libdebug/src/debug.h
-// #define CONFIG_BREAKPOINTS_DEBUGGER_SIDE
-#define CONFIG_BREAKPOINTS_TARGET_SIDE
+/**
+ * @brief Enable code for decoding the RF protocol
+ *
+ * @details Currently, this is disabled because it causes spurious interrupts.
+ *         TODO: setup RF pins only upon cmd to monitor RF because otherwise we
+ *         get spurious interrupts on RX pin
+ */
+// #define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
 // The rest essentially defines the register settings that carry out the above
-
-#if defined(CONFIG_BREAKPOINTS_TARGET_SIDE) && defined(CONFIG_ENABLE_CODEPOINTS)
-#error Target-side breakpoints do not need codepoint support: disable CONFIG_ENABLE_CODEPOINTS
-#endif
 
 #define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)
 

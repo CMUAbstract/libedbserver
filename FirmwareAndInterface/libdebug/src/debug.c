@@ -16,7 +16,11 @@
 /* The linker script needs to allocate .fram_vars section into FRAM region. */
 #define __fram __attribute__((section(".fram_vars")))
 
-#define DEBUG_RETURN			0x0001 // signals debug main loop to stop
+#define DEBUG_RETURN                0x0001 // signals debug main loop to stop
+#define DEBUG_REQUESTED_BY_TARGET   0x0002 // the target requested to enter debug mode
+
+#define DEBUG_MODE_REQUEST_WAIT_STATE_BITS      LPM0_bits
+#define DEBUG_MODE_EXIT_WAIT_STATE_BITS         LPM0_bits
 
 #define LED_IN_DEBUG_STATE
 
@@ -58,9 +62,7 @@ static state_t state = STATE_OFF;
 
 static uint16_t debug_flags = 0;
 
-#ifdef CONFIG_BREAKPOINTS_TARGET_SIDE
-volatile uint16_t __fram _debug_breakpoint_enabled = 0x00;
-#endif
+volatile uint16_t __fram _libdebug_internal_breakpoints = 0x00;
 
 static uint16_t *wisp_sp; // stack pointer on debug entry
 
@@ -101,8 +103,9 @@ static void signal_debugger()
 
 static void unmask_debugger_signal()
 {
-    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG); // enable interrupt
     GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear the flag that might have been set by IES write
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG); // enable interrupt
 }
 
 static void mask_debugger_signal()
@@ -174,10 +177,23 @@ void exit_debug_mode()
 
 void request_debug_mode()
 {
+    // Disable interrupts before unmasking debugger signal to make sure
+    // we are asleep (at end of this function) before ISR runs. Otherwise,
+    // the race completely derails the sequence to enter-exit debug mode.
+    // Furthermore, to prevent a signal from the debugger arriving while
+    // we are trying to request debug mode, disable interrupts at the
+    // very beginning of this function.
+    __disable_interrupt();
+
+    debug_flags |= DEBUG_REQUESTED_BY_TARGET;
+
     mask_debugger_signal();
     signal_debugger();
+
     unmask_debugger_signal();
-    __bis_SR_register(LPM4_bits + GIE); // go to sleep and wait for debugger interrupt
+
+    // go to sleep, enable interrupts, and wait for signal from debugger
+    __bis_SR_register(DEBUG_MODE_REQUEST_WAIT_STATE_BITS | GIE);
 }
 
 uint8_t *mem_addr_from_bytes(uint8_t *buf)
@@ -273,14 +289,15 @@ static void execute_cmd(cmd_t *cmd)
             UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
             break;
         }
-#ifdef CONFIG_BREAKPOINTS_TARGET_SIDE
         case WISP_CMD_BREAKPOINT:
         {
             uint8_t index = cmd->data[0];
             bool enable = cmd->data[1];
 
-            _debug_breakpoint_enabled = (_debug_breakpoint_enabled & ~(1 << index)) |
-                                        enable ? (1 << index) : 0x0;
+            if (enable)
+                _libdebug_internal_breakpoints |= 1 << index;
+            else
+                _libdebug_internal_breakpoints &= ~(1 << index);
 
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
@@ -289,7 +306,6 @@ static void execute_cmd(cmd_t *cmd)
             UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
             break;
         }
-#endif // CONFIG_BREAKPOINTS_TARGET_SIDE
         case WISP_CMD_EXIT_ACTIVE_DEBUG:
             exit_debug_mode();
             break;
@@ -411,11 +427,9 @@ static inline void handle_debugger_signal()
             // debug loop exited (due to UART cmd to exit debugger)
             set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
             signal_debugger(); // tell debugger we have shutdown UART
-            unmask_debugger_signal();
             break;
         case STATE_SUSPENDED: // debugger finished restoring the energy level
             set_state(STATE_IDLE); // return to the application code
-            unmask_debugger_signal(); // listen for the next enter request
             break;
         default:
             // received an unexpected signal from the debugger
@@ -431,9 +445,11 @@ void debug_setup()
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1); // output
 #endif
 
-#ifdef CONFIG_ENABLE_CODEPOINTS
-    GPIO(PORT_CODEPOINT, OUT) &= ~(BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1)); // output low
-    GPIO(PORT_CODEPOINT, DIR) |= BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1); // output
+#ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS // codepoint pins are outputs
+    GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
+#else // codepoint pins are inputs
+    GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
 #endif
 
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG); // input
@@ -476,13 +492,53 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
 
             handle_debugger_signal();
 
+            // Before unmasking the signal interrupt, disable interrupts
+            // globally in order to not let the next signal interrupt happen
+            // until either we are asleep in Case SUSPENDED, or until we return
+            // from this ISR in Case IDLE.
+            __disable_interrupt();
+
+            // We unmask the signal interrupt now, but global interrupts are still disabled
+            unmask_debugger_signal();
+
             /* Power state manipulation is required to be inside the ISR */
             switch (state) {
                 case STATE_SUSPENDED: /* DEBUG->SUSPENDED just happened */
-                    __bis_SR_register(LPM4_bits + GIE); // go to sleep
+                    __bis_SR_register(DEBUG_MODE_EXIT_WAIT_STATE_BITS | GIE); // go to sleep
+
+                    // We will get here after the next ISR (IDLE case) returns
+                    // because it would have been invoked while we are asleep
+                    // on the line above. That is, the IDLE case ISR is nested
+                    // within the SUSPENDED case ISR. If this debug mode exit
+                    // sequence is happening because the target had requested
+                    // debug mode, then the current ISR was invoked while
+                    // asleep in request_debug_mode(). In order to wakeup from
+                    // that sleep upon returning from this outer ISR (SUSPENDED
+                    // case), we need to clear the sleep bits (otherwise, the
+                    // MCU will go to sleep when the SR bits are automatically
+                    // restored upon return from interrupt).
+                    if (debug_flags & DEBUG_REQUESTED_BY_TARGET) {
+                        debug_flags &= ~DEBUG_REQUESTED_BY_TARGET;
+                        __bic_SR_register_on_exit(DEBUG_MODE_REQUEST_WAIT_STATE_BITS);
+                    }
+                    // Once we return from this outer ISR, application execution resumes
                     break;
                 case STATE_IDLE: /* SUSPENDED->IDLE just happened */
-                    __bic_SR_register_on_exit(LPM4_bits); // resume execution upon return from isr
+
+                    // We were sleeping on the suspend line in the case above when
+                    // the current ISR got called, so before returning, clear the
+                    // sleep flags (otherwise, we would go back to sleep after
+                    // returning from this ISR because the SR flags prior to the ISR
+                    // call are automatically restored upon return from ISR).
+                    //
+                    // Interrupt are current disabled (by the disable call
+                    // before unmasking the signal interrupt). The adding the
+                    // GIE flag here re-enables the interrupts only after
+                    // return from the current ISR, so that the next signal ISR
+                    // (unrelated to current enter-exit debug mode sequence)
+                    // doesn't get nested within the current one.
+                    __bic_SR_register_on_exit(DEBUG_MODE_EXIT_WAIT_STATE_BITS | GIE);
+                    // Once we return from this inner ISR we end up in the outer ISR
                     break;
                 default: /* nothing to do */
                     break;

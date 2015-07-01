@@ -14,21 +14,15 @@
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
-// #define CONFIG_ENABLE_CODEPOINTS
 
-// Breakpoint implementation selection (see docs in eval/interactive-debug)
-// Must match the same option in firmware/src/config.h
-// #define CONFIG_BREAKPOINTS_DEBUGGER_SIDE
-#define CONFIG_BREAKPOINTS_TARGET_SIDE
+// Passive breakpoints and external breakpoints are exclusive since they share
+// the codepoint pins
+// #define CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
-// #define CONFIG_BREAKPOINT_IMPL_C
-#define CONFIG_BREAKPOINT_IMPL_ASM
+// #define CONFIG_PASSIVE_BREAKPOINT_IMPL_C
+#define CONFIG_PASSIVE_BREAKPOINT_IMPL_ASM
 
 #define CONFIG_BREAKPOINT_TEST
-
-#if defined(CONFIG_BREAKPOINTS_DEBUGGER_SIDE) && !defined(CONFIG_ENABLE_CODEPOINTS)
-#error Debugger-side breakpoints depend on codepoints: set CONFIG_ENABLE_CODEPOINTS
-#endif
 
 #define DEBUG_UART_BUF_LEN				2
 #define DEBUG_CMD_MAX_LEN               16
@@ -67,7 +61,7 @@
 
 /** @} End WISP_MSG_DESCRIPTORS */
 
-#if defined(CONFIG_BREAKPOINTS_DEBUGGER_SIDE)
+#ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
 /** @brief Latency between a code point marker GPIO setting and the signal to enter debug mode 
  *  @details The execution on the target continues for this long after the codepoint.
@@ -77,7 +71,7 @@
 // The index argument to breakpoint macros identifies a breakpoint *group*.
 // All breakpionts in a group can be enabled/disabled together (not separately).
 
-#if defined(CONFIG_BREAKPOINT_IMPL_C)
+#if defined(CONFIG_PASSIVE_BREAKPOINT_IMPL_C)
 
 #define CODEPOINT(idx) do { \
         GPIO(PORT_CODEPOINT, OUT) = \
@@ -85,9 +79,9 @@
             (idx << PIN_CODEPOINT_0); \
             __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
         } while (0)
-#define BREAKPOINT(idx) CODEPOINT(idx)
+#define PASSIVE_BREAKPOINT_IMPL(idx) CODEPOINT(idx)
 
-#elif defined(CONFIG_BREAKPOINT_IMPL_ASM)
+#elif defined(CONFIG_PASSIVE_BREAKPOINT_IMPL_ASM)
 
 // NOTE: The preprocessor is not available inside the inline assembly,
 // hence the code duplication and the magic numbers. Port address comes from
@@ -96,45 +90,93 @@
 //
 // What we would like ideally would be:
 //    #define CODEPOINT(idx) do { \
-//        asm ( " BIS.B (idx << #PIN_CODEPOINT_0), &PIN_CODEPOINT_REG " ); \
+//        asm ( " BIS.B ((idx + 1) << #PIN_CODEPOINT_0), &PIN_CODEPOINT_REG " ); \
 //        asm ( " BIC.B #PIN_CODEPOINT_0 | #PIN_CODEPOINT_1, &PIN_CODEPOINT_REG " ); \
 //      } while (0)
+//    // NOTE: the +1 is because the encoding of all lines low is not allowed, since
+//    //       the debugger needs a pulse that would generate an interrupt.
 // but we are stuck with approximating the above by the following:
 
-// Start counting at 1 to correspond to bit values.
-#define CODEPOINT_1 do { \
+#define CODEPOINT_0 do { \
         asm ( " BIS.B #0x10, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
         __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
     } while (0)
-#define CODEPOINT_2 do { \
+#define CODEPOINT_1 do { \
         asm ( " BIS.B #0x20, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
         __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
     } while (0)
-#define CODEPOINT_3 do { \
+#define CODEPOINT_2 do { \
         asm ( " BIS.B #0x30, &0x0222 " ); \
         asm ( " BIC.B #0x30, &0x0222 "); \
         __delay_cycles(ENTER_DEBUG_MODE_LATENCY_CYCLES); \
     } while (0)
 
-#define BREAKPOINT_INNER(idx) CODEPOINT_ ## idx
-#define BREAKPOINT(idx) BREAKPOINT_INNER(idx)
+#define PASSIVE_BREAKPOINT_IMPL_INNER(idx) CODEPOINT_ ## idx
+#define PASSIVE_BREAKPOINT_IMPL(idx) PASSIVE_BREAKPOINT_IMPL_INNER(idx)
 
-#endif // CONFIG_BREAKPOINT_IMPL_*
+#endif // CONFIG_PASSIVE_BREAKPOINT_IMPL_*
 
-#elif defined(CONFIG_BREAKPOINTS_TARGET_SIDE)
+#endif // CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
-extern volatile uint16_t _debug_breakpoint_enabled;
+/**
+ * @brief Bitmask that stores the enabled/disabled state of internal breakpoints
+ */
+extern volatile uint16_t _libdebug_internal_breakpoints;
 
 void request_debug_mode();
 
-#define BREAKPOINT(idx) \
-    if (_debug_breakpoint_enabled & (1 << idx)) request_debug_mode()
+#ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+/**
+ * @brief Breakpoint which works by having debugger interrupt the target
+ * @details The target encodes the breakpoint index as a pulse on dedicated
+ *          CODEPOINT GPIO lines. This pulse triggers and interrupt on the
+ *          debugger-side. The debugger checks whether breakpoint is enabled
+ *          and if so interrupts the target to enter the active debug mode.
+ *
+ *          The main drawback of this method is the delay necessary after
+ *          the breakpoint that covers the latency between the target hitting
+ *          the breakpoint and receiving the interrupt to enter active
+ *          debug mode. This is on the order of about 100 (target) cycles.
+ *          This overhead is incurred even if the breakpoint is disabled.
+ */
+#define PASSIVE_BREAKPOINT(idx) PASSIVE_BREAKPOINT_IMPL(idx)
+#endif // CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
-#else // CONFIG_BREAKPOINTS_*
-#error Invalid selection for breakpoint implementation: see CONFIG_BREAKPOINTS_*
-#endif // CONFIG_BREAKPOINTS_*
+/**
+ * @brief Breakpoint whose enable/disable state is stored on the target
+ * @details The enable/disable state of an internal breakpoint is stored
+ *          in target's non-volatile memory. To enable or disable an internal
+ *          breakpoint, the target must be in active debug mode and the
+ *          debugger must send the respective command over UART. Up to 16 such
+ *          breakpoints (with distinct indexes) can exit, limited only by the
+ *          bit-width of the mask, which could easily be increased.
+ */
+#define INTERNAL_BREAKPOINT(idx) \
+    if (_libdebug_internal_breakpoints & (1 << idx)) request_debug_mode()
+
+#ifndef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+/**
+ * @brief Breakpoint whose enable/disable state is controlled by the debugger
+ * @details Whether an external breakpoint is enabled or disabled is indicated by the
+ *          state of a GPIO line from debugger board to target dedicated to
+ *          that one breakpoint index. This line is driven by the debugger.
+ *
+ *          The advantages over the internal breakpoint are that
+ *              (1) the debugger does not need to communicate with the target
+ *                  over the UART command interface to enable/disable external
+ *                  breakpoints, and
+ *              (2) the debugger may condition the breakpoint on the current
+ *                  energy level.
+ *
+ *          The disadvantage is that only as many external breakpoint (with
+ *          distinct indexes) as available GPIO lines are supported: currently,
+ *          only two (AUX1 and AUX2).
+ */
+#define EXTERNAL_BREAKPOINT(idx) \
+    if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) request_debug_mode()
+#endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
 /**
  * @brief	Initialize pins used by the debugger board
