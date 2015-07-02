@@ -18,35 +18,20 @@
  * @{
  */
 
-/**
- * @defgroup    ADC12_MACROS    ADC macros
- * @brief       Macros for controlling the ADC
- * @{
- */
-#define ADC12_START                             ADC12CTL0 |= ADC12SC | ADC12ENC     //!< enable ADC and start conversion
-#define ADC12_STOP                              ADC12CTL0 &= ~(ADC12SC | ADC12ENC)  //!< stop conversion and disable ADC
-#define ADC12_WAIT                              while(ADC12CTL1 & ADC12BUSY)        //!< wait for ADC to stop
-#define ADC12_ENABLE_INTERRUPT(n)               ADC12IE = (0x0001 << ((n) - 1))     //!< enable ADC interrupt -- n is the number of active channels
-#define ADC12_DISABLE_INTERRUPT                 ADC12IE = 0                         //!< disable ADC interrupt
-/** @} End ADC12_MACROS */
+#define ADC12_MAX_CHANNELS  5
 
-/**
- * @defgroup    ADC12_CHANNELS   ADC input channels
- * @{
- */
-#define ADC12INCH_VCAP                          ADC12INCH_1 //!< ADC input channel select for Vcap
-#define ADC12INCH_VBOOST                        ADC12INCH_2 //!< ADC input channel select for Vboost
-#define ADC12INCH_VREG                          ADC12INCH_3 //!< ADC input channel select for Vreg
-#define ADC12INCH_VRECT                         ADC12INCH_4 //!< ADC input channel select for Vrect
-#define ADC12INCH_VINJ                       	ADC12INCH_5 //!< ADC input channel select for VINJ
-/** @} End ADC12_CHANNELS */
+typedef enum {
+    ADC12_MODE_INTERRUPT,
+    ADC12_MODE_POLLING,
+} adc12Mode_t;
 
 /**
  * @brief   ADC12 channel configuration
  */
 typedef struct {
-    uint16_t channels[5];           //!< ADC channels that will be sampled
-    uint8_t num_channels;           //!< number of channels in the channels array to sample in order
+    uint16_t channel_masks[ADC12_MAX_CHANNELS]; //<! maps a permanent software index to a hardware channel (must be filled out by the user statically or before first call to ADC12_addChannel)
+    uint16_t channels[ADC12_MAX_CHANNELS];           //!< ADC channels that will be sampled
+    uint16_t num_channels;           //!< number of channels in the channels array to sample in order
 } adc12Cfg_t;
 
 /**
@@ -55,10 +40,17 @@ typedef struct {
 typedef struct {
 	uint32_t timeComplete;			//!< time ADC completed conversion, updated in ADC ISR
     adc12Cfg_t config;              //!< channel configuration
-    uint16_t results[5];            //!< ADC conversion results
+    uint16_t results[ADC12_MAX_CHANNELS];            //!< ADC conversion results
+    int16_t indexes[ADC12_MAX_CHANNELS];            //!< channel index (never changes) -> index in 'results' array
     uint16_t *pFlags;               //!< pointer to a bit mask that will be set in the ISR - should be checked in main loop
     uint16_t flag_adc12Complete;    //!< flag that will be set in pFlags when conversion completes
 } adc12_t;
+
+/**
+ * @brief       Initialize the ADC device instance object
+ * @param       adc12   Structure containing ADC configuration, flags, and results array
+ */
+void ADC12_init(adc12_t *adc12);
 
 /**
  * @brief       Configure the 12-bit ADC
@@ -68,14 +60,57 @@ typedef struct {
  *              configured channels.  The interrupt sets the flag bit mask
  *              present in the adc12_t data structure.
  */
-void ADC12_configure(adc12_t *adc12);
+void ADC12_configure(adc12_t *adc12, adc12Mode_t mode);
 
 /**
- * @brief       Select ADC12 option for the pin being sampled.
- * @param       channel     ADC12 channel being used for conversion
- *                          See @ref ADC12_CHANNELS
+ * @brief   Add an ADC channel to the adc12 configuration structure
+ * @param   chan_index Permanent index assigned to the ADC channel
  */
-static void ADC12_pinSelect(uint16_t channel);
+void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index);
+
+/**
+ * @brief   Remove an ADC channel from the adc12 configuration structure
+ * @param  chan_index   Permanent index assigned to the ADC channel
+ */
+void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index);
+
+/**
+ * @brief       Start an ADC conversion in the mode configured previously
+ */
+void ADC12_start();
+
+/**
+ * @brief       Stop the ADC conversion and disable the ADC
+ */
+void ADC12_stop();
+
+/**
+ * @brief       Wait for the ADC to complete conversion
+ */
+void ADC12_wait();
+
+/**
+ * @brief   Reconfigure and restart ADC defined by the adc12 configuration structure
+ */
+void ADC12_restart(adc12_t *adc12);
+
+/**
+ * @brief   Blocking read of an ADC channel
+ * @param   channel Channel to read
+ * @return  ADC12 conversion result
+ * @details This function reconfigures the ADC to read only the channel
+ *          requested, and returns the result.  It then restores the ADC
+ *          to the configuration defined by the adc12 structure.
+ */
+uint16_t ADC12_read(adc12_t *adc12, uint16_t channel);
+
+/**
+ * @brief   Retrieve a recorded sample from memory
+ *
+ * @details Call this to get the data after an interrupt notified that
+ *          conversion has completed.
+ */
+uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index);
 
 /** @} end ADC12 */
 

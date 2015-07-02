@@ -17,12 +17,12 @@ EXEC = monitor
 
 COMMON_FLAGS = \
 	-g \
-	-O3 \
+	-O1 \
+	--opt_for_speed=0 \
+	--use_hw_mpy=F5 \
 	-vmspx \
 	--abi=eabi \
 	--data_model=small \
-	--opt_for_speed=5 \
-	--use_hw_mpy=F5 \
 	--define=__MSP430F5340__ \
 	--printf_support=minimal \
 	--silicon_errata=CPU21 \
@@ -34,7 +34,6 @@ COMMON_FLAGS = \
 	--display_error_number \
 	--diag_wrap=off \
 
-
 CFLAGS = \
 	--preproc_with_compile \
 	--include_path="$(CG_TOOL_ROOT)/include" \
@@ -45,6 +44,7 @@ CFLAGS = \
 	--include_path="$(SRC_ROOT)/rfid" \
 	--include_path="$(SRC_ROOT)/timers" \
 	--include_path="$(SRC_ROOT)/uart" \
+	--include_path="$(SRC_ROOT)/i2c" \
 	--include_path="$(SRC_ROOT)/ucs" \
 
 ASFLAGS = $(CFLAGS)
@@ -72,14 +72,16 @@ VPATH += $(SRC_ROOT)
 # sure the build (esp. linker) doesn't pick up stray files
 C_SRCS = \
 	main.c \
+	error.c \
 	ucs/ucs.c \
 	uart/uart.c \
+	i2c/i2c.c \
 	timers/pwm.c \
 	timers/timeLog.c \
 	timers/timer1.c \
 	rfid/rfid.c \
-	gpio/gpio.c \
 	adc12/adc12.c \
+	marker.c \
 
 ASM_SRCS = \
 	rfid/RFID_RxHandler.asm \

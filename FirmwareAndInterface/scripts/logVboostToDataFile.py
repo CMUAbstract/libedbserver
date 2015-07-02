@@ -12,7 +12,7 @@
 import wispmon
 import atexit
 
-SAMPLE_TIME                     = 2.0 # s
+SAMPLE_TIME                     = 60.0 # s
 
 HEX_FILE                        = 'data/vboost.dat'
 
@@ -54,7 +54,7 @@ def main():
             buf.extend(newBytes)
             
         # try to build an Rx packet
-        if(mon.buildRxPkt(buf) == 0):
+        while mon.buildRxPkt(buf):
             # packet construction succeeded
             
             if(mon.rxPkt.descriptor == wispmon.USB_RSP_TIME):

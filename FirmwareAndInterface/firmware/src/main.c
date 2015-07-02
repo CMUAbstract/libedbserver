@@ -16,17 +16,22 @@
 
 #include <msp430.h>
 #include <stdint.h>
+#include <stdbool.h>
 
-#include "monitor.h"
+#include "pin_assign.h"
 #include "ucs.h"
 #include "adc12.h"
 #include "uart.h"
-#include "gpio.h"
+#include "i2c.h"
 #include "pwm.h"
 #include "timeLog.h"
 #include "timer1.h"
 #include "rfid.h"
+#include "marker.h"
+#include "minmax.h"
 #include "main.h"
+#include "config.h"
+#include "error.h"
 
 /**
  * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
@@ -40,6 +45,7 @@
 #define FLAG_UART_WISP_TX           0x0010 //!< Bytes transmitted on the WISP UART
 #define FLAG_LOGGING                0x0020 //!< Logging ADC conversion results to USB
 #define FLAG_RF_DATA				0x0040 //!< RF Rx activity ready to be logged
+#define FLAG_CHARGER_COMPLETE		0x0080 //!< Charge or discharge operation completed
 /** @} End MAIN_FLAG_DEFINES */
 
 /**
@@ -54,108 +60,505 @@
 #define LOG_VINJ					0x10 //!< Logging Vinj
 /** @} End LOG_DEFINES */
 
-static adc12_t adc12;
-// indices in the adc12.config.channels and adc12.results arrays
-static int8_t vcap_index = -1;
-static int8_t vboost_index = -1;
-static int8_t vreg_index = -1;
-static int8_t vrect_index = -1;
-static int8_t vinj_index = -1;
+#define WISP_CMD_MAX_LEN 16
+#define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
+
+// See libdebug/debug.h for description
+#define MAX_PASSIVE_BREAKPOINTS ((1 << NUM_CODEPOINT_PINS) - 1)
+#define MAX_INTERNAL_BREAKPOINTS (sizeof(uint16_t) * 8) // _debug_breakpoints_enable in libdebug
+#define MAX_EXTERNAL_BREAKPOINTS NUM_CODEPOINT_PINS
+
+#define COMP_NEG_CHAN_INNER(idx) CBIMSEL_ ## idx
+#define COMP_NEG_CHAN(idx) COMP_NEG_CHAN_INNER(idx)
+
+#define COMP_PORT_DIS_INNER(idx) CBPD ## idx
+#define COMP_PORT_DIS(idx) COMP_PORT_DIS_INNER(idx)
+
+/**
+ * @brief   Assigns a permanent index to each ADC channels
+ *
+ * @details This maps a application's name for an ADC channel to an index
+ *          understandable to the ADC12 driver in adc12.c.
+ */
+typedef enum {
+    ADC_CHAN_INDEX_VCAP = 0,
+    ADC_CHAN_INDEX_VBOOST,
+    ADC_CHAN_INDEX_VREG,
+    ADC_CHAN_INDEX_VRECT,
+    ADC_CHAN_INDEX_VINJ,
+} adc_chan_index_t;
+
+/**
+ * Debugger state machine states
+ */
+typedef enum {
+    STATE_IDLE = 0,
+    STATE_ENTERING,
+    STATE_DEBUG,
+    STATE_EXITING,
+} state_t;
+
+/**
+ * @brief State of async charge/discharge operation
+ */
+typedef enum {
+    CMP_OP_NONE = 0,
+    CMP_OP_CHARGE,
+    CMP_OP_DISCHARGE,
+    CMP_OP_ENERGY_BREAKPOINT,
+} comparator_op_t;
+
+typedef enum {
+    BREAKPOINT_TYPE_PASSIVE,
+    BREAKPOINT_TYPE_INTERNAL,
+    BREAKPOINT_TYPE_EXTERNAL,
+} breakpoint_type_t;
+
+/**
+ * @brief Select which implementation to use for energy breakpoints
+ */
+typedef enum {
+    ENERGY_BREAKPOINT_IMPL_ADC,
+    ENERGY_BREAKPOINT_IMPL_CMP,
+} energy_breakpoint_impl_t;
+
+typedef enum {
+    CMP_EDGE_FALLING,
+    CMP_EDGE_RISING,
+} comparator_edge_t;
 
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
 static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
+static state_t state = STATE_IDLE;
+static comparator_op_t comparator_op = CMP_OP_NONE;
+
 static uint16_t adc12Target; // target ADC reading
+static uint16_t saved_vcap; // energy level before entering active debug mode
 
 static uartPkt_t wispRxPkt = { .processed = 1 };
+
+static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
+static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
+
+// Bitmasks indicate whether a breakpoint (group) of given index is enabled
+static uint16_t passive_breakpoints = 0;
+static uint16_t external_breakpoints = 0;
+static uint16_t internal_breakpoints = 0;
+
+static adc12_t adc12 = {
+    .config = {
+        .channel_masks = { // map permanent software indexes to hardware ADC channels
+            ADC_CHAN_VCAP,
+            ADC_CHAN_VBOOST,
+            ADC_CHAN_VREG,
+            ADC_CHAN_VRECT,
+            ADC_CHAN_VINJ,
+        },
+        .num_channels = 0, // maintained at runtime
+    },
+
+    .pFlags = &flags,
+    .flag_adc12Complete = FLAG_ADC12_COMPLETE,
+};
+
+static void set_state(state_t new_state)
+{
+    state = new_state;
+
+#ifdef CONFIG_STATE_PINS
+    // Encode state onto two indicator pins
+    GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
+    GPIO(PORT_STATE, OUT) |= (new_state & 0x1 ? BIT(PIN_STATE_0) : 0) |
+                             (new_state & 0x2 ? BIT(PIN_STATE_1) : 0);
+#endif
+}
+
+/**
+ * @brief       Pulse a designated pin for triggering an oscilloscope
+ */
+static void trigger_scope()
+{
+    GPIO(PORT_TRIGGER, OUT) |= BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
+}
+
+
+/**
+ * @brief	Send an interrupt to the target device
+ */
+static void signal_target()
+{
+    // pulse the signal line
+
+    // target signal line starts in high imedence state
+    GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);		// output high
+    GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);		// output enable
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+}
+
+/**
+ * @brief	Enable interrupt line between the debugger and the target device
+ */
+static void unmask_target_signal()
+{
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
+    GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
+}
+
+/**
+ * @brief	Disable interrupt line between the debugger and the target device
+ */
+static void mask_target_signal()
+{
+    GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
+}
+
+static void continuous_power_on()
+{
+    // The output level was configured high on boot up
+    GPIO(PORT_CONT_POWER, DIR) |= BIT(PIN_CONT_POWER);
+}
+
+static void continuous_power_off()
+{
+    GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
+}
+
+static void send_vcap(uint16_t vcap)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
+                 (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
+}
+
+static void send_return_code(uint8_t code)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_RETURN_CODE,
+                 (uint8_t *)(&code), sizeof(uint8_t), UART_TX_FORCE);
+}
+
+static void send_interrupted(uint16_t saved_vcap)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
+                 (uint8_t *)(&saved_vcap), sizeof(uint16_t), UART_TX_FORCE);
+}
+
+static void enter_debug_mode()
+{
+    set_state(STATE_ENTERING);
+
+    saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP); // read Vcap and set as the target for exit
+    mask_target_signal();
+    signal_target();
+    unmask_target_signal();
+}
+
+static void exit_debug_mode()
+{
+    set_state(STATE_EXITING);
+    unmask_target_signal();
+    UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
+}
+
+static void reset_state()
+{
+    continuous_power_off();
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    set_state(STATE_IDLE);
+    unmask_target_signal();
+}
+
+static void interrupt_target()
+{
+    uint16_t cur_vreg;
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    } while (cur_vreg < MCU_ON_THRES);
+
+    __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
+
+    enter_debug_mode();
+}
+
+static void toggle_breakpoint(breakpoint_type_t type, uint8_t index, bool enable)
+{
+    uint8_t rc = RETURN_CODE_SUCCESS;
+    uint8_t cmd_len;
+    uint16_t prev_breakpoints_mask;
+#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
+    uint8_t codepoint_pins;
+#endif
+
+    switch (type) {
+        case BREAKPOINT_TYPE_PASSIVE:
+            if (index >= MAX_PASSIVE_BREAKPOINTS) {
+                rc = RETURN_CODE_INVALID_ARGS;
+                break;
+            }
+
+            if (enable) {
+                // passive and external bkpts cannot be used simultaneously since
+                // they reuse the codepoint pins in opposite directions
+                if (external_breakpoints) {
+                    rc = RETURN_CODE_UNSUPPORTED;
+                    break;
+                }
+                prev_breakpoints_mask = passive_breakpoints;
+                passive_breakpoints |= 1 << index; // must be before int is enabled
+                if (!prev_breakpoints_mask) {
+                    // enable rising-edge interrupt on codepoint pins (harmless to do every time)
+                    GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
+                    GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
+                    GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
+                }
+            } else {
+                passive_breakpoints &= ~(1 << index);
+                if (!passive_breakpoints) {
+                    GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
+                }
+            }
+            break;
+
+        case BREAKPOINT_TYPE_INTERNAL:
+            if (index >= MAX_INTERNAL_BREAKPOINTS) {
+                rc = RETURN_CODE_INVALID_ARGS;
+                break;
+            }
+            if (state != STATE_DEBUG) { // debugger (and target) must be in active debug mode
+                rc = RETURN_CODE_COMM_ERROR;
+                break;
+            }
+
+            if (enable)
+                internal_breakpoints |= 1 << index;
+            else
+                internal_breakpoints &= ~(1 << index);
+
+            cmd_len = 0;
+            wisp_cmd_buf[cmd_len++] = index;
+            wisp_cmd_buf[cmd_len++] = enable ? 0x1 : 0x0;
+
+            UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_BREAKPOINT,
+                         wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+            while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                    (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
+            wispRxPkt.processed = 1;
+            break;
+
+        case BREAKPOINT_TYPE_EXTERNAL:
+            if (index >= MAX_EXTERNAL_BREAKPOINTS) {
+                rc = RETURN_CODE_INVALID_ARGS;
+                break;
+            }
+
+            if (enable) {
+                // passive and external bkpts cannot be used simultaneously since
+                // they reuse the codepoint pins in opposite directions
+                if (passive_breakpoints) {
+                    rc = RETURN_CODE_UNSUPPORTED;
+                    break;
+                }
+
+#ifndef WORKAROUND_FLIP_CODEPOINT_PINS
+                GPIO(PORT_CODEPOINT, OUT) |= (1 << index) << PIN_CODEPOINT_0;
+#else
+                codepoint_pins = GPIO(PORT_CODEPOINT, OUT);
+                codepoint_pins |= (1 << index) << PIN_CODEPOINT_0;
+                codepoint_pins = (codepoint_pins & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                                 (codepoint_pins & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+                GPIO(PORT_CODEPOINT, OUT) = codepoint_pins;
+#endif
+
+                if (!external_breakpoints) {
+                    GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
+                }
+                external_breakpoints |= 1 << index;
+            } else {
+                external_breakpoints &= ~(1 << index);
+
+#ifndef WORKAROUND_FLIP_CODEPOINT_PINS
+                GPIO(PORT_CODEPOINT, OUT) &= ~((1 << index) << PIN_CODEPOINT_0);
+#else
+                codepoint_pins = GPIO(PORT_CODEPOINT, OUT);
+                codepoint_pins &= ~((1 << index) << PIN_CODEPOINT_0);
+                codepoint_pins = (codepoint_pins & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                                 (codepoint_pins & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+                GPIO(PORT_CODEPOINT, OUT) = codepoint_pins;
+#endif
+
+                if (!external_breakpoints) {
+                    GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
+                }
+            }
+
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
+    }
+    send_return_code(rc);
+}
+
+/**
+ * @brief	Handle an interrupt from the target device
+ */
+static void handle_target_signal()
+{
+    uint16_t restored_vcap;
+
+    switch (state) {
+        case STATE_IDLE: // target-initiated request to enter debug mode
+            // NOTE: if the debugger/target speedup is very high, then might need a delay here
+            // for the target to start listening for the interrupt
+            enter_debug_mode();
+            break;
+        case STATE_ENTERING:
+            // WISP has entered debug main loop
+            set_state(STATE_DEBUG);
+            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+            continuous_power_on();
+            UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
+            I2C_setup();
+            send_interrupted(saved_vcap); // do it here: reply marks completion
+            // leave target signal masked: no requests originate from the target
+            break;
+        case STATE_EXITING:
+            // WISP has shutdown UART and is asleep waiting for int to resume
+            UART_teardown(UART_INTERFACE_WISP);
+            I2C_teardown();
+            continuous_power_off();
+            restored_vcap = discharge_adc(saved_vcap); // restore energy level
+            send_vcap(restored_vcap);
+            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+            set_state(STATE_IDLE);
+            signal_target(); // tell target to continue execution
+            unmask_target_signal(); // target may request to enter active debug mode
+            break;
+        default:
+            // received an unexpected signal
+            break;
+    }
+}
+/**
+ * @brief   Set up all pins.  Default to GPIO output low for unused pins.
+ */
+static void pin_setup()
+{
+    // Set unconnected pins to output low (note: OUT value is undefined on reset)
+    P1DIR |= BIT7;
+    P1OUT &= ~(BIT7);
+    P2DIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
+    P2OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
+    P3DIR |= BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7;
+    P3OUT &= ~(BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7);
+    P4DIR |= BIT0 | BIT3 | BIT7;
+    P4OUT &= ~(BIT0 | BIT3 | BIT7);
+    P5DIR |= BIT0 | BIT1 | BIT6;
+    P5OUT &= ~(BIT0 | BIT1 | BIT6);
+    P6DIR |= BIT0 | BIT6 | BIT7;
+    P6OUT &= ~(BIT0 | BIT6 | BIT7);
+    // PJDIR |= <none>
+
+    // Uncomment this if R3 is not populated since in that case pin is unconnected
+    // GPIO(PORT_CONT_POWER, DIR) |= BIT(PIN_CONT_POWER);
+    // GPIO(PORT_CONT_POWER, OUT) &= ~BIT(PIN_CONT_POWER);
+
+    GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
+    GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
+    GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
+    GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
+
+#ifdef CONFIG_STATE_PINS
+    GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
+    GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+#endif
+
+#ifdef CONFIG_PULL_DOWN_ON_SIG_LINE
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);
+    GPIO(PORT_SIG, REN) |= BIT(PIN_SIG);
+#endif
+
+    // Configure the output level for continous power pin ahead of time
+    GPIO(PORT_CONT_POWER, OUT) |= BIT(PIN_CONT_POWER);
+
+    // Voltage sense pins as ADC channels
+    GPIO(PORT_VSENSE, SEL) |=
+        BIT(PIN_VCAP) | BIT(PIN_VBOOST) | BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ);
+
+#ifdef CONFIG_ROUTE_ACLK_TO_PIN
+    P1SEL |= BIT0;
+    P1DIR |= BIT0;
+#endif
+
+    // In our IDLE state, target might request to enter active debug mode
+    unmask_target_signal();
+}
 
 int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
+    uint32_t count = 0;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
 
+    pin_setup();
+
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+
     UCS_setup(); // set up unified clock system
-    pin_init();
-    PWM_setup();
+#ifdef CONFIG_CLOCK_TEST_MODE
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
+#endif
+
+    PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
-    UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX); // USCI_A1 UART
 
-    RFID_setup(&flags, FLAG_RF_DATA, FLAG_RF_DATA); // use the same flag for Rx and Tx so
-    												// we only have to check one flag
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+    // use the same flag for Rx and Tx so we only have to check one flag
+    RFID_setup(&flags, FLAG_RF_DATA, FLAG_RF_DATA);
+#endif
 
-    // initialize ADC12 configuration structure
-    adc12.pFlags = &flags;
-    adc12.flag_adc12Complete = FLAG_ADC12_COMPLETE;
-    adc12.config.num_channels = 0;
+    ADC12_init(&adc12);
 
     __enable_interrupt();                   // enable all interrupts
 
-    long count = 0;
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+
     while(1) {
         if(flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
             flags &= ~FLAG_ADC12_COMPLETE;
 
             if(flags & FLAG_LOGGING) {
-                // check if we need to send Vcap
-                if(log_flags & LOG_VCAP) {
-                	// send ADC conversion time and conversion result
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-                			(uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-							UART_TX_DROP);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                    	(uint8_t *)(&(adc12.results[vcap_index])), sizeof(uint16_t),
-						UART_TX_DROP);
-                }
+                // send ADC conversion time and conversion results
+                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
+                        (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
+                        UART_TX_DROP);
 
-                // check if we need to send Vboost
-                if(log_flags & LOG_VBOOST) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-                	             (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-								 UART_TX_DROP);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VBOOST,
-                    	(uint8_t *)(&(adc12.results[vboost_index])), sizeof(uint16_t),
-						UART_TX_DROP);
-                }
+                /* TODO: inefficient: try to get rid of the this copy */
+                stream_buf[0] = adc12.config.num_channels;
+                memcpy(stream_buf + sizeof(uint8_t), adc12.results,
+                       adc12.config.num_channels * sizeof(uint16_t));
 
-                // check if we need to send Vreg
-                if(log_flags & LOG_VREG) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-									(uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-									UART_TX_DROP);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VREG,
-                    		(uint8_t *)(&(adc12.results[vreg_index])), sizeof(uint16_t),
-							UART_TX_DROP);
-                }
+                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGES, stream_buf,
+                    sizeof(uint8_t) + adc12.config.num_channels * sizeof(uint16_t),
+                    UART_TX_DROP);
 
-                // check if we need to send Vrect
-                if(log_flags & LOG_VRECT) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-								 (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-								 UART_TX_DROP);
-                    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VRECT,
-                        (uint8_t *)(&(adc12.results[vrect_index])), sizeof(uint16_t),
-						UART_TX_DROP);
-                }
-
-                // check if we need to send Vinj
-                if(log_flags & LOG_VINJ) {
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-							(uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-							UART_TX_DROP);
-                	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VINJ,
-                			(uint8_t *)(&(adc12.results[vinj_index])), sizeof(uint16_t),
-							UART_TX_DROP);
-                }
-
-                ADC12_START;
-                ADC12_START; // I don't know why, but for some reason this seems to
-                			 // only work if the ADC12SC bit is set twice.  I hope
-                			 // this doesn't indicate that something is horribly,
-                			 // horribly wrong.
+                ADC12_start();
             }
+        }
+
+        if (flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
+            flags &= ~FLAG_CHARGER_COMPLETE;
+            send_return_code(RETURN_CODE_SUCCESS);
         }
 
         if(flags & FLAG_UART_USB_RX) {
@@ -211,10 +614,11 @@ int main(void)
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
-        if(count++ > 500000) {
-        	PLEDOUT ^= LED3;
-        	count = 0;
+        if (++count == 0xffff) {
+            GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+            count = 0;
         }
+
     }
 }
 
@@ -225,183 +629,78 @@ int main(void)
 static void executeUSBCmd(uartPkt_t *pkt)
 {
     uint16_t adc12Result;
+    uint16_t target_vcap, actual_vcap;
+    uint32_t address;
+    uint8_t len;
+    uint8_t cmd_len;
+    uint8_t i;
+
+    trigger_scope();
 
     switch(pkt->descriptor)
     {
-    case USB_CMD_GET_VCAP:
-        adc12Result = adc12Read_block(ADC12INCH_VCAP);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
-    case USB_CMD_GET_VBOOST:
-        adc12Result = adc12Read_block(ADC12INCH_VBOOST);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VBOOST,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
-    case USB_CMD_GET_VREG:
-        adc12Result = adc12Read_block(ADC12INCH_VREG);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VREG,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
-    case USB_CMD_GET_VRECT:
-        adc12Result = adc12Read_block(ADC12INCH_VRECT);
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VRECT,
-                        (uint8_t *)(&adc12Result), sizeof(uint16_t),
-						UART_TX_FORCE);
-        break;
-
+    case USB_CMD_SENSE:
+        {
+            adc_chan_index_t chan_idx = (adc_chan_index_t)pkt->data[0];
+            adc12Result = ADC12_read(&adc12, chan_idx);
+            UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
+                            (uint8_t *)(&adc12Result), sizeof(uint16_t),
+                            UART_TX_FORCE);
+            break;
+        }
     case USB_CMD_SET_VCAP:
         adc12Target = *((uint16_t *)(pkt->data));
-        setWispVoltage_block(ADC12INCH_VCAP, &vcap_index, adc12Target);
+        setWispVoltage_block(ADC_CHAN_INDEX_VCAP, adc12Target);
         break;
 
     case USB_CMD_SET_VBOOST:
         adc12Target = *((uint16_t *)(pkt->data));
-        setWispVoltage_block(ADC12INCH_VBOOST, &vboost_index, adc12Target);
+        setWispVoltage_block(ADC_CHAN_INDEX_VBOOST, adc12Target);
         break;
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
-    {
     	// todo: turn off all logging?
-
-        adc12Target = adc12Read_block(ADC12INCH_VCAP); // read Vcap and set as the target for exit
-
-        // report reading over USB
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VCAP,
-                        (uint8_t *)(&adc12Target), sizeof(uint16_t),
-						UART_TX_FORCE);
-
-        // bring AUX1 high, interrupting the WISP to enter active debug mode
-    	PAUXSEL &= ~GPIO_AUX_1;		// GPIO option select
-        PAUXOUT |= GPIO_AUX_1;		// output high
-        PAUXDIR |= GPIO_AUX_1;		// output direction
-
-        PLEDOUT |= LED4;
-
-        P5SEL &= ~WISP_CHARGE; // option select for PWM charge line
-        P5OUT |= WISP_CHARGE; // output high for PWM charge line
+        enter_debug_mode();
         break;
-    }
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
-    {
-    	uint16_t pauxie = PAUXIE;
-    	PAUXIE &= ~GPIO_AUX_2; // we need to use AUX 2 to exit debug mode, so disable interrupt
+        exit_debug_mode();
+        break;
 
-    	// let the WISP know so that it can perform pre-exit tasks
-    	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
-
-    	while(!(PAUXIN & GPIO_AUX_2)); // WISP should raise AUX 2 while performing
-    								   // pre-exit tasks, so wait for this
-
-    	// Wait for WISP to indicate that it's ready to exit debug mode
-		while(PAUXIN & GPIO_AUX_2); // WISP will pull AUX 2 low when ready
-
-		// Now we need to wait for the WISP cap's voltage to drop below the target,
-		// and start PWM until we get there.
-		PWM_stop();
-		while(adc12Read_block(ADC12INCH_VCAP) > adc12Target); // wait for the voltage to drop
-		setWispVoltage_block(ADC12INCH_VCAP, &vcap_index, adc12Target); // set the voltage
-		PAUXOUT &= ~GPIO_AUX_1; // signal to the WISP that we're exiting active debug mode
-		PWM_stop();
-		PAUXIE = pauxie; // restore interrupt enable register
-
-		PLEDOUT &= ~LED4;
-    	break;
-    }
+    case USB_CMD_INTERRUPT:
+        interrupt_target();
+        break;
 
     case USB_CMD_GET_WISP_PC:
     	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_PC, 0, 0, UART_TX_FORCE); // send request
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
-    			(wispRxPkt.descriptor != WISP_RSP_PC)); // wait for response
-    	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_PC, &(wispRxPkt.data[0]),
+    			(wispRxPkt.descriptor != WISP_RSP_ADDRESS)); // wait for response
+    	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_ADDRESS, &(wispRxPkt.data[0]),
     					wispRxPkt.length, UART_TX_FORCE); // send PC over USB
     	wispRxPkt.processed = 1;
     	break;
 
-    case USB_CMD_EXAMINE_MEMORY:
-    	// not implemented
-        break;
-
-    case USB_CMD_LOG_VCAP_BEGIN:
+    case USB_CMD_STREAM_BEGIN: {
+        uint8_t num_chans = pkt->data[0];
+        adc_chan_index_t *chan_indexes = (adc_chan_index_t *)&pkt->data[1];
         flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VCAP; // for main loop
         TimeLog_request(1); // request timer overflow notifications
-        addAdcChannel(ADC12INCH_VCAP, &vcap_index);
-        restartAdc();
+        for (i = 0; i < num_chans; ++i)
+            ADC12_addChannel(&adc12, chan_indexes[i]);
+        ADC12_restart(&adc12);
         break;
+    }
 
-    case USB_CMD_LOG_VCAP_END:
-        log_flags &= ~LOG_VCAP;
-        if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
+    case USB_CMD_STREAM_END: {
+        uint8_t num_chans = pkt->data[0];
+        adc_chan_index_t *chan_indexes = (adc_chan_index_t *)&pkt->data[1];
+		flags &= ~FLAG_LOGGING; // for main loop
         TimeLog_request(0);
-
-		removeAdcChannel(&vcap_index);
-        restartAdc();
+        for (i = 0; i < num_chans; ++i)
+            ADC12_removeChannel(&adc12, chan_indexes[i]);
+        ADC12_restart(&adc12);
         break;
-
-    case USB_CMD_LOG_VBOOST_BEGIN:
-        flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VBOOST; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        addAdcChannel(ADC12INCH_VBOOST, &vboost_index);
-        restartAdc();
-        break;
-
-    case USB_CMD_LOG_VBOOST_END:
-        log_flags &= ~LOG_VBOOST;
-        if(!log_flags) {
-        	flags &= ~FLAG_LOGGING; // for main loop
-        }
-        TimeLog_request(0);
-
-		removeAdcChannel(&vboost_index);
-        restartAdc();
-        break;
-
-    case USB_CMD_LOG_VREG_BEGIN:
-        flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VREG; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        addAdcChannel(ADC12INCH_VREG, &vreg_index);
-        restartAdc();
-        break;
-
-    case USB_CMD_LOG_VREG_END:
-        log_flags &= ~LOG_VREG;
-        if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
-        TimeLog_request(0);
-		removeAdcChannel(&vreg_index);
-        restartAdc();
-        break;
-
-    case USB_CMD_LOG_VRECT_BEGIN:
-        flags |= FLAG_LOGGING; // for main loop
-        log_flags |= LOG_VRECT; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        addAdcChannel(ADC12INCH_VRECT, &vrect_index);
-        restartAdc();
-        break;
-
-    case USB_CMD_LOG_VRECT_END:
-        log_flags &= ~LOG_VRECT;
-        if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
-        TimeLog_request(0);
-        removeAdcChannel(&vrect_index);
-        restartAdc();
-        break;
+    }
 
     case USB_CMD_LOG_RF_RX_BEGIN:
     	TimeLog_request(1); // request timer overflow notifications
@@ -439,6 +738,36 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	PWM_start();
     	break;
 
+    case USB_CMD_CHARGE:
+        target_vcap = *((uint16_t *)(&pkt->data[0]));
+        actual_vcap = charge_adc(target_vcap);
+        send_vcap(actual_vcap);
+        break;
+
+    case USB_CMD_DISCHARGE:
+        target_vcap = *((uint16_t *)(pkt->data));
+        actual_vcap = discharge_adc(target_vcap);
+        send_vcap(actual_vcap);
+        break;
+
+    case USB_CMD_CHARGE_CMP: {
+        target_vcap = *((uint16_t *)(pkt->data));
+        comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[2];
+        charge_cmp(target_vcap, cmp_ref);
+        break;
+    }
+
+    case USB_CMD_DISCHARGE_CMP: {
+        target_vcap = *((uint16_t *)(pkt->data));
+        comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[2];
+        discharge_cmp(target_vcap, cmp_ref);
+        break;
+    }
+
+    case USB_CMD_RESET_STATE:
+        reset_state();
+        break;
+
     case USB_CMD_RELEASE_POWER:
     case USB_CMD_PWM_OFF:
     case USB_CMD_PWM_LOW:
@@ -453,31 +782,109 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	TB0CCR1 = *((uint16_t *)(pkt->data));
     	break;
 
-    case USB_CMD_LOG_VINJ_BEGIN:
-    	flags |= FLAG_LOGGING; // for main loop
-		log_flags |= LOG_VINJ; // for main loop
-		TimeLog_request(1);
-		addAdcChannel(ADC12INCH_VINJ, &vinj_index);
-		restartAdc();
-    	break;
-
-    case USB_CMD_LOG_VINJ_END:
-		log_flags &= ~LOG_VINJ;
-		if(!log_flags) {
-			flags &= ~FLAG_LOGGING; // for main loop
-		}
-		TimeLog_request(0);
-		removeAdcChannel(&vinj_index);
-		restartAdc();
-    	break;
-
     case USB_CMD_PWM_HIGH:
     	PWM_stop();
-    	P5OUT |= WISP_CHARGE; // output high
+        GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // output high
     	break;
 
     // USB_CMD_PWM_LOW and USB_CMD_PWM_OFF do the same thing
 
+    case USB_CMD_MONITOR_MARKER_BEGIN:
+        marker_monitor_begin();
+        break;
+
+    case USB_CMD_MONITOR_MARKER_END:
+        marker_monitor_end();
+        break;
+
+    case USB_CMD_BREAK_AT_VCAP_LEVEL: {
+        target_vcap = *((uint16_t *)(&pkt->data[0]));
+        energy_breakpoint_impl_t impl = (energy_breakpoint_impl_t)pkt->data[2];
+        switch (impl) {
+            case ENERGY_BREAKPOINT_IMPL_ADC:
+                break_at_vcap_level_adc(target_vcap);
+                break;
+            case ENERGY_BREAKPOINT_IMPL_CMP: {
+                comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[3];
+                break_at_vcap_level_cmp(target_vcap, cmp_ref);
+                break;
+            }
+        }
+        break;
+    }
+
+    case USB_CMD_READ_MEM:
+        address = *((uint32_t *)(&pkt->data[0]));
+        len = pkt->data[4];
+
+        cmd_len = 0;
+        wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
+        wisp_cmd_buf[cmd_len++] = len;
+
+        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_READ_MEM,
+                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
+        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_MEMORY, &(wispRxPkt.data[0]),
+                     wispRxPkt.length, UART_TX_FORCE); // send PC over USB
+        wispRxPkt.processed = 1;
+        break;
+
+    case USB_CMD_WRITE_MEM:
+    {
+        address = *((uint32_t *)(&pkt->data[0]));
+        len = pkt->data[4];
+        uint8_t *value = &pkt->data[5];
+
+        if (len > WISP_CMD_MAX_LEN - sizeof(uint32_t) - sizeof(uint8_t)) {
+            send_return_code(RETURN_CODE_BUFFER_TOO_SMALL);
+            break;
+        }
+
+        cmd_len = 0;
+        wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
+        wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
+        wisp_cmd_buf[cmd_len++] = len;
+
+        for (i = 0; i < len; ++i) {
+            wisp_cmd_buf[cmd_len++] = *value;
+            value++;
+        }
+
+        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_WRITE_MEM,
+                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
+        wispRxPkt.processed = 1;
+
+        send_return_code(RETURN_CODE_SUCCESS); // TODO: have WISP return a code
+        break;
+    }
+
+    case USB_CMD_CONT_POWER:
+    {
+        bool power_on = (bool)pkt->data[0];
+        if (power_on)
+            continuous_power_on();
+        else
+            continuous_power_off();
+        send_return_code(RETURN_CODE_SUCCESS);
+        break;
+    }
+
+    case USB_CMD_BREAKPOINT:
+    {
+        breakpoint_type_t type = (breakpoint_type_t)pkt->data[0];
+        uint8_t index = (uint8_t)pkt->data[1];
+        bool enable = (bool)pkt->data[2];
+        toggle_breakpoint(type, index, enable);
+        break;
+    }
     default:
         break;
     }
@@ -485,97 +892,126 @@ static void executeUSBCmd(uartPkt_t *pkt)
     pkt->processed = 1;
 }
 
-static void addAdcChannel(uint16_t channel, int8_t *pResults_index)
+static uint16_t charge_adc(uint16_t target)
 {
-    // note that the results index corresponds to the
-    // index in the channels array
+    uint16_t cur_voltage;
 
-    // first check if the channel is already present
-	if(*pResults_index == -1) {
-        // channel isn't present in the configuration, so add it
-        adc12.config.channels[adc12.config.num_channels] = channel;
-        *pResults_index = adc12.config.num_channels++;
+    // Output Vcc level to Vcap (through R1) */
+
+    // Configure the pin
+    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
+
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
+
+    // Wait for the cap to charge to that voltage
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } while (cur_voltage < target);
+
+    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
+
+    return cur_voltage;
+}
+
+static uint16_t discharge_adc(uint16_t target)
+{
+    uint16_t cur_voltage;
+
+    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } while (cur_voltage > target);
+
+    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
+
+    return cur_voltage;
+}
+
+static void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
+                           comparator_edge_t edge)
+{
+    comparator_op = op;
+
+    // ref0 = ref1 = target = Vref / 2^32 * target_volts
+    switch (ref) {
+        case CMP_REF_VCC:
+            CBCTL2 = CBRS_1;
+            break;
+        case CMP_REF_VREF_2_5:
+            CBCTL2 = CBREFL_3 | CBRS_2; // Vref = 2.5V and Vref to resistor ladder
+            break;
+        case CMP_REF_VREF_2_0:
+            CBCTL2 = CBREFL_2 | CBRS_2; // Vref = 2.0V and Vref to resistor ladder
+            break;
+        case CMP_REF_VREF_1_5:
+            CBCTL2 = CBREFL_1 | CBRS_2; // Vref = 1.5V and Vref to resistor ladder
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
     }
-}
+    CBCTL2 |= (target << 8) | target;
 
-static void removeAdcChannel(int8_t *pResults_index)
-{
-    // note that results_index is also the corresponding
-    // index in the channels array
+    CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
+    CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
+    CBCTL1 |= CBF | CBFDLY_3;
 
-	if(*pResults_index != -1) {
-		// the channel is present in the configuration
-		adc12.config.num_channels--;
-
-		if(*pResults_index != adc12.config.num_channels) {
-			// We're removing this channel, but it wasn't the last channel
-			// configured.  We need to move the other channels in the channels
-			// array so there are no missing channels in the array.
-			uint8_t i;
-			for(i = *pResults_index + 1; i < adc12.config.num_channels + 1; i++) {
-				adc12.config.channels[i - 1] = adc12.config.channels[i];
-			}
-
-			// update the results array indices
-			if(vcap_index >= adc12.config.num_channels) {
-				vcap_index--;
-			}
-			if(vboost_index >= adc12.config.num_channels) {
-				vboost_index--;
-			}
-			if(vreg_index >= adc12.config.num_channels) {
-				vreg_index--;
-			}
-			if(vrect_index >= adc12.config.num_channels) {
-				vrect_index--;
-			}
-			if(vinj_index >= adc12.config.num_channels) {
-				vinj_index--;
-			}
-		}
-
-		*pResults_index = -1; // remove the channel
-	}
-}
-
-static void restartAdc()
-{
-    // don't need to worry about restarting if there are no active channels
-    if(adc12.config.num_channels > 0) {
-        ADC12_STOP;
-        ADC12_WAIT; // wait for ADC to stop (it needs to complete a conversion if multiple channels are active)
-        ADC12_configure(&adc12); // reconfigure
-        ADC12_START;
+    switch (edge) {
+        case CMP_EDGE_FALLING:
+            CBCTL1 |= CBIES;
+            break;
+        case CMP_EDGE_RISING:
+            CBCTL1 &= ~CBIES;
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
     }
+
+    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
+    CBINT |= CBIE;                // enable CompB interrupt
+
+    CBCTL1 |= CBON;               // turn on ComparatorB
 }
 
-static uint16_t adc12Read_block(uint16_t channel)
+static void charge_cmp(uint16_t target, comparator_ref_t ref)
 {
-    adc12_t adc12_temp = { .pFlags = 0,
-    					   .config.channels[0] = channel,
-						   .config.num_channels = 1 };
-    uint16_t adc12Result;
+    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING);
 
-    ADC12_STOP; // stop any active conversion
-    ADC12_WAIT;  // wait for conversion to complete so ADC is stopped
-    ADC12_configure(&adc12_temp); // reconfigure ADC
-    ADC12_DISABLE_INTERRUPT;
-    ADC12_START; // start conversion
-    ADC12_WAIT; // wait for conversion to complete
-    adc12Result = ADC12MEM0;
+    // Configure the pin
+    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
 
-    ADC12_configure(&adc12); // restore previous configuration, enable interrupt
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
 
-    return adc12Result;
+    // expect comparator interrupt
 }
 
-static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint16_t target)
+static void discharge_cmp(uint16_t target, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING);
+
+    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
+
+    // expect comparator interrupt
+}
+
+static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 {
 	uint16_t result;
 	int8_t compare;
 	uint8_t threshold = 1;
-	addAdcChannel(channel, pResults_index);
-	restartAdc();
+	ADC12_addChannel(&adc12, adc_chan_index);
+	ADC12_restart(&adc12);
 
 	// Here, we want to choose a starting PWM duty cycle close to, but not above,
 	// what the correct one will be.  We want it to be close because we will test
@@ -603,7 +1039,7 @@ static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint1
 			__delay_cycles(21922); // delay for 1ms
 		}
 
-		result = adc12Read_block(channel);
+		result = ADC12_read(&adc12, adc_chan_index);
 		compare = uint16Compare(result, target, threshold);
 		if(compare < 0) {
 			// result < target
@@ -617,13 +1053,33 @@ static void setWispVoltage_block(uint16_t channel, int8_t *pResults_index, uint1
 	// We've found the correct PWM duty cycle for the target voltage.
 	// Leave PWM on, but remove this channel from the ADC configuration
 	// if necessary.
-	if((channel == ADC12INCH_VCAP && !(log_flags & LOG_VCAP)) ||
-				(channel == ADC12INCH_VBOOST && !(log_flags & LOG_VBOOST))) {
+	if((adc_chan_index == ADC_CHAN_INDEX_VCAP && !(log_flags & LOG_VCAP)) ||
+				(adc_chan_index == ADC_CHAN_INDEX_VBOOST && !(log_flags & LOG_VBOOST))) {
 		// We don't need this ADC channel anymore, since we're done here and
 		// we're not logging this voltage right now.
-		removeAdcChannel(pResults_index);
-		restartAdc();
+		ADC12_removeChannel(&adc12, adc_chan_index);
+		ADC12_restart(&adc12);
 	}
+}
+
+static void break_at_vcap_level_adc(uint16_t level)
+{
+    uint16_t cur_vcap, cur_vreg;
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    } while (cur_vreg < MCU_ON_THRES || cur_vcap > level);
+
+    enter_debug_mode();
+}
+
+static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
+    // expect comparator interrupt
 }
 
 static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
@@ -633,4 +1089,90 @@ static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
 		return 1;
 	}
 	return 0;
+}
+
+// Port 1 ISR
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=PORT1_VECTOR
+__interrupt void Port_1(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    uint8_t pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
+
+	switch(__even_in_range(P1IV, 16))
+	{
+	case INTFLAG(PORT_RF, PIN_RF_TX):
+		RFID_TxHandler(TIMELOG_CURRENT_TIME);
+		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
+		break;
+	case INTFLAG(PORT_RF, PIN_RF_RX):
+		RFID_RxHandler();
+		break;
+	case INTFLAG(PORT_SIG, PIN_SIG):
+		mask_target_signal();
+		handle_target_signal();
+		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
+		break;
+
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
+    {
+        if (!passive_breakpoints) {
+            error(ERROR_UNEXPECTED_INTERRUPT);
+            break;
+        }
+
+        /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
+        pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                    (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+
+        // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
+        // -1 to convert from one-based to zero-based index
+        uint8_t index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0) - 1;
+        if (passive_breakpoints & (1 << index)) {
+            if (state == STATE_DEBUG)
+                error(ERROR_UNEXPECTED_CODEPOINT);
+
+            enter_debug_mode();
+        }
+        break;
+    }
+
+	default:
+		break;
+	}
+}
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=COMP_B_VECTOR
+__interrupt void Comp_B_ISR (void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
+
+    switch (comparator_op) {
+        case CMP_OP_CHARGE:
+            GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
+            flags |= FLAG_CHARGER_COMPLETE;
+            break;
+        case CMP_OP_DISCHARGE:
+            GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
+            flags |= FLAG_CHARGER_COMPLETE;
+            break;
+        case CMP_OP_ENERGY_BREAKPOINT:
+            enter_debug_mode();
+            break;
+        default:
+            error(ERROR_UNEXPECTED_INTERRUPT);
+            break;
+    }
+    comparator_op = CMP_OP_NONE;
 }

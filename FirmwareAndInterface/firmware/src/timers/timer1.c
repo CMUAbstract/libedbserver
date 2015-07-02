@@ -13,8 +13,8 @@
 
 #include <msp430.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "timer1.h"
-#include "monitor.h"
 
 static void (*pCallbackFn)(void); // function pointer to callback function
 

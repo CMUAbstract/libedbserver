@@ -6,8 +6,16 @@
  ******************************************************************************/
 
 #include <msp430.h>
-#include "monitor.h"
+#include <stdint.h>
+#include "pin_assign.h"
 #include "ucs.h"
+#include "config.h"
+
+#define DCO_FREQ_RANGE_BITS_INNER(r) DCORSEL_ ## r;
+#define DCO_FREQ_RANGE_BITS(r) DCO_FREQ_RANGE_BITS_INNER(r)
+
+#define FLL_D_BITS_INNER(d) FLLD_ ## d
+#define FLL_D_BITS(d) FLL_D_BITS_INNER(d)
 
 void UCS_setup()
 {
@@ -17,119 +25,97 @@ void UCS_setup()
     SetVcoreUp(0x02);
     SetVcoreUp(0x03);
 
-    UCSCTL3 = SELREF__REFOCLK;                  // Set DCO FLL reference = REFO
+    // NOTE: The MCU starts in a fault condition, because ACLK is set to XT1 LF but
+    // XT1 LF takes time to initialize. Its init begins when XT1 pin function
+    // is selected. The fault flag for this clock source (and for DCO which
+    // depends on it) and the "wildcard" osc fault flag OFIFG are set
+    // and cannot be cleared until the init is complete (they bounce back on
+    // if cleared before the init is completed).
+
+    SFRIE1 &= OFIE; // ignore oscillator faults while we enable the oscillators
+
+    // Go through each oscillator (REFO, XT1, XT2, DCO) and init each if necessary
+    // and choose it as the source for the requested clocks
+
+    // Oscillator: REFO
+
+#if defined(CONFIG_DCO_REF_SOURCE_REFO)
+    // already initialized on reset
+    UCSCTL3 |= SELREF__REFOCLK;                  // Set DCO FLL reference = REFO
     UCSCTL4 |= SELA__REFOCLK;                   // Set ACLK = REFO
+#endif // CONFIG_DCO_REF_CLOCK_REFO
 
-    UCS_setMainFreq();
-}
+    // Oscillator: XT1 crystal
 
-void UCS_setMainFreq()
-{
+    // Need XT1 for both XT1 and XT2 DCO ref configs since ACLK is sourced from XT1
+#if defined(CONFIG_DCO_REF_SOURCE_XT1) || defined(CONFIG_DCO_REF_SOURCE_XT2)
+    // Enable XT1 by configuring its pins
+    UCSCTL6 &= ~(XCAP1 | XCAP0);
+    UCSCTL6 |= CONFIG_XT1_CAP_BITS;
+    P5SEL |= BIT4 | BIT5;
+
+    // The following are already the default, but include for clarity
+    UCSCTL3 |= SELREF__XT1CLK; // select XT1 as the DCO reference
+    UCSCTL4 |= SELA__XT1CLK;  // select ST1 as the source for ACLK
+
+    // wait for XT1 to init and clear the fault flags
+    while (UCSCTL7 & XT1LFOFFG)
+        UCSCTL7 &= ~XT1LFOFFG;
+
+#else
+    // Disable XT1 since it is unused (and we changed the DCO ref and ACLK source above)
+    UCSCTL6 |= XT1OFF;
+    UCSCTL7 &= ~XT1LFOFFG; // at reset XT1 was selected and faulted (see note at the top)
+#endif
+
+    // Oscillator: XT2 crystal
+
+#if defined(CONFIG_DCO_REF_SOURCE_XT2) || defined(CONFIG_CLOCK_SOURCE_XT2)
+    // First part of enabling XT2: configure its pins (nothing happens yet)
+    P5SEL |= BIT2 | BIT3;
+
+    // Second part of enabling XT2: select it as a source
+#if defined(CONFIG_DCO_REF_SOURCE_XT2)
+    UCSCTL3 |= SELREF__XT2CLK; // TODO: UNTESTED
+#endif
+#if defined(CONFIG_CLOCK_SOURCE_XT2)
+    // switch master clock (CPU) to XT2 (25 MHz) and clear fault flags
+    UCSCTL4 |= SELM__XT2CLK | SELS__XT2CLK | SELA__XT2CLK;
+
+    // Can't drive the UART with a 25 MHz clock (hang/reset), divide it
+    //UCSCTL5 |= DIVS0 | DIVA0; // SMCLK, ACLK = 25 MHz / 2 = 12.5 MHz
+#endif
+
+    // Wait for the crystal to initialize by watching for fault flag to go away
+    while (UCSCTL7 & XT2OFFG)
+        UCSCTL7 &= ~XT2OFFG;
+    SFRIFG1 &= ~OFIFG; // clear wildcard fault flag
+
+#endif // CONFIG_DCO_REF_CLOCK_XT2 || CONFIG_CLOCK_SOURCE_XT2
+
+    // Oscillator: DCO
+
+    // DCO is on by default, we change its frequency if requested by config
+
+#if defined(CONFIG_CLOCK_SOURCE_DCO)
     __bis_SR_register(SCG0);                    // Disable the FLL control loop
+    UCSCTL3 |= CONFIG_FLL_REF_DIV;
     UCSCTL0 = 0x0000;                           // Set lowest possible DCOx, MODx
-    UCSCTL1 = DCORSEL_7;                        // Select DCO range 50MHz operation
-
-    // MSP430 crashes if it runs too fast?
-    // This may be caused by the average frequency from DCO modulation.  If we try to use
-    // a faster clock, the FLL may adjust the DCO above 25MHz to produce a clock with that
-    // average frequency.  If this happens, even for an instant, the MSP430 can crash.
-    UCSCTL2 = FLLD_0 + 668;                     // Set DCO Multiplier
-                                                // (N + 1) * FLLRef = Fdco
-                                                // (668 + 1) * 32768 = 21921792 Hz (average)
-                                                // Set FLL Div = fDCOCLK/2
-
+    UCSCTL1 = DCO_FREQ_RANGE_BITS(CONFIG_DCO_FREQ_R);    // Select DCO freq range
+    UCSCTL2 = FLL_D_BITS(CONFIG_DCO_FREQ_D) | CONFIG_DCO_FREQ_N;
     __bic_SR_register(SCG0);                    // Enable the FLL control loop
 
-    // Worst-case settling time for the DCO when the DCO range bits have been
-    // changed is n x 32 x 32 x f_MCLK / f_FLL_reference. See UCS chapter in 5xx
-    // UG for optimization.
-    // 32 x 32 x 25 MHz / 32,768 Hz = ~780k MCLK cycles for DCO to settle
-    __delay_cycles(782000);
+    __delay_cycles(DCO_SETTLING_TIME);
+#endif
 
-    // Loop until XT1, XT2 & DCO stabilize
-    do {
-        UCSCTL7 &= ~(XT2OFFG + XT1LFOFFG + DCOFFG); // Clear XT2,XT1,DCO fault flags
-        SFRIFG1 &= ~OFIFG;                 	// Clear fault flags
-    } while(SFRIFG1 & OFIFG);             	// Test oscillator fault flag
-}
+    // Wait for DCO to stabilize (DCO on by default and we leave it on, so always do this)
+    while (UCSCTL7 & DCOFFG)
+        UCSCTL7 &= ~DCOFFG;
 
-void UCS_set16MHz()
-{
-    __bis_SR_register(SCG0);                // Disable the FLL control loop
-    UCSCTL0 = 0x0000;                       // Set lowest possible DCOx, MODx
-    UCSCTL1 = DCORSEL_6;                    // Set DCO Multiplier for 32MHz
-    UCSCTL2 = FLLD_1 + 499;                 // (N + 1) * FLLRef = Fdco
-                                            // (499 + 1) * 32768 = 16MHz
-                                            // Set FLL Div = fDCOCLK/2
+    // End sequence of oscillators
 
-    __bic_SR_register(SCG0);                // Enable the FLL control loop
-
-    // Worst-case settling time for the DCO when the DCO range bits have been
-    // changed is n x 32 x 32 x f_MCLK / f_FLL_reference. See UCS chapter in 5xx
-    // UG for optimization.
-    // 32 x 32 x 16MHz / 32,768 Hz = 500000 = MCLK cycles for DCO to settle
-    __delay_cycles(500000);
-
-    // XT1 is by default on as it is used default reference for the FLL - internal load caps?
-    // Loop until XT1,XT2 & DCO stabilize
-    do {
-        UCSCTL7 &= ~(XT2OFFG + XT1LFOFFG + DCOFFG);
-                                          	// Clear XT2, XT1, DCO fault flags
-        SFRIFG1 &= ~OFIFG;                	// Clear fault flags
-    } while(SFRIFG1 & OFIFG);             	// Test oscillator fault flag
-
-}
-
-void UCS_set12MHz()
-{
-    __bis_SR_register(SCG0);                // Disable the FLL control loop
-    UCSCTL0 = 0x0000;                       // Set lowest possible DCOx, MODx
-    UCSCTL1 = DCORSEL_5;                    // Select DCO range 24MHz operation
-    UCSCTL2 = FLLD_1 + 374;                 // Set DCO Multiplier for 12MHz
-                                            // (N + 1) * FLLRef = Fdco
-                                            // (374 + 1) * 32768 = 12MHz
-                                            // Set FLL Div = fDCOCLK/2
-
-    __bic_SR_register(SCG0);                // Enable the FLL control loop
-
-    // Worst-case settling time for the DCO when the DCO range bits have been
-    // changed is n x 32 x 32 x f_MCLK / f_FLL_reference. See UCS chapter in 5xx
-    // UG for optimization.
-    // 32 x 32 x 12 MHz / 32,768 Hz = 375000 = MCLK cycles for DCO to settle
-    __delay_cycles(375000);
-
-    // Loop until XT1,XT2 & DCO fault flag is cleared
-    do
-    {
-        UCSCTL7 &= ~(XT2OFFG + XT1LFOFFG + DCOFFG); // Clear XT2,XT1,DCO fault flags
-        SFRIFG1 &= ~OFIFG;                	// Clear fault flags
-    } while (SFRIFG1 & OFIFG);             	// Test oscillator fault flag
-}
-
-void UCS_set8MHz()
-{
-    __bis_SR_register(SCG0);                // Disable the FLL control loop
-    UCSCTL0 = 0x0000;                       // Set lowest possible DCOx, MODx
-    UCSCTL1 = DCORSEL_5;                    // Select DCO range 16MHz operation
-    UCSCTL2 = FLLD_1 + 249;                 // Set DCO Multiplier for 8MHz
-                                            // (N + 1) * FLLRef = Fdco
-                                            // (249 + 1) * 32768 = 8MHz
-
-    __bic_SR_register(SCG0);                // Enable the FLL control loop
-
-    // Worst-case settling time for the DCO when the DCO range bits have been
-    // changed is n x 32 x 32 x f_MCLK / f_FLL_reference. See UCS chapter in 5xx
-    // UG for optimization.
-    // 32 x 32 x 8 MHz / 32,768 Hz = 250000 = MCLK cycles for DCO to settle
-    __delay_cycles(250000);
-
-
-    // Loop until XT1,XT2 & DCO stabilize - in this case only DCO has to stabilize
-    do
-    {
-        UCSCTL7 &= ~(XT2OFFG + XT1LFOFFG + DCOFFG); // Clear XT2 ,XT1, DCO fault flags
-        SFRIFG1 &= ~OFIFG;                	// Clear fault flags
-    }while (SFRIFG1 & OFIFG);				// Test oscillator fault flag
+    SFRIFG1 &= ~OFIFG; // clear wildcard fault flag
+    SFRIE1 |= OFIE; // watch for oscillator faults
 }
 
 static void SetVcoreUp (unsigned int level)
@@ -153,4 +139,22 @@ static void SetVcoreUp (unsigned int level)
     SVSMLCTL = SVSLE + SVSLRVL0 * level + SVMLE + SVSMLRRL0 * level;
     // Lock PMM registers for write access
     PMMCTL0_H = 0x00;
+}
+
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=UNMI_VECTOR
+__interrupt void unmi_isr(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
+#else
+#error Compiler not supported!
+#endif
+{
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    if (UCSCTL7 & XT2OFFG)
+        GPIO(PORT_LED, OUT) |= BIT(PIN_LED_GREEN);
+
+    while (1);
 }

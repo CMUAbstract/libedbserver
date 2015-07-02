@@ -8,7 +8,12 @@
 #include <stdint.h>
 #include <msp430.h>
 #include "uart.h"
-#include "monitor.h"
+#include "minmax.h"
+#include "pin_assign.h"
+#include "config.h"
+
+#define BRS_BITS_INNER(brs) UCBRS_ ## brs
+#define BRS_BITS(brs) BRS_BITS_INNER(brs)
 
 static uint16_t *pUSBFlags;
 static uint16_t *pWISPFlags;
@@ -20,9 +25,10 @@ static uartBuf_t usbTx = { .head = 0, .tail = 0 };
 static uartBuf_t wispRx = { .head = 0, .tail = 0 };
 static uartBuf_t wispTx = { .head = 0, .tail = 0 };
 
+static uint8_t msg[UART_BUF_MAX_LEN];
+
 extern inline uint8_t uartBuf_len(uartBuf_t *buf);
 
-// Assumes 21.921792 MHz SMCLK (see UCS_setMainFreq in ucs.c)
 void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)
 {
     switch(interface)
@@ -32,12 +38,19 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         USBRxFlag = rxFlag;
         USBTxFlag = txFlag;
 
-        P3SEL |= UART_USB_TX + UART_USB_RX;     // USCI_A0 option select
+        // USCI_A0 option select
+        GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
+
         UCA0CTL1 |= UCSWRST;                    // put state machine in reset
-        UCA0CTL1 |= UCSSEL__SMCLK;              // use SMCLK
-        UCA0BR0 = 23;                           // baud rate 921600
-        UCA0BR1 = 0;
-        UCA0MCTL |= UCBRS_6 + UCBRF_0;          // modulation UCBRSx = 6, UCBRFx = 0
+        UCA0CTL1 |= UCSSEL__SMCLK;
+#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+        UCA0CTL1 |= UCRXEIE;
+#endif
+
+        UCA0BR0 = CONFIG_USB_UART_BAUDRATE_BR0;
+        UCA0BR1 = CONFIG_USB_UART_BAUDRATE_BR1;
+        UCA0MCTL |= BRS_BITS(CONFIG_USB_UART_BAUDRATE_BRS);
+
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
         break;
@@ -47,12 +60,16 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         WISPRxFlag = rxFlag;
         WISPTxFlag = txFlag;
 
-        P4SEL |= UART_WISP_TX + UART_WISP_RX;   // USCI_A1 option select
+        // USCI_A1 option select
+        GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
+
         UCA1CTL1 |= UCSWRST;                    // put state machine in reset
         UCA1CTL1 |= UCSSEL__SMCLK;              // use SMCLK
-        UCA1BR0 = 235;                         	// baud rate 9600
-        UCA1BR1 = 8;							// baud rate 9600
-        UCA1MCTL |= UCBRS_4 + UCBRF_0;          // modulation UCBRSx = 4, UCBRFx = 0
+
+        UCA1BR0 = CONFIG_TARGET_UART_BAUDRATE_BR0;
+        UCA1BR1 = CONFIG_TARGET_UART_BAUDRATE_BR1;
+        UCA1MCTL |= BRS_BITS(CONFIG_TARGET_UART_BAUDRATE_BRS);
+
         UCA1CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA1IE |= UCRXIE;                       // enable USCI_A1 Tx + Rx interrupts
         break;
@@ -61,6 +78,38 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         break;
     }
 } // UART_setup
+
+void UART_teardown(uint8_t interface)
+{
+    // Put pins into High-Z state
+    switch(interface)
+    {
+        case UART_INTERFACE_USB:
+            UCA0IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
+            UCA0CTL1 |= UCSWRST;                    // put state machine in reset
+            GPIO(PORT_UART_USB, SEL) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
+            GPIO(PORT_UART_USB, DIR) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
+            break;
+        case UART_INTERFACE_WISP:
+            UCA1IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
+            UCA1CTL1 |= UCSWRST;                    // put state machine in reset
+            GPIO(PORT_UART_TARGET, SEL) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+
+            // Briefly pull low to "discharge". WISP is already in High-Z state, so this
+            // will not cause energy interference. This is necessary because otherwise,
+            // current continues to flow into the WISP after the UART has been disabled (into
+            // high-Z). "Discharging" manually by shorting to ground stopped the flow, hence
+            // this workaround here. Maybe this is effectively a MOSFET remaining open due
+            // to charge at the gate that can't drain anywhere. Might have to do with
+            // the level shifter remaining in the drive state instead of detecting high-Z
+            // and releasing the output.
+            GPIO(PORT_UART_TARGET, OUT) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+            GPIO(PORT_UART_TARGET, DIR) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
+
+            GPIO(PORT_UART_TARGET, DIR) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+            break;
+    }
+}
 
 void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 {
@@ -190,26 +239,15 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             uartBuf_copyFrom(uartBuf, &(pkt->descriptor), sizeof(uint8_t));
             minUartBufLen -= sizeof(uint8_t);
 
+            // TODO: parser should not be aware of specific commands
             // check if additional data is needed for this message
             if(interface == UART_INTERFACE_USB) {
 				switch(pkt->descriptor)
 				{
-				case USB_CMD_GET_VCAP:
-				case USB_CMD_GET_VBOOST:
-				case USB_CMD_GET_VREG:
-				case USB_CMD_GET_VRECT:
 				case USB_CMD_RELEASE_POWER:
 				case USB_CMD_ENTER_ACTIVE_DEBUG:
 				case USB_CMD_EXIT_ACTIVE_DEBUG:
 				case USB_CMD_GET_WISP_PC:
-				case USB_CMD_LOG_VCAP_BEGIN:
-				case USB_CMD_LOG_VCAP_END:
-				case USB_CMD_LOG_VBOOST_BEGIN:
-				case USB_CMD_LOG_VBOOST_END:
-				case USB_CMD_LOG_VREG_BEGIN:
-				case USB_CMD_LOG_VREG_END:
-				case USB_CMD_LOG_VRECT_BEGIN:
-				case USB_CMD_LOG_VRECT_END:
 				case USB_CMD_LOG_RF_RX_BEGIN:
 				case USB_CMD_LOG_RF_RX_END:
 				case USB_CMD_LOG_RF_TX_BEGIN:
@@ -220,23 +258,36 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_DISABLE_PORT_INT_TAG_PWR:
 				case USB_CMD_PWM_ON:
 				case USB_CMD_PWM_OFF:
-				case USB_CMD_LOG_VINJ_BEGIN:
-				case USB_CMD_LOG_VINJ_END:
 				case USB_CMD_PWM_HIGH:
 				case USB_CMD_PWM_LOW:
+				case USB_CMD_MONITOR_MARKER_BEGIN:
+				case USB_CMD_MONITOR_MARKER_END:
+				case USB_CMD_RESET_STATE:
+				case USB_CMD_INTERRUPT:
 					// no additional data is needed
 					// mark this packet as unprocessed
 					pkt->processed = 0;
 					state = CONSTRUCT_STATE_IDENTIFIER;
 					return 0;   // packet construction succeeded
+				case USB_CMD_SENSE:                 // expectin channel index
+				case USB_CMD_STREAM_BEGIN:          // expecting channel list
+				case USB_CMD_STREAM_END:            // expecting channel list
 				case USB_CMD_SET_VCAP:				// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VBOOST:			// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VREG:				// expecting 2 data bytes (ADC reading)
 				case USB_CMD_SET_VRECT:				// expecting 2 data bytes (ADC reading)
-				case USB_CMD_EXAMINE_MEMORY:
+				case USB_CMD_CHARGE:                // expecting 2 data bytes (target voltage)
+				case USB_CMD_DISCHARGE:             // expecting 2 data bytes (target voltage)
 				case USB_CMD_SEND_RF_TX_DATA:
 				case USB_CMD_SET_PWM_FREQUENCY:		// expecting 2 data bytes (TB0CCR0 register)
 				case USB_CMD_SET_PWM_DUTY_CYCLE:	// expecting 2 data bytes (TB0CCR1 register)
+				case USB_CMD_BREAK_AT_VCAP_LEVEL:	// expecting 2 data bytes (voltage level)
+				case USB_CMD_READ_MEM:	            // expecting 2 data bytes (mem address)
+				case USB_CMD_WRITE_MEM:	            // expecting 3 data bytes (mem address, value)
+				case USB_CMD_CONT_POWER:            // expecting 1 data byte  (on/off value)
+				case USB_CMD_BREAKPOINT:            // expecting 2 data byte  (index, en/dis value)
+				case USB_CMD_CHARGE_CMP:            // expecting 2 data bytes (target voltage)
+				case USB_CMD_DISCHARGE_CMP:         // expecting 2 data bytes (target voltage)
 					// additional data is needed
 					state = CONSTRUCT_STATE_DATA_LEN;
 					break;
@@ -249,7 +300,13 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             } else if(interface == UART_INTERFACE_WISP) {
             	switch(pkt->descriptor)
             	{
-            	case WISP_RSP_PC:
+            	case WISP_RSP_BREAKPOINT:
+					// no additional data is needed
+					// mark this packet as unprocessed
+					pkt->processed = 0;
+					state = CONSTRUCT_STATE_IDENTIFIER;
+                    return 0; // packet construction succeeded
+            	case WISP_RSP_ADDRESS:
             	case WISP_RSP_MEMORY:
             		// additional data is needed
             		state = CONSTRUCT_STATE_DATA_LEN;
@@ -298,7 +355,6 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
 				  uint8_t data_len, uint8_t force)
 {
-    uint8_t msg[UART_BUF_MAX_LEN];
     uint8_t msg_len = 0;
 
     switch(interface)
@@ -354,6 +410,18 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
 
     case USCI_UCRXIFG:                      // Vector 2 - RXIFG
     {
+
+#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+        if (UCA0STAT & UCRXERR) {
+                GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+                GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+                while(1) {
+                    if (UCA0STAT & UCOE)
+                        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+                    __delay_cycles(10000);
+                }
+        }
+#endif
         usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
         usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
         *pUSBFlags |= USBRxFlag;        // alert the main loop

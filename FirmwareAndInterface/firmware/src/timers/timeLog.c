@@ -16,17 +16,17 @@
  * 				here, so we don't want to have to send more time data.
  * 				The functions in this file allow a request to be made to log
  * 				time data.  When the request is made, Timer2 starts.  The
- * 				function getTime can then be called to get the 32-bit time
+ * 				macro TIMELOG_CURRENT_TIME can then be called to get the 32-bit time
  * 				in SMCLK cycles.
  ******************************************************************************/
 
 #include <msp430.h>
 #include <stdint.h>
 
-#include "monitor.h"
+#include "config.h"
 #include "timeLog.h"
 
-static uint32_t overflowCycles = 0;
+uint16_t overflowCycles = 0;
 
 void TimeLog_request(uint8_t request)
 {
@@ -42,9 +42,12 @@ void TimeLog_request(uint8_t request)
 
 		overflowCycles = 0;
 
-		// start relative timer
-		// SMCLK, continuous mode, clear TAR, enable interrupt
-		TA2CTL = TASSEL__SMCLK + MC__CONTINUOUS + TACLR + TAIE;
+		// configure relative timer
+		TA2CTL |= TACLR | TAIE | CONFIG_TIMELOG_TIMER_SOURCE | CONFIG_TIMELOG_TIMER_DIV_BITS;
+		TA2EX0 |= CONFIG_TIMELOG_TIMER_DIV_BITS_EX;
+
+		// continuous mode, clear TAR, enable interrupt
+		TA2CTL |= MC__CONTINUOUS; // start
 	} else {
 		// don't subtract from unsigned 0
 		if(time_log_requests != 0) {
@@ -54,11 +57,6 @@ void TimeLog_request(uint8_t request)
 			}
 		}
 	}
-}
-
-uint32_t getTime()
-{
-	return TA2R + overflowCycles;
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -81,8 +79,7 @@ void __attribute__ ((interrupt(TIMER2_A1_VECTOR))) TIMER2_A1_ISR (void)
 	case TA2IV_6:
 		break;
 	case TA2IV_TAIFG:
-		// overflow
-		overflowCycles += 0x00010000;
+		overflowCycles++;
 		break;
 	default:
 		break;

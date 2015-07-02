@@ -8,19 +8,19 @@
 #include <msp430.h>
 #include <stdint.h>
 #include "pwm.h"
-#include "monitor.h"
+#include "pin_assign.h"
 
-void PWM_setup()
+void PWM_setup(uint16_t period, uint16_t duty_cycle)
 {
-    TB0CCR0 = 1024-1;                   // PWM period
+    TB0CCR0 = period;                   // PWM period
     TB0CCTL1 = OUTMOD_7;                // CCR1 reset/set
-    TB0CCR1 = 512;                      // duty cycle
+    TB0CCR1 = duty_cycle;               // duty cycle
 }
 
 void PWM_start()
 {
-    P5SEL |= WISP_CHARGE;               // PWM option select
-    P5DIR |= WISP_CHARGE;               // pin output direction
+    GPIO(PORT_CHARGE, SEL) |= BIT(PIN_CHARGE);               // PWM option select
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE);               // pin output direction
 
     TB0CTL = TBSSEL__SMCLK + MC__UP + TBCLR;   // SMCLK, up mode, clear TBR
 }
@@ -29,6 +29,6 @@ void PWM_stop()
 {
     TB0CTL = MC_0;
 
-    P5OUT &= ~WISP_CHARGE;				// output low
-    P5SEL &= ~WISP_CHARGE;              // GPIO option select
+    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);				// output low
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE);              // GPIO option select
 }
