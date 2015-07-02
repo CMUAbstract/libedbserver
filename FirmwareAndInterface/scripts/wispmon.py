@@ -123,6 +123,12 @@ CONSTRUCT_STATE_DESCRIPTOR          = 0x01
 CONSTRUCT_STATE_DATA_LEN            = 0x02
 CONSTRUCT_STATE_DATA                = 0x03
 
+def key_lookup(d, value):
+    for k in d:
+        if d[k] == value:
+            return k
+    return None
+
 class StreamInterrupted(Exception):
     pass
 
