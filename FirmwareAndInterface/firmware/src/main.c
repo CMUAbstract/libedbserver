@@ -106,6 +106,7 @@ typedef enum {
     CMP_OP_CHARGE,
     CMP_OP_DISCHARGE,
     CMP_OP_ENERGY_BREAKPOINT,
+    CMP_OP_CODE_ENERGY_BREAKPOINT,
 } comparator_op_t;
 
 typedef enum {
@@ -123,6 +124,7 @@ typedef enum {
 } energy_breakpoint_impl_t;
 
 typedef enum {
+    CMP_EDGE_ANY,
     CMP_EDGE_FALLING,
     CMP_EDGE_RISING,
 } comparator_edge_t;
@@ -145,6 +147,7 @@ static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
 static uint16_t passive_breakpoints = 0;
 static uint16_t external_breakpoints = 0;
 static uint16_t internal_breakpoints = 0;
+static uint16_t code_energy_breakpoints = 0;
 
 static adc12_t adc12 = {
     .config = {
@@ -271,6 +274,68 @@ static void reset_state()
     unmask_target_signal();
 }
 
+static void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
+                           comparator_edge_t edge)
+{
+    comparator_op = op;
+
+    // ref0 = ref1 = target = Vref / 2^32 * target_volts
+    switch (ref) {
+        case CMP_REF_VCC:
+            CBCTL2 = CBRS_1;
+            break;
+        case CMP_REF_VREF_2_5:
+            CBCTL2 = CBREFL_3 | CBRS_2; // Vref = 2.5V and Vref to resistor ladder
+            break;
+        case CMP_REF_VREF_2_0:
+            CBCTL2 = CBREFL_2 | CBRS_2; // Vref = 2.0V and Vref to resistor ladder
+            break;
+        case CMP_REF_VREF_1_5:
+            CBCTL2 = CBREFL_1 | CBRS_2; // Vref = 1.5V and Vref to resistor ladder
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
+    }
+    CBCTL2 |= (target << 8) | target;
+
+    CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
+    CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
+    CBCTL1 |= CBF | CBFDLY_3;
+
+    CBINT &= ~CBIE; // disable CompB interrupt
+
+    CBCTL1 |= CBON;               // turn on ComparatorB
+
+    switch (edge) {
+        case CMP_EDGE_FALLING:
+            CBCTL1 |= CBIES;
+            break;
+        case CMP_EDGE_RISING:
+            CBCTL1 &= ~CBIES;
+            break;
+        case CMP_EDGE_ANY: // determine direction that would change current output
+            if (CBCTL1 & CBOUT)
+                CBCTL1 |= CBIES;
+            else
+                CBCTL1 &= ~CBIES;
+            break;
+        default:
+            error(ERROR_INVALID_VALUE);
+            break;
+    }
+
+    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
+    CBINT |= CBIE;                // enable CompB interrupt
+}
+
+static void disarm_comparator()
+{
+    CBINT &= ~CBIE; // disable interrupt
+    CBCTL1 &= ~CBON; // turn off
+}
+
+
 static void interrupt_target()
 {
     uint16_t cur_vreg;
@@ -286,14 +351,29 @@ static void interrupt_target()
     enter_debug_mode();
 }
 
-static void toggle_breakpoint(breakpoint_type_t type, uint8_t index, bool enable)
+static void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
+{
+#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
+    if (bitmask == 0x1)
+        bitmask = 0x2;
+    else if (bitmask == 0x2)
+        bitmask = 0x1;
+#endif
+
+    if (state)
+        GPIO(PORT_CODEPOINT, OUT) |= bitmask << PIN_CODEPOINT_0;
+    else
+        GPIO(PORT_CODEPOINT, OUT) &= ~(bitmask << PIN_CODEPOINT_0);
+}
+
+static void toggle_breakpoint(breakpoint_type_t type, uint8_t index,
+                              uint16_t energy_level, comparator_ref_t cmp_ref,
+                              bool enable)
 {
     uint8_t rc = RETURN_CODE_SUCCESS;
     uint8_t cmd_len;
     uint16_t prev_breakpoints_mask;
-#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
-    uint8_t codepoint_pins;
-#endif
+    bool breakpoint_active;
 
     switch (type) {
         case BREAKPOINT_TYPE_PASSIVE:
@@ -365,32 +445,30 @@ static void toggle_breakpoint(breakpoint_type_t type, uint8_t index, bool enable
                     break;
                 }
 
-#ifndef WORKAROUND_FLIP_CODEPOINT_PINS
-                GPIO(PORT_CODEPOINT, OUT) |= (1 << index) << PIN_CODEPOINT_0;
-#else
-                codepoint_pins = GPIO(PORT_CODEPOINT, OUT);
-                codepoint_pins |= (1 << index) << PIN_CODEPOINT_0;
-                codepoint_pins = (codepoint_pins & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
-                                 (codepoint_pins & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-                GPIO(PORT_CODEPOINT, OUT) = codepoint_pins;
-#endif
+                if (energy_level) {
+                    code_energy_breakpoints |= 1 << index;
+                    arm_comparator(CMP_OP_CODE_ENERGY_BREAKPOINT, energy_level, cmp_ref, CMP_EDGE_ANY);
+                    // comparator output high means Vcap < cmp ref (activate breakpoint)
+                    breakpoint_active = CBCTL1 & CBOUT;
+
+                } else {
+                    breakpoint_active = true;
+                }
+                set_external_breakpoint_pin_state((1 << index), breakpoint_active);
 
                 if (!external_breakpoints) {
                     GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
                 }
                 external_breakpoints |= 1 << index;
             } else {
-                external_breakpoints &= ~(1 << index);
 
-#ifndef WORKAROUND_FLIP_CODEPOINT_PINS
-                GPIO(PORT_CODEPOINT, OUT) &= ~((1 << index) << PIN_CODEPOINT_0);
-#else
-                codepoint_pins = GPIO(PORT_CODEPOINT, OUT);
-                codepoint_pins &= ~((1 << index) << PIN_CODEPOINT_0);
-                codepoint_pins = (codepoint_pins & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
-                                 (codepoint_pins & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-                GPIO(PORT_CODEPOINT, OUT) = codepoint_pins;
-#endif
+                if (code_energy_breakpoints & (1 << index)) {
+                    code_energy_breakpoints &= ~(1 << index);
+                    disarm_comparator();
+                }
+
+                external_breakpoints &= ~(1 << index);
+                set_external_breakpoint_pin_state((1 << index), false);
 
                 if (!external_breakpoints) {
                     GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
@@ -881,8 +959,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
     {
         breakpoint_type_t type = (breakpoint_type_t)pkt->data[0];
         uint8_t index = (uint8_t)pkt->data[1];
-        bool enable = (bool)pkt->data[2];
-        toggle_breakpoint(type, index, enable);
+        uint16_t energy_level = *(uint16_t *)(&pkt->data[2]);
+        comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[4];
+        bool enable = (bool)pkt->data[5];
+        toggle_breakpoint(type, index, energy_level, cmp_ref, enable);
         break;
     }
     default:
@@ -933,53 +1013,6 @@ static uint16_t discharge_adc(uint16_t target)
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
 
     return cur_voltage;
-}
-
-static void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
-                           comparator_edge_t edge)
-{
-    comparator_op = op;
-
-    // ref0 = ref1 = target = Vref / 2^32 * target_volts
-    switch (ref) {
-        case CMP_REF_VCC:
-            CBCTL2 = CBRS_1;
-            break;
-        case CMP_REF_VREF_2_5:
-            CBCTL2 = CBREFL_3 | CBRS_2; // Vref = 2.5V and Vref to resistor ladder
-            break;
-        case CMP_REF_VREF_2_0:
-            CBCTL2 = CBREFL_2 | CBRS_2; // Vref = 2.0V and Vref to resistor ladder
-            break;
-        case CMP_REF_VREF_1_5:
-            CBCTL2 = CBREFL_1 | CBRS_2; // Vref = 1.5V and Vref to resistor ladder
-            break;
-        default:
-            error(ERROR_INVALID_VALUE);
-            break;
-    }
-    CBCTL2 |= (target << 8) | target;
-
-    CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
-    CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
-    CBCTL1 |= CBF | CBFDLY_3;
-
-    switch (edge) {
-        case CMP_EDGE_FALLING:
-            CBCTL1 |= CBIES;
-            break;
-        case CMP_EDGE_RISING:
-            CBCTL1 &= ~CBIES;
-            break;
-        default:
-            error(ERROR_INVALID_VALUE);
-            break;
-    }
-
-    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
-    CBINT |= CBIE;                // enable CompB interrupt
-
-    CBCTL1 |= CBON;               // turn on ComparatorB
 }
 
 static void charge_cmp(uint16_t target, comparator_ref_t ref)
@@ -1156,23 +1189,37 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
-
     switch (comparator_op) {
         case CMP_OP_CHARGE:
             GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
             flags |= FLAG_CHARGER_COMPLETE;
+            comparator_op = CMP_OP_NONE;
+            CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
         case CMP_OP_DISCHARGE:
             GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
             flags |= FLAG_CHARGER_COMPLETE;
+            comparator_op = CMP_OP_NONE;
+            CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
         case CMP_OP_ENERGY_BREAKPOINT:
             enter_debug_mode();
+            // TODO: should the interrupt be re-enabled upon exit from debug mode?
+            comparator_op = CMP_OP_NONE;
+            CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
+            break;
+        case CMP_OP_CODE_ENERGY_BREAKPOINT:
+            if (!code_energy_breakpoints)
+                error(ERROR_UNEXPECTED_INTERRUPT);
+
+            // comparator output high means Vcap < cmp ref (activate breakpoint)
+            set_external_breakpoint_pin_state(code_energy_breakpoints, CBCTL1 & CBOUT);
+
+            CBCTL1 ^= CBIES; // reverse the edge direction of the interrupt
+            CBINT &= ~CBIFG; // clear the flag, leave interrupt enabled
             break;
         default:
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
-    comparator_op = CMP_OP_NONE;
 }

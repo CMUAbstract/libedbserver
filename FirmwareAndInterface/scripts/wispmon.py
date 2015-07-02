@@ -404,8 +404,17 @@ class WispMonitor:
         reply = self.receive_reply(USB_RSP_INTERRUPTED)
         return reply["saved_vcap"]
 
-    def breakpoint(self, type, idx, enable):
-        self.sendCmd(USB_CMD_BREAKPOINT, data=[BREAKPOINT_TYPE[type], idx, enable])
+    def breakpoint(self, type, idx, enable, energy_level=None):
+
+        if energy_level is not None:
+            energy_level_cmp, cmp_ref = self.voltage_to_cmp(energy_level)
+        else:
+            energy_level_cmp, cmp_ref = 0, "vcc"
+
+        self.sendCmd(USB_CMD_BREAKPOINT,
+                     data=[BREAKPOINT_TYPE[type], idx] + \
+                           self.uint16_to_bytes(energy_level_cmp) + \
+                           [COMPARATOR_REF_ENUM[cmp_ref], enable])
         self.receive_reply(USB_RSP_RETURN_CODE)
 
     def read_mem(self, addr, len):
