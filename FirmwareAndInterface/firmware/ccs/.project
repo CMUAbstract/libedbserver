@@ -31,6 +31,11 @@
 			<locationURI>$%7BSRC_LOC%7D/adc12</locationURI>
 		</link>
 		<link>
+			<name>error.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/error.c</locationURI>
+		</link>
+		<link>
 			<name>gpio</name>
 			<type>2</type>
 			<locationURI>$%7BSRC_LOC%7D/gpio</locationURI>
