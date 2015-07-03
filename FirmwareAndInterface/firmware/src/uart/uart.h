@@ -119,6 +119,7 @@
 #define USB_CMD_INTERRUPT                       0x36 //!< wait for target to be on and enter debug mode
 #define USB_CMD_CHARGE_CMP                      0x37 //!< charge Vcap to given level using comparator
 #define USB_CMD_DISCHARGE_CMP                   0x38 //!< discharge Vcap to given level using comparator
+#define USB_CMD_GET_INTERRUPT_CONTEXT           0x39 //!< ask why target interrupted execution
 /** @} End USB_CMD */
 
 /**
@@ -175,6 +176,7 @@
 #define WISP_CMD_READ_MEM         				0x03 //!< read memory contents at an address
 #define WISP_CMD_WRITE_MEM         				0x04 //!< write memory contents at an address
 #define WISP_CMD_BREAKPOINT        				0x05 //!< enable/disable target-side breakpoint
+#define WISP_CMD_GET_INTERRUPT_CONTEXT          0x06 //!< get the reason execution was interrupted
 /** @} End WISP_CMD */
 
 /**
@@ -186,6 +188,7 @@
 #define WISP_RSP_ADDRESS						0x00 //!< message containing an address
 #define WISP_RSP_MEMORY							0x01 //!< message containing requested memory content
 #define WISP_RSP_BREAKPOINT			            0x02 //!< message acknowledging breakpoint cmd
+#define WISP_RSP_INTERRUPT_CONTEXT              0x03 //!< reason execution was interrupted
 /** @} End WISP_RSP */
 
 /** @} End WISP_MSG_DESCRIPTORS */

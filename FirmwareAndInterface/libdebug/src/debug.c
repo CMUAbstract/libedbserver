@@ -58,9 +58,15 @@ typedef struct {
     uint8_t *data;
 } cmd_t;
 
+typedef struct {
+    interrupt_type_t type;
+    uint8_t id;
+} interrupt_context_t;
+
 static state_t state = STATE_OFF;
 
 static uint16_t debug_flags = 0;
+static interrupt_context_t interrupt_context;
 
 volatile uint16_t __fram _libdebug_internal_breakpoints = 0x00;
 
@@ -171,11 +177,15 @@ void exit_debug_mode()
 #endif
     CSCTL0_H = 0;                             // Lock CS registers
 
+    // reset state for cleanliness
+    interrupt_context.type = INTERRUPT_TYPE_NONE;
+    interrupt_context.id = 0;
+
     // set up to return from debug_main
     debug_flags |= DEBUG_RETURN;
 }
 
-void request_debug_mode()
+void request_debug_mode(interrupt_type_t int_type, uint8_t int_id)
 {
     // Disable interrupts before unmasking debugger signal to make sure
     // we are asleep (at end of this function) before ISR runs. Otherwise,
@@ -186,6 +196,8 @@ void request_debug_mode()
     __disable_interrupt();
 
     debug_flags |= DEBUG_REQUESTED_BY_TARGET;
+    interrupt_context.type = int_type;
+    interrupt_context.id = int_id;
 
     mask_debugger_signal();
     signal_debugger();
@@ -309,6 +321,17 @@ static void execute_cmd(cmd_t *cmd)
         case WISP_CMD_EXIT_ACTIVE_DEBUG:
             exit_debug_mode();
             break;
+        
+        case WISP_CMD_GET_INTERRUPT_CONTEXT:
+            msg_len = 0;
+            tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
+            tx_buf[msg_len++] = WISP_RSP_INTERRUPT_CONTEXT;
+            tx_buf[msg_len++] = 2 * sizeof(uint8_t);
+            tx_buf[msg_len++] = interrupt_context.type;
+            tx_buf[msg_len++] = interrupt_context.id;
+
+            UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
+            break;
 
         default: // invalid cmd
             break;
@@ -354,6 +377,7 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
                     case WISP_CMD_GET_PC:
                     case WISP_CMD_EXAMINE_MEMORY:
                     case WISP_CMD_EXIT_ACTIVE_DEBUG:
+                    case WISP_CMD_GET_INTERRUPT_CONTEXT:
                         msg_state = MSG_STATE_IDENTIFIER;
                         return true;
 

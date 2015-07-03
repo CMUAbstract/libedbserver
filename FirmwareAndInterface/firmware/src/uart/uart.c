@@ -288,6 +288,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
 				case USB_CMD_BREAKPOINT:            // expecting 2 data byte  (index, en/dis value)
 				case USB_CMD_CHARGE_CMP:            // expecting 2 data bytes (target voltage)
 				case USB_CMD_DISCHARGE_CMP:         // expecting 2 data bytes (target voltage)
+				case USB_CMD_GET_INTERRUPT_CONTEXT: // expecting 1 data byte  (ask target)
 					// additional data is needed
 					state = CONSTRUCT_STATE_DATA_LEN;
 					break;
@@ -308,6 +309,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
                     return 0; // packet construction succeeded
             	case WISP_RSP_ADDRESS:
             	case WISP_RSP_MEMORY:
+            	case WISP_RSP_INTERRUPT_CONTEXT:
             		// additional data is needed
             		state = CONSTRUCT_STATE_DATA_LEN;
             		break;

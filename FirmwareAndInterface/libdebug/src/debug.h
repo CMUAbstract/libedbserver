@@ -24,6 +24,14 @@
 
 #define CONFIG_BREAKPOINT_TEST
 
+typedef enum {
+    INTERRUPT_TYPE_NONE = 0,
+    INTERRUPT_TYPE_DEBUGGER_REQ,
+    INTERRUPT_TYPE_TARGET_REQ,
+    INTERRUPT_TYPE_BREAKPOINT,
+    INTERRUPT_TYPE_ENERGY_BREAKPOINT,
+} interrupt_type_t;
+
 #define DEBUG_UART_BUF_LEN				2
 #define DEBUG_CMD_MAX_LEN               16
 
@@ -47,6 +55,7 @@
 #define WISP_CMD_READ_MEM               0x03 //!< read memory contents at an address
 #define WISP_CMD_WRITE_MEM              0x04 //!< read memory contents at an address
 #define WISP_CMD_BREAKPOINT             0x05 //!< enable/disable target-side breakpoint
+#define WISP_CMD_GET_INTERRUPT_CONTEXT  0x06 //!< get reason execution was interrupted
 /** @} End WISP_CMD */
 
 /**
@@ -57,6 +66,7 @@
 #define WISP_RSP_ADDRESS                0x00 //!< message containing program counter
 #define WISP_RSP_MEMORY					0x01 //!< message containing requested memory content
 #define WISP_RSP_BREAKPOINT             0x02 //!< message acknowledging breakpoint cmd
+#define WISP_RSP_INTERRUPT_CONTEXT      0x03 //!< reason execution was interrupted
 /** @} End WISP_RSP */
 
 /** @} End WISP_MSG_DESCRIPTORS */
@@ -125,7 +135,7 @@
  */
 extern volatile uint16_t _libdebug_internal_breakpoints;
 
-void request_debug_mode();
+void request_debug_mode(interrupt_type_t int_type, uint8_t id);
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -154,7 +164,8 @@ void request_debug_mode();
  *          bit-width of the mask, which could easily be increased.
  */
 #define INTERNAL_BREAKPOINT(idx) \
-    if (_libdebug_internal_breakpoints & (1 << idx)) request_debug_mode()
+    if (_libdebug_internal_breakpoints & (1 << idx)) \
+        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 
 #ifndef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -175,7 +186,8 @@ void request_debug_mode();
  *          only two (AUX1 and AUX2).
  */
 #define EXTERNAL_BREAKPOINT(idx) \
-    if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) request_debug_mode()
+    if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) \
+        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
 /**

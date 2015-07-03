@@ -55,6 +55,19 @@ BREAKPOINT_TYPE = {
     "external" : 2,
 }
 
+INTERRUPT_TYPE = {
+    "none" : 0,
+    "debugger_req" : 1,
+    "target_req" : 2,
+    "breakpoint" : 3,
+    "energy_breakpoint" : 4,
+}
+
+INTERRUPT_SOURCE = {
+    "debugger" : 0,
+    "target" : 1,
+}
+
 # Serial transmit message descriptors
 USB_CMD_SENSE                        = 0x01
 USB_CMD_STREAM_BEGIN                 = 0x02
@@ -96,6 +109,7 @@ USB_CMD_BREAKPOINT                   = 0x35
 USB_CMD_INTERRUPT                    = 0x36
 USB_CMD_CHARGE_CMP                   = 0x37
 USB_CMD_DISCHARGE_CMP                = 0x38
+USB_CMD_GET_INTERRUPT_CONTEXT        = 0x39
 
 # Serial receive message descriptors
 USB_RSP_VOLTAGE                      = 0x01
@@ -131,6 +145,12 @@ def key_lookup(d, value):
 
 class StreamInterrupted(Exception):
     pass
+
+class InterruptContext:
+    def __init__(self, type, id, saved_vcap=None):
+        self.type = type
+        self.id = id
+        self.saved_vcap = saved_vcap
 
 class WispMonitor:
     VDD                                 = 3.35 # V
@@ -257,7 +277,9 @@ class WispMonitor:
                     pkt["voltages"].append(self.adc_to_voltage(adc_reading))
 
             elif self.rxPkt.descriptor == USB_RSP_INTERRUPTED:
-                saved_vcap_adc_reading = (self.rxPkt.data[1] << 8) | self.rxPkt.data[0]
+                pkt["interrupt_type"] = key_lookup(INTERRUPT_TYPE, self.rxPkt.data[0])
+                pkt["interrupt_id"] = self.rxPkt.data[1]
+                saved_vcap_adc_reading = (self.rxPkt.data[3] << 8) | self.rxPkt.data[2]
                 pkt["saved_vcap"] = self.adc_to_voltage(saved_vcap_adc_reading)
 
             elif self.rxPkt.descriptor == USB_RSP_WISP_MEMORY:
@@ -422,6 +444,15 @@ class WispMonitor:
                            self.uint16_to_bytes(energy_level_cmp) + \
                            [COMPARATOR_REF_ENUM[cmp_ref], enable])
         self.receive_reply(USB_RSP_RETURN_CODE)
+
+    def wait_for_interrupt(self):
+        pkt = self.receive_reply(USB_RSP_INTERRUPTED)
+        return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
+
+    def get_interrupt_context(self, source):
+        self.sendCmd(USB_CMD_GET_INTERRUPT_CONTEXT, data=[INTERRUPT_SOURCE[source]])
+        pkt = self.receive_reply(USB_RSP_INTERRUPTED)
+        return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
 
     def read_mem(self, addr, len):
         cmd_data = self.uint32_to_bytes(addr) + [len]

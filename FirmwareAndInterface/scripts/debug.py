@@ -22,6 +22,13 @@ def match_keyword(part, words):
             match = word
     return match
 
+def print_interrupt_context(context):
+    print "Interrupted:", context.type, "id:", context.id,
+    if context.saved_vcap is not None:
+        print "Vcap_saved = %.4f" % context.saved_vcap
+    else:
+        print
+
 def cmd_echo(mon, args):
     print args
 
@@ -141,11 +148,16 @@ def cmd_wait(mon):
     """Wait to enter active debug mode"""
     global active_mode
     try:
-        pkt = mon.receive_reply(wispmon.USB_RSP_INTERRUPTED)
-        print "Vcap_saved = %.4f" % pkt["saved_vcap"]
+        int_context = mon.wait_for_interrupt()
+        print_interrupt_context(int_context)
         active_mode = True
     except KeyboardInterrupt:
         pass
+
+def cmd_intctx(mon, source="debugger"):
+    source = match_keyword(source, wispmon.INTERRUPT_SOURCE)
+    int_context = mon.get_interrupt_context(source)
+    print_interrupt_context(int_context)
 
 def cmd_read(mon, addr, len):
     addr = int(addr, 16)
