@@ -61,6 +61,7 @@ INTERRUPT_TYPE = {
     "target_req" : 2,
     "breakpoint" : 3,
     "energy_breakpoint" : 4,
+    "assert" : 5,
 }
 
 INTERRUPT_SOURCE = {

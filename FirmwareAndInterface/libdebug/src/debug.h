@@ -30,6 +30,7 @@ typedef enum {
     INTERRUPT_TYPE_TARGET_REQ,
     INTERRUPT_TYPE_BREAKPOINT,
     INTERRUPT_TYPE_ENERGY_BREAKPOINT,
+    INTERRUPT_TYPE_ASSERT,
 } interrupt_type_t;
 
 #define DEBUG_UART_BUF_LEN				2
@@ -189,6 +190,9 @@ void request_debug_mode(interrupt_type_t int_type, uint8_t id);
     if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) \
         request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+
+#define ASSERT(idx, cond) \
+    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, idx)
 
 /**
  * @brief	Initialize pins used by the debugger board
