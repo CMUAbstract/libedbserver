@@ -155,7 +155,6 @@
   </text>
   <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="1100" y="660">
     <tspan x="1100" y="660">1. send EXIT cmd to target</tspan>
-    <tspan x="1100" y="676">2. disable UART to target</tspan>
   </text>
   <g>
     <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="1420" y1="560" x2="1270.48" y2="274.888"/>
@@ -166,7 +165,8 @@
     <tspan x="1360" y="360">signal from target</tspan>
   </text>
   <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="1360" y="380">
-    <tspan x="1360" y="380">1. turn off continuous power to target</tspan>
-    <tspan x="1360" y="396">2. signal target</tspan>
+    <tspan x="1360" y="380">1. disable UART to target</tspan>
+    <tspan x="1360" y="396">2. turn off continuous power to target</tspan>
+    <tspan x="1360" y="412">3. signal target</tspan>
   </text>
 </svg>
