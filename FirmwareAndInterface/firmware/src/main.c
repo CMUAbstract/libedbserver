@@ -292,6 +292,7 @@ static void enter_debug_mode(interrupt_type_t int_type)
     mask_target_signal();
     signal_target();
     unmask_target_signal();
+    continuous_power_on();
 }
 
 static void exit_debug_mode()
@@ -550,7 +551,6 @@ static void handle_target_signal()
             // WISP has entered debug main loop
             set_state(STATE_DEBUG);
             GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-            continuous_power_on();
             UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
             I2C_setup();
             flags |= FLAG_INTERRUPTED; // main loop notifies the host
