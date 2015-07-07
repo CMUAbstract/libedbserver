@@ -79,13 +79,13 @@ static uint8_t cmd_data_buf[DEBUG_CMD_MAX_LEN];
 
 static void set_state(state_t new_state)
 {
-#if CONFIG_STATE_PINS
+#ifdef CONFIG_STATE_PINS
     uint8_t port_value;
 #endif
 
     state = new_state;
 
-#if CONFIG_STATE_PINS
+#ifdef CONFIG_STATE_PINS
     // Encode state onto two indicator pins
     port_value = GPIO(PORT_STATE, OUT);
     port_value &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1)); // clear
@@ -482,10 +482,10 @@ void debug_setup()
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1); // output
 #endif
 
-#ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS // codepoint pins are outputs
+#if defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS) // codepoint pins are outputs
     GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
-#else // codepoint pins are inputs
+#elif !defined(CONFIG_STATE_PINS) // codepoint pins are inputs for target-side breakpoints
     GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
 #endif
 
