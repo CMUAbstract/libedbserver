@@ -12,6 +12,7 @@
 
 #include "debug.h"
 #include "pin_assign.h"
+#include "target_comm.h"
 
 /* The linker script needs to allocate .fram_vars section into FRAM region. */
 #define __fram __attribute__((section(".fram_vars")))
@@ -21,19 +22,6 @@
 
 #define DEBUG_MODE_REQUEST_WAIT_STATE_BITS      LPM0_bits
 #define DEBUG_MODE_EXIT_WAIT_STATE_BITS         LPM0_bits
-
-// TODO: unify headers with debugger side
-/**
- * @defgroup DEBUG_MODE_FLAGS   Debug mode flags
- * @brief Flags that define functionality in debug mode
- * @{
- */
-#define DEBUG_MODE_INTERACTIVE      0x01
-#define DEBUG_MODE_WITH_UART        0x02
-#define DEBUG_MODE_WITH_I2C         0x04
-/** @} End DEBUG_MODE_FLAGS */
-
-#define DEBUG_MODE_FULL_FEATURES    (~0x00)
 
 #define LED_IN_DEBUG_STATE
 
@@ -87,9 +75,9 @@ volatile uint16_t __fram _libdebug_internal_breakpoints = 0x00;
 static uint16_t *wisp_sp; // stack pointer on debug entry
 
 // expecting 2-byte messages from the debugger (identifier byte + descriptor byte)
-static uint8_t uartRxBuf[DEBUG_UART_BUF_LEN];
+static uint8_t uartRxBuf[CONFIG_DEBUG_UART_BUF_LEN];
 
-static uint8_t cmd_data_buf[DEBUG_CMD_MAX_LEN];
+static uint8_t cmd_data_buf[WISP_CMD_MAX_LEN];
 
 static void set_state(state_t new_state)
 {
@@ -134,26 +122,26 @@ static void signal_debugger_with_data(uint8_t data)
 
     // Need constant and short time between bits, so no loops or conditionals
 #define PULSE_BIT(idx) \
-    __delay_cycles(CONFIG_SIG_SERIAL_BIT_DURATION); \
+    __delay_cycles(SIG_SERIAL_BIT_DURATION_ON_TARGET); \
     bit = (data >> idx) & 0x1; \
     GPIO(PORT_SIG, OUT) |= bit << PIN_SIG; \
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG); \
 
-#if CONFIG_SIG_SERIAL_NUM_BITS > 3
+#if SIG_SERIAL_NUM_BITS > 3
     PULSE_BIT(3);
 #endif
-#if CONFIG_SIG_SERIAL_NUM_BITS > 2
+#if SIG_SERIAL_NUM_BITS > 2
     PULSE_BIT(2);
 #endif
-#if CONFIG_SIG_SERIAL_NUM_BITS > 1
+#if SIG_SERIAL_NUM_BITS > 1
     PULSE_BIT(1);
 #endif
-#if CONFIG_SIG_SERIAL_NUM_BITS > 0
+#if SIG_SERIAL_NUM_BITS > 0
     PULSE_BIT(0);
 #endif
 
     // terminating pulse: must happen after the interval for the last bit elapses
-    __delay_cycles(CONFIG_SIG_SERIAL_BIT_DURATION); // ignore the few compute instructions
+    __delay_cycles(SIG_SERIAL_BIT_DURATION_ON_TARGET); // ignore the few compute instructions
     GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);        // output high
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
 

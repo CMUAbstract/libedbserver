@@ -18,6 +18,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <libdebug/target_comm.h>
+
 #include "pin_assign.h"
 #include "ucs.h"
 #include "adc12.h"
@@ -50,16 +52,6 @@
 /** @} End MAIN_FLAG_DEFINES */
 
 /**
- * @defgroup DEBUG_MODE_FLAGS   Debug mode flags
- * @brief Flags that define functionality in debug mode
- * @{
- */
-#define DEBUG_MODE_INTERACTIVE      0x0001
-#define DEBUG_MODE_WITH_UART        0x0002
-#define DEBUG_MODE_WITH_I2C         0x0004
-/** @} End DEBUG_MODE_FLAGS */
-
-/**
  * @defgroup    LOG_DEFINES     Logging flags
  * @brief       Flags to set in a bit mask to check which ADC readings to log
  * @{
@@ -71,7 +63,6 @@
 #define LOG_VINJ					0x10 //!< Logging Vinj
 /** @} End LOG_DEFINES */
 
-#define WISP_CMD_MAX_LEN 16
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
 #define USB_REPLY_MAX_LEN 16
 
@@ -141,15 +132,6 @@ typedef enum {
     CMP_EDGE_FALLING,
     CMP_EDGE_RISING,
 } comparator_edge_t;
-
-// TODO: unify libdebug and debugger headers
-typedef enum {
-    INTERRUPT_TYPE_NONE = 0,
-    INTERRUPT_TYPE_DEBUGGER_REQ,
-    INTERRUPT_TYPE_TARGET_REQ,
-    INTERRUPT_TYPE_BREAKPOINT,
-    INTERRUPT_TYPE_ENERGY_BREAKPOINT,
-} interrupt_type_t;
 
 typedef enum {
     INTERRUPT_SOURCE_DEBUGGER = 0,
@@ -273,7 +255,7 @@ static void continuous_power_off()
 
 static inline void setup_serial_decode_timer()
 {
-    TIMER(TIMER_SIG_SERIAL_DECODE, CCR0) = CONFIG_SIG_SERIAL_BIT_DURATION;
+    TIMER(TIMER_SIG_SERIAL_DECODE, CCR0) = SIG_SERIAL_BIT_DURATION_ON_DEBUGGER;
     TIMER(TIMER_SIG_SERIAL_DECODE, CTL) |= TACLR | TASSEL__SMCLK;
     TIMER(TIMER_SIG_SERIAL_DECODE, CCTL0) &= ~CCIFG;
     TIMER(TIMER_SIG_SERIAL_DECODE, CCTL0) |= CCIE;
@@ -340,7 +322,7 @@ static void enter_debug_mode(interrupt_type_t int_type)
     interrupt_context.id = 0;
     interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
 
-    sig_serial_bit_index = CONFIG_NUM_SIG_SERIAL_BITS;
+    sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
     setup_serial_decode_timer();
 
     debug_mode_flags = 0;
@@ -660,7 +642,7 @@ static void handle_target_signal()
             break;
 
         case STATE_ENTERING:
-            if (sig_serial_bit_index == CONFIG_NUM_SIG_SERIAL_BITS) {
+            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 --sig_serial_bit_index;
                 start_serial_decode_timer();
             } else if (sig_serial_bit_index >= 0) {
@@ -684,7 +666,7 @@ static void handle_target_signal()
             GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
             GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
 #endif
-            if (sig_serial_bit_index == CONFIG_NUM_SIG_SERIAL_BITS) {
+            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 sig_serial_bit_index--;
                 start_serial_decode_timer();
             } else if (sig_serial_bit_index >= 0) {
@@ -1184,7 +1166,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         saved_sig_serial_echo_state = state;
         set_state(STATE_SERIAL_ECHO);
 
-        sig_serial_bit_index = CONFIG_NUM_SIG_SERIAL_BITS;
+        sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
         setup_serial_decode_timer();
 
         sig_serial_echo_value = 0;

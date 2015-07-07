@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "pin_assign.h"
+#include "target_comm.h"
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
@@ -22,83 +23,16 @@
 // #define CONFIG_PASSIVE_BREAKPOINT_IMPL_C
 #define CONFIG_PASSIVE_BREAKPOINT_IMPL_ASM
 
-#define CONFIG_BREAKPOINT_TEST
-
 /**
- * @brief Message length for serial communication on the signal line
- */
-#define CONFIG_SIG_SERIAL_NUM_BITS 3
-
-/**
- * @brief Interval between bit pulses in serial communication protocol on the signal line
+ * @brief Size of the buffer for receiving bytes from the debugger via UART
  *
- * @details The encoding code itself takes 4 instructions (excluding the
- *          set+clear pair), but the interrupt latency on the debugger is much
- *          greater and highly variable (because of blocking from other ISRs).
- *
- *          NOTE: Must keep this in sync with the clock choice.
- *
- *          TODO: values for both default clock and the fast (debug mode) clock
+ * @details A read from the UART (a chunk that could be a part of the message
+ *          or multiple messages) goes into this buffer.  Currently the chunk
+ *          size is fixed at one byte, so this buffer size is not relevant.
  */
-#define CONFIG_SIG_SERIAL_BIT_DURATION 64 // cycles
-
-typedef enum {
-    INTERRUPT_TYPE_NONE = 0,
-    INTERRUPT_TYPE_DEBUGGER_REQ,
-    INTERRUPT_TYPE_TARGET_REQ,
-    INTERRUPT_TYPE_BREAKPOINT,
-    INTERRUPT_TYPE_ENERGY_BREAKPOINT,
-    INTERRUPT_TYPE_ASSERT,
-    INTERRUPT_TYPE_ENERGY_GUARD, // not a true interrupt: execution continues immediately
-} interrupt_type_t;
-
-#define DEBUG_UART_BUF_LEN				2
-#define DEBUG_CMD_MAX_LEN               16
-
-#define UART_IDENTIFIER_WISP			0xF1
-
-/**
- * @defgroup	WISP_MSG_DESCRIPTORS	WISP UART message descriptors
- * @brief		Descriptors for UART communcation between the WISP and
- * 				debugger
- * @{
- */
-
-/**
- * @defgroup	WISP_CMD				WISP command descriptors
- * @brief		Command descriptors sent from the debugger to the WISP.
- * @{
- */
-#define WISP_CMD_GET_PC					0x00 //!< get WISP program counter
-#define WISP_CMD_EXAMINE_MEMORY			0x01 //!< examine WISP memory
-#define WISP_CMD_EXIT_ACTIVE_DEBUG		0x02 //!< prepare to exit active debug mode
-#define WISP_CMD_READ_MEM               0x03 //!< read memory contents at an address
-#define WISP_CMD_WRITE_MEM              0x04 //!< read memory contents at an address
-#define WISP_CMD_BREAKPOINT             0x05 //!< enable/disable target-side breakpoint
-#define WISP_CMD_GET_INTERRUPT_CONTEXT  0x06 //!< get reason execution was interrupted
-#define WISP_CMD_SERIAL_ECHO            0x07 //!< send serially encoded data over signal line
-/** @} End WISP_CMD */
-
-/**
- * @defgroup	WISP_RSP				WISP response descriptors
- * @brief		Response descriptors sent from the WISP to the debugger.
- * @{
- */
-#define WISP_RSP_ADDRESS                0x00 //!< message containing program counter
-#define WISP_RSP_MEMORY					0x01 //!< message containing requested memory content
-#define WISP_RSP_BREAKPOINT             0x02 //!< message acknowledging breakpoint cmd
-#define WISP_RSP_INTERRUPT_CONTEXT      0x03 //!< reason execution was interrupted
-#define WISP_RSP_SERIAL_ECHO            0x04 //!< response to the serial echo request
-/** @} End WISP_RSP */
-
-/** @} End WISP_MSG_DESCRIPTORS */
+#define CONFIG_DEBUG_UART_BUF_LEN				2
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
-
-/** @brief Latency between a code point marker GPIO setting and the signal to enter debug mode 
- *  @details The execution on the target continues for this long after the codepoint.
- */
-#define ENTER_DEBUG_MODE_LATENCY_CYCLES 100
 
 // The index argument to breakpoint macros identifies a breakpoint *group*.
 // All breakpionts in a group can be enabled/disabled together (not separately).

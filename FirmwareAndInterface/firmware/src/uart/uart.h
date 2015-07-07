@@ -8,6 +8,8 @@
 #ifndef UART_H
 #define UART_H
 
+#include <libdebug/target_comm.h>
+
 /**
  * @defgroup    UART_USAGE  UART
  * @brief       UART usage
@@ -159,43 +161,6 @@
 #define RETURN_CODE_COMM_ERROR 3
 #define RETURN_CODE_UNSUPPORTED 4
 /** @} End RETURN_CODE */
-
-/**
- * @defgroup    WISP_MSG_DESCRIPTORS    WISP message descriptors
- * @brief       Message descriptors for use with the WISP interface.
- * @{
- */
-
-/**
- * @defgroup    WISP_CMD    WISP command descriptors
- * @brief       Message descriptors sent from the WISP monitor to
- * 				the WISP through UART.
- * @{
- */
-#define WISP_CMD_GET_PC							0x00 //!< get program counter
-#define WISP_CMD_EXAMINE_MEMORY					0x01 //!< examine WISP memory
-#define WISP_CMD_EXIT_ACTIVE_DEBUG				0x02 //!< prepare to exit active debug mode
-#define WISP_CMD_READ_MEM         				0x03 //!< read memory contents at an address
-#define WISP_CMD_WRITE_MEM         				0x04 //!< write memory contents at an address
-#define WISP_CMD_BREAKPOINT        				0x05 //!< enable/disable target-side breakpoint
-#define WISP_CMD_GET_INTERRUPT_CONTEXT          0x06 //!< get the reason execution was interrupted
-#define WISP_CMD_SERIAL_ECHO                    0x07 //!< send serially encoded data over signal line
-/** @} End WISP_CMD */
-
-/**
- * @defgroup    WISP_RSP   WISP response descriptors
- * @brief       Message descriptors sent from the WISP to the
- * 				WISP monitor through UART.
- * @{
- */
-#define WISP_RSP_ADDRESS						0x00 //!< message containing an address
-#define WISP_RSP_MEMORY							0x01 //!< message containing requested memory content
-#define WISP_RSP_BREAKPOINT			            0x02 //!< message acknowledging breakpoint cmd
-#define WISP_RSP_INTERRUPT_CONTEXT              0x03 //!< reason execution was interrupted
-#define WISP_RSP_SERIAL_ECHO                    0x04 //!< response to the serial test request
-/** @} End WISP_RSP */
-
-/** @} End WISP_MSG_DESCRIPTORS */
 
 /** @} End UART_MSG_DESCRIPTORS */
 

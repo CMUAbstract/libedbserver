@@ -37,13 +37,6 @@
 // #define CONFIG_TIMELOG_TIMER_DIV_BITS (ID0 | ID1)
 // #define CONFIG_TIMELOG_TIMER_DIV_BITS_EX (TAIDEX_2 | TAIDEX_1 | TAIDEX_0)
 
-// TODO: unified header for shared values
-#define CONFIG_NUM_SIG_SERIAL_BITS    3
-
-// Interval between of a serially encoded bit measured in debugger clock cycles
-// NOTE: Must keep this in sync with the clock choice.
-#define CONFIG_SIG_SERIAL_BIT_DURATION 250 // SMCLK cycles
-
 // #define CONFIG_USB_UART_BAUDRATE 2000000
 // #define CONFIG_USB_UART_BAUDRATE 1000000
 #define CONFIG_USB_UART_BAUDRATE 921600
