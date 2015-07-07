@@ -180,9 +180,6 @@ void exit_debug_mode()
     // reset state for cleanliness
     interrupt_context.type = INTERRUPT_TYPE_NONE;
     interrupt_context.id = 0;
-
-    // set up to return from debug_main
-    debug_flags |= DEBUG_RETURN;
 }
 
 void request_debug_mode(interrupt_type_t int_type, uint8_t int_id)
@@ -206,6 +203,19 @@ void request_debug_mode(interrupt_type_t int_type, uint8_t int_id)
 
     // go to sleep, enable interrupts, and wait for signal from debugger
     __bis_SR_register(DEBUG_MODE_REQUEST_WAIT_STATE_BITS | GIE);
+}
+
+static void release_debugger()
+{
+    set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
+    signal_debugger(); // tell debugger we have shutdown UART
+}
+
+void resume_application()
+{
+    exit_debug_mode();
+    release_debugger();
+    unmask_debugger_signal();
 }
 
 uint8_t *mem_addr_from_bytes(uint8_t *buf)
@@ -320,6 +330,7 @@ static void execute_cmd(cmd_t *cmd)
         }
         case WISP_CMD_EXIT_ACTIVE_DEBUG:
             exit_debug_mode();
+            debug_flags |= DEBUG_RETURN; // return from debug_main
             break;
         
         case WISP_CMD_GET_INTERRUPT_CONTEXT:
@@ -447,10 +458,12 @@ static inline void handle_debugger_signal()
         case STATE_IDLE: // debugger requested us to enter debug mode
             enter_debug_mode();
             signal_debugger();
-            debug_main();
-            // debug loop exited (due to UART cmd to exit debugger)
-            set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
-            signal_debugger(); // tell debugger we have shutdown UART
+
+            if (interrupt_context.type != INTERRUPT_TYPE_ENERGY_GUARD) {
+                debug_main();
+                // debug loop exited (due to UART cmd to exit debugger)
+                release_debugger();
+            } /* else: exit the ISR, let the app continue, until it calls ENERGY_GUARD_END */
             break;
         case STATE_SUSPENDED: // debugger finished restoring the energy level
             set_state(STATE_IDLE); // return to the application code
@@ -516,18 +529,35 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
 
             handle_debugger_signal();
 
-            // Before unmasking the signal interrupt, disable interrupts
-            // globally in order to not let the next signal interrupt happen
-            // until either we are asleep in Case SUSPENDED, or until we return
-            // from this ISR in Case IDLE.
-            __disable_interrupt();
-
-            // We unmask the signal interrupt now, but global interrupts are still disabled
-            unmask_debugger_signal();
-
             /* Power state manipulation is required to be inside the ISR */
             switch (state) {
+                case STATE_DEBUG: /* IDLE->DEBUG just happend: entered energy guard */
+
+                    // We clear the sleep flags corresponding to the sleep on request
+                    // to enter debug mode here, and do not touch them in the DEBUG->SUSPENDED
+                    // transition because when upon exiting from the guard we will
+                    // not be asleep.
+                    if (debug_flags & DEBUG_REQUESTED_BY_TARGET) {
+                        debug_flags &= ~DEBUG_REQUESTED_BY_TARGET;
+                        __bic_SR_register_on_exit(DEBUG_MODE_REQUEST_WAIT_STATE_BITS);
+                    }
+
+                    // Leave the debugger signal masked. The next thing that will
+                    // happen in the sequence is us signaling the debugger when
+                    // we are exiting the energy guard.
+
+                    // Once we return from this ISR, the application continues with
+                    // continuous power on and the debugger in DEBUG state.
+                    break;
+
                 case STATE_SUSPENDED: /* DEBUG->SUSPENDED just happened */
+                    // Before unmasking the signal interrupt, disable interrupts
+                    // globally in order to not let the next signal interrupt happen
+                    // until we are asleep. Unmasking won't let the interrupt
+                    // call the ISR.
+                    __disable_interrupt();
+                    unmask_debugger_signal();
+
                     __bis_SR_register(DEBUG_MODE_EXIT_WAIT_STATE_BITS | GIE); // go to sleep
 
                     // We will get here after the next ISR (IDLE case) returns
@@ -547,7 +577,15 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
                     }
                     // Once we return from this outer ISR, application execution resumes
                     break;
+
                 case STATE_IDLE: /* SUSPENDED->IDLE just happened */
+
+                    // Before unmasking the signal interrupt, disable
+                    // interrupts globally in order to not let the next signal
+                    // interrupt happen until either we return from this ISR.
+                    // Unmasking won't let the interrupt call the ISR.
+                    __disable_interrupt();
+                    unmask_debugger_signal();
 
                     // We were sleeping on the suspend line in the case above when
                     // the current ISR got called, so before returning, clear the

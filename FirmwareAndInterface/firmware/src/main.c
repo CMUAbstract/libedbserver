@@ -49,6 +49,10 @@
 #define FLAG_INTERRUPTED     		0x0100 //!< target is in active debug mode
 /** @} End MAIN_FLAG_DEFINES */
 
+#define DEBUG_MODE_INTERACTIVE      0x0001
+#define DEBUG_MODE_WITH_UART        0x0002
+#define DEBUG_MODE_WITH_I2C         0x0004
+
 /**
  * @defgroup    LOG_DEFINES     Logging flags
  * @brief       Flags to set in a bit mask to check which ADC readings to log
@@ -156,6 +160,7 @@ static uint8_t log_flags = 0; // bit mask containing active log values to send v
 
 static state_t state = STATE_IDLE;
 static comparator_op_t comparator_op = CMP_OP_NONE;
+static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
 
 static uint16_t adc12Target; // target ADC reading
 static interrupt_context_t interrupt_context;
@@ -547,35 +552,51 @@ static void handle_target_signal()
             // for the target to start listening for the interrupt
             enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ);
             break;
+
         case STATE_ENTERING:
             // WISP has entered debug main loop
             set_state(STATE_DEBUG);
             GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-            UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
-            I2C_setup();
-            flags |= FLAG_INTERRUPTED; // main loop notifies the host
-            // leave target signal masked: no requests originate from the target
-            // in active debug mode
+
+            if (debug_mode_flags & DEBUG_MODE_WITH_UART)
+                UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
+            if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
+                I2C_setup();
+
+            if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
+                  flags |= FLAG_INTERRUPTED; // main loop notifies the host
+
+            unmask_target_signal(); // listen because target *may* request to exit active debug mode
             break;
-        case STATE_EXITING:
+
+        case STATE_EXITING: // Targed acknowledged our request to exit debug mode
+        case STATE_DEBUG: // Target requested to exit debug mode
             // WISP has shutdown UART and is asleep waiting for int to resume
-            UART_teardown(UART_INTERFACE_WISP);
-            I2C_teardown();
+            if (debug_mode_flags & DEBUG_MODE_WITH_UART)
+                UART_teardown(UART_INTERFACE_WISP);
+            if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
+                I2C_teardown();
+
             continuous_power_off();
             restored_vcap = discharge_adc(interrupt_context.saved_vcap); // restore energy level
-            send_vcap(restored_vcap); // TODO: take this out of the critical path
+
+            if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
+                send_vcap(restored_vcap); // TODO: take this out of the critical path
 
             interrupt_context.type = INTERRUPT_TYPE_NONE;
             interrupt_context.id = 0;
             interrupt_context.saved_vcap = 0;
+
+            debug_mode_flags = 0;
 
             GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
             set_state(STATE_IDLE);
             signal_target(); // tell target to continue execution
             unmask_target_signal(); // target may request to enter active debug mode
             break;
+
         default:
-            // received an unexpected signal
+            error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
 }

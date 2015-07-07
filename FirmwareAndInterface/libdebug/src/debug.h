@@ -31,6 +31,7 @@ typedef enum {
     INTERRUPT_TYPE_BREAKPOINT,
     INTERRUPT_TYPE_ENERGY_BREAKPOINT,
     INTERRUPT_TYPE_ASSERT,
+    INTERRUPT_TYPE_ENERGY_GUARD, // not a true interrupt: execution continues immediately
 } interrupt_type_t;
 
 #define DEBUG_UART_BUF_LEN				2
@@ -194,9 +195,17 @@ void request_debug_mode(interrupt_type_t int_type, uint8_t id);
 #define ASSERT(idx, cond) \
     if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, idx)
 
+#define ENERGY_GUARD_BEGIN() request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0)
+#define ENERGY_GUARD_END() resume_application()
+
 /**
  * @brief	Initialize pins used by the debugger board
  */
 void debug_setup();
+
+/**
+ * @brief Initiate disconnection from debugger to eventually resume application
+ */
+void resume_application();
 
 #endif
