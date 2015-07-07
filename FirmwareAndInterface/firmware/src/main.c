@@ -236,8 +236,9 @@ static void signal_target()
  */
 static void unmask_target_signal()
 {
-    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
     GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
 }
 
 /**
