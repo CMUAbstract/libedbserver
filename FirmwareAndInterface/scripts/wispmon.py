@@ -193,27 +193,8 @@ class WispMonitor:
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
                 self.rxPkt.descriptor = buf.pop(0) # get descriptor byte
                 minBufLen -= 1
-                if(self.rxPkt.descriptor in (USB_RSP_SET_POWER_COMPLETE,
-                                             USB_RSP_RELEASE_POWER_COMPLETE,
-                                             USB_RSP_TAG_PWR, USB_RSP_RF_TX)):
-                    # no additional data is needed
-                    self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    return True # packet construction succeeded
-                elif(self.rxPkt.descriptor in (USB_RSP_RETURN_CODE,
-                                USB_RSP_VOLTAGE, USB_RSP_VOLTAGES,
-                                USB_RSP_ADDRESS, USB_RSP_WISP_MEMORY,
-                                USB_RSP_RF_RX,
-                                USB_RSP_UART_WISP_TO_MONITOR, USB_RSP_UART_MONITOR_TO_WISP,
-                                USB_RSP_TAG_PWR, USB_RSP_TIME, USB_RSP_VINJ,
-                                USB_RSP_INTERRUPTED, USB_RSP_SERIAL_ECHO)):
-                    # additional data is needed to complete the packet
-                    self.rxPkt.constructState = CONSTRUCT_STATE_DATA_LEN
-                    continue
-                else:
-                    # unknown message descriptor
-                    self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    raise Exception("packet construction failed: unknown msg descriptor: " +
-                            str(self.rxPkt.descriptor))
+                self.rxPkt.constructState = CONSTRUCT_STATE_DATA_LEN
+                continue
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA_LEN):
                 self.rxPkt.length = buf.pop(0) # get data length
                 minBufLen -= 1
@@ -245,12 +226,7 @@ class WispMonitor:
     #                    = bytearray([0x82, 0x0A])
     def sendCmd(self, descriptor, data=[]):
         serialMsg = bytearray([UART_USB_IDENTIFIER, descriptor])
-        
-        dataLen = len(data)
-        
-        if(dataLen > 0):
-            serialMsg += bytearray([dataLen]) + bytearray(data)
-        
+        serialMsg += bytearray([len(data)]) + bytearray(data)
         self.serial.write(serialMsg)
 
     def receive(self):

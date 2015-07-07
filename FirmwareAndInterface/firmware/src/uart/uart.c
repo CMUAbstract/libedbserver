@@ -238,97 +238,20 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             // copy descriptor
             uartBuf_copyFrom(uartBuf, &(pkt->descriptor), sizeof(uint8_t));
             minUartBufLen -= sizeof(uint8_t);
-
-            // TODO: parser should not be aware of specific commands
-            // check if additional data is needed for this message
-            if(interface == UART_INTERFACE_USB) {
-				switch(pkt->descriptor)
-				{
-				case USB_CMD_RELEASE_POWER:
-				case USB_CMD_ENTER_ACTIVE_DEBUG:
-				case USB_CMD_EXIT_ACTIVE_DEBUG:
-				case USB_CMD_GET_WISP_PC:
-				case USB_CMD_LOG_RF_RX_BEGIN:
-				case USB_CMD_LOG_RF_RX_END:
-				case USB_CMD_LOG_RF_TX_BEGIN:
-				case USB_CMD_LOG_RF_TX_END:
-				case USB_CMD_LOG_WISP_UART_BEGIN:
-				case USB_CMD_LOG_WISP_UART_END:
-				case USB_CMD_ENABLE_PORT_INT_TAG_PWR:
-				case USB_CMD_DISABLE_PORT_INT_TAG_PWR:
-				case USB_CMD_PWM_ON:
-				case USB_CMD_PWM_OFF:
-				case USB_CMD_PWM_HIGH:
-				case USB_CMD_PWM_LOW:
-				case USB_CMD_MONITOR_MARKER_BEGIN:
-				case USB_CMD_MONITOR_MARKER_END:
-				case USB_CMD_RESET_STATE:
-				case USB_CMD_INTERRUPT:
-					// no additional data is needed
-					// mark this packet as unprocessed
-					pkt->processed = 0;
-					state = CONSTRUCT_STATE_IDENTIFIER;
-					return 0;   // packet construction succeeded
-				case USB_CMD_SENSE:                 // expectin channel index
-				case USB_CMD_STREAM_BEGIN:          // expecting channel list
-				case USB_CMD_STREAM_END:            // expecting channel list
-				case USB_CMD_SET_VCAP:				// expecting 2 data bytes (ADC reading)
-				case USB_CMD_SET_VBOOST:			// expecting 2 data bytes (ADC reading)
-				case USB_CMD_SET_VREG:				// expecting 2 data bytes (ADC reading)
-				case USB_CMD_SET_VRECT:				// expecting 2 data bytes (ADC reading)
-				case USB_CMD_CHARGE:                // expecting 2 data bytes (target voltage)
-				case USB_CMD_DISCHARGE:             // expecting 2 data bytes (target voltage)
-				case USB_CMD_SEND_RF_TX_DATA:
-				case USB_CMD_SET_PWM_FREQUENCY:		// expecting 2 data bytes (TB0CCR0 register)
-				case USB_CMD_SET_PWM_DUTY_CYCLE:	// expecting 2 data bytes (TB0CCR1 register)
-				case USB_CMD_BREAK_AT_VCAP_LEVEL:	// expecting 2 data bytes (voltage level)
-				case USB_CMD_READ_MEM:	            // expecting 2 data bytes (mem address)
-				case USB_CMD_WRITE_MEM:	            // expecting 3 data bytes (mem address, value)
-				case USB_CMD_CONT_POWER:            // expecting 1 data byte  (on/off value)
-				case USB_CMD_BREAKPOINT:            // expecting 2 data byte  (index, en/dis value)
-				case USB_CMD_CHARGE_CMP:            // expecting 2 data bytes (target voltage)
-				case USB_CMD_DISCHARGE_CMP:         // expecting 2 data bytes (target voltage)
-				case USB_CMD_GET_INTERRUPT_CONTEXT: // expecting 1 data byte  (ask target)
-				case USB_CMD_SERIAL_ECHO:           // expecting 1 data byte  (value to encode)
-					// additional data is needed
-					state = CONSTRUCT_STATE_DATA_LEN;
-					break;
-				default:
-					// unknown message descriptor
-					pkt->processed = 1; // reset packet processed state
-					state = CONSTRUCT_STATE_IDENTIFIER;
-					return 1;   // packet construction failed
-				}
-            } else if(interface == UART_INTERFACE_WISP) {
-            	switch(pkt->descriptor)
-            	{
-            	case WISP_RSP_BREAKPOINT:
-            	case WISP_RSP_SERIAL_ECHO:
-					// no additional data is needed
-					// mark this packet as unprocessed
-					pkt->processed = 0;
-					state = CONSTRUCT_STATE_IDENTIFIER;
-                    return 0; // packet construction succeeded
-            	case WISP_RSP_ADDRESS:
-            	case WISP_RSP_MEMORY:
-            	case WISP_RSP_INTERRUPT_CONTEXT:
-            		// additional data is needed
-            		state = CONSTRUCT_STATE_DATA_LEN;
-            		break;
-            	default:
-            		// unknown message descriptor
-            		pkt->processed = 1; // reset packet processed state
-            		state = CONSTRUCT_STATE_IDENTIFIER;
-            		return 1; // packet construction failed
-            	}
-            }
+            state = CONSTRUCT_STATE_DATA_LEN;
             break;
         case CONSTRUCT_STATE_DATA_LEN:
         {
             // copy length
             uartBuf_copyFrom(uartBuf, &(pkt->length), sizeof(uint8_t));
             minUartBufLen -= sizeof(uint8_t);
-            state = CONSTRUCT_STATE_DATA;
+            if (pkt->length > 0) {
+                state = CONSTRUCT_STATE_DATA;
+            } else { // done
+                pkt->processed = 0;
+                state = CONSTRUCT_STATE_IDENTIFIER;
+                return 0;   // packet construction succeeded
+            }
             break;
         }
         case CONSTRUCT_STATE_DATA:
@@ -376,11 +299,7 @@ void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
     }
 
     msg[msg_len++] = descriptor;
-
-    // if there's no data, we don't need to send the length of data
-    if(data_len != 0) {
-        msg[msg_len++] = data_len;
-    }
+    msg[msg_len++] = data_len;
 
     while(data_len > 0) {
         msg[msg_len++] = *data++;

@@ -401,6 +401,7 @@ static void execute_cmd(cmd_t *cmd)
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_BREAKPOINT;
+            tx_buf[msg_len++] = 0;
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
             break;
@@ -471,37 +472,19 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
                 data_len = 0;
                 cmd->descriptor = msg[i];
                 cmd->len = 0;
-
-                // TODO: info about whether there is more data or not should be
-                // implicit in the length field. This function should be agnostic
-                // to actual descriptor values cmds.
-                switch(msg[i])
-                {
-                    // cmds without any data
-                    case WISP_CMD_GET_PC:
-                    case WISP_CMD_EXAMINE_MEMORY:
-                    case WISP_CMD_EXIT_ACTIVE_DEBUG:
-                    case WISP_CMD_GET_INTERRUPT_CONTEXT:
-                        msg_state = MSG_STATE_IDENTIFIER;
-                        return true;
-
-                        // cmds with data
-                    case WISP_CMD_READ_MEM:
-                    case WISP_CMD_WRITE_MEM:
-                    case WISP_CMD_BREAKPOINT:
-                    case WISP_CMD_SERIAL_ECHO:
-                        msg_state = MSG_STATE_DATALEN;
-                        break;
-
-                    default: // unknown cmd
-                        break;
-                }
+                msg_state = MSG_STATE_DATALEN;
                 break;
 
             case MSG_STATE_DATALEN:
                 data_len = msg[i]; // decremented as data bytes are parsed
-                msg_state = MSG_STATE_DATA;
+                if (data_len) {
+                    msg_state = MSG_STATE_DATA;
+                } else { // done
+                    msg_state = MSG_STATE_IDENTIFIER;
+                    return true;
+                }
                 break;
+
             case MSG_STATE_DATA:
                 if (data_len)
                     cmd->data[cmd->len++] = msg[i];
@@ -510,6 +493,7 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
                     return true;
                 }
                 break;
+
             default:
                 break;
         }
@@ -525,7 +509,6 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
 static void debug_main()
 {
     cmd_t cmd = { .data = cmd_data_buf };
-
 #ifdef LED_IN_DEBUG_STATE
     PLED2OUT |= PIN_LED2;
 #endif
