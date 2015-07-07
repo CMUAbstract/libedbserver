@@ -111,6 +111,7 @@ USB_CMD_INTERRUPT                    = 0x36
 USB_CMD_CHARGE_CMP                   = 0x37
 USB_CMD_DISCHARGE_CMP                = 0x38
 USB_CMD_GET_INTERRUPT_CONTEXT        = 0x39
+USB_CMD_SERIAL_ECHO                  = 0x40
 
 # Serial receive message descriptors
 USB_RSP_VOLTAGE                      = 0x01
@@ -128,6 +129,7 @@ USB_RSP_TIME                         = 0x0D
 USB_RSP_VINJ                         = 0x0E
 USB_RSP_RETURN_CODE                  = 0x0F
 USB_RSP_INTERRUPTED                  = 0x10
+USB_RSP_SERIAL_ECHO                  = 0x11
 
 RETURN_CODE_SUCCESS                  = 0x0
 RETURN_CODE_INVALID_ARGS             = 0x1
@@ -203,7 +205,7 @@ class WispMonitor:
                                 USB_RSP_RF_RX,
                                 USB_RSP_UART_WISP_TO_MONITOR, USB_RSP_UART_MONITOR_TO_WISP,
                                 USB_RSP_TAG_PWR, USB_RSP_TIME, USB_RSP_VINJ,
-                                USB_RSP_INTERRUPTED)):
+                                USB_RSP_INTERRUPTED, USB_RSP_SERIAL_ECHO)):
                     # additional data is needed to complete the packet
                     self.rxPkt.constructState = CONSTRUCT_STATE_DATA_LEN
                     continue
@@ -291,6 +293,9 @@ class WispMonitor:
             elif self.rxPkt.descriptor == USB_RSP_ADDRESS:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
+
+            elif self.rxPkt.descriptor == USB_RSP_SERIAL_ECHO:
+                pkt["value"] = self.rxPkt.data[0]
 
             return pkt
 
@@ -475,6 +480,12 @@ class WispMonitor:
         cmd_data = [on]
         self.sendCmd(USB_CMD_CONT_POWER, data=cmd_data)
         self.receive_reply(USB_RSP_RETURN_CODE)
+
+    def serial_echo(self, value):
+        cmd_data = [value]
+        self.sendCmd(USB_CMD_SERIAL_ECHO, data=cmd_data)
+        reply = self.receive_reply(USB_RSP_SERIAL_ECHO)
+        return reply["value"]
 
 
 class RxPkt():

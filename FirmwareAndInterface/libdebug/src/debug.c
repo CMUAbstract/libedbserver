@@ -22,6 +22,19 @@
 #define DEBUG_MODE_REQUEST_WAIT_STATE_BITS      LPM0_bits
 #define DEBUG_MODE_EXIT_WAIT_STATE_BITS         LPM0_bits
 
+// TODO: unify headers with debugger side
+/**
+ * @defgroup DEBUG_MODE_FLAGS   Debug mode flags
+ * @brief Flags that define functionality in debug mode
+ * @{
+ */
+#define DEBUG_MODE_INTERACTIVE      0x01
+#define DEBUG_MODE_WITH_UART        0x02
+#define DEBUG_MODE_WITH_I2C         0x04
+/** @} End DEBUG_MODE_FLAGS */
+
+#define DEBUG_MODE_FULL_FEATURES    (~0x00)
+
 #define LED_IN_DEBUG_STATE
 
 #define TX_BUF_SIZE 16
@@ -61,6 +74,7 @@ typedef struct {
 typedef struct {
     interrupt_type_t type;
     uint8_t id;
+    uint8_t features;
 } interrupt_context_t;
 
 static state_t state = STATE_OFF;
@@ -107,6 +121,47 @@ static void signal_debugger()
     GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
 }
 
+static void signal_debugger_with_data(uint8_t data)
+{
+    uint8_t bit;
+
+    // target signal line starts in high imedence state
+
+    // starting pulse
+    GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);        // output high
+    GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);        // output enable
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
+
+    // Need constant and short time between bits, so no loops or conditionals
+#define PULSE_BIT(idx) \
+    __delay_cycles(CONFIG_SIG_SERIAL_BIT_DURATION); \
+    bit = (data >> idx) & 0x1; \
+    GPIO(PORT_SIG, OUT) |= bit << PIN_SIG; \
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG); \
+
+#if CONFIG_SIG_SERIAL_NUM_BITS > 3
+    PULSE_BIT(3);
+#endif
+#if CONFIG_SIG_SERIAL_NUM_BITS > 2
+    PULSE_BIT(2);
+#endif
+#if CONFIG_SIG_SERIAL_NUM_BITS > 1
+    PULSE_BIT(1);
+#endif
+#if CONFIG_SIG_SERIAL_NUM_BITS > 0
+    PULSE_BIT(0);
+#endif
+
+    // terminating pulse: must happen after the interval for the last bit elapses
+    __delay_cycles(CONFIG_SIG_SERIAL_BIT_DURATION); // ignore the few compute instructions
+    GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);        // output high
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);    // output low
+
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+}
+
+
 static void unmask_debugger_signal()
 {
     GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
@@ -119,32 +174,7 @@ static void mask_debugger_signal()
     GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
 
-static void enter_debug_mode()
-{
-    __enable_interrupt();
-
-#if 0 // TODO: save
-    // save clock configuration
-    clkInfo.CSCTL0 = CSCTL0;
-    clkInfo.CSCTL1 = CSCTL1;
-    clkInfo.CSCTL2 = CSCTL2;
-    clkInfo.CSCTL3 = CSCTL3;
-#endif
-
-    // set up 8 MHz clock for UART drivers
-    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-    CSCTL1 = DCOFSEL_6;                       // Set DCO to 8MHz
-    CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
-                                              // ACLK = VLOCLK
-    CSCTL3 = DIVA__1 | DIVS__1 | DIVM__1;     // Set all dividers to 1
-    CSCTL0_H = 0;                             // Lock CS registers
-
-    UART_init(); // enable UART
-
-    set_state(STATE_DEBUG);
-}
-
-void exit_debug_mode()
+static void UART_teardown()
 {
     // disable UART
     // Not sure how to do this best, but set all UCA0* registers to
@@ -162,6 +192,46 @@ void exit_debug_mode()
     UCA0MCTLW = 0x0000;
     UCA0IE = 0x0000;
     UCA0IFG = 0x0000;
+}
+
+static void clear_interrupt_context()
+{
+    interrupt_context.type = INTERRUPT_TYPE_NONE;
+    interrupt_context.id = 0;
+    interrupt_context.features = 0;
+}
+
+static void enter_debug_mode()
+{
+    __enable_interrupt();
+
+#if 0 // TODO: save
+    // save clock configuration
+    clkInfo.CSCTL0 = CSCTL0;
+    clkInfo.CSCTL1 = CSCTL1;
+    clkInfo.CSCTL2 = CSCTL2;
+    clkInfo.CSCTL3 = CSCTL3;
+#endif
+
+    // Switch to a faster clock (strictly necessary for UART drivers, but we do
+    // it always too reduce time overhead)
+    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
+    CSCTL1 = DCOFSEL_6;                       // Set DCO to 8MHz
+    CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
+                                              // ACLK = VLOCLK
+    CSCTL3 = DIVA__1 | DIVS__1 | DIVM__1;     // Set all dividers to 1
+    CSCTL0_H = 0;                             // Lock CS registers
+
+    if (interrupt_context.features & DEBUG_MODE_WITH_UART)
+        UART_init();
+
+    set_state(STATE_DEBUG);
+}
+
+void exit_debug_mode()
+{
+    if (interrupt_context.features & DEBUG_MODE_WITH_UART)
+        UART_teardown();
 
     // restore clock configuration
     CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
@@ -177,9 +247,7 @@ void exit_debug_mode()
 #endif
     CSCTL0_H = 0;                             // Lock CS registers
 
-    // reset state for cleanliness
-    interrupt_context.type = INTERRUPT_TYPE_NONE;
-    interrupt_context.id = 0;
+    clear_interrupt_context();
 }
 
 void request_debug_mode(interrupt_type_t int_type, uint8_t int_id)
@@ -195,6 +263,15 @@ void request_debug_mode(interrupt_type_t int_type, uint8_t int_id)
     debug_flags |= DEBUG_REQUESTED_BY_TARGET;
     interrupt_context.type = int_type;
     interrupt_context.id = int_id;
+
+    switch (int_type) {
+        case INTERRUPT_TYPE_ENERGY_GUARD:
+            interrupt_context.features = 0;
+            break;
+        default:
+            interrupt_context.features = DEBUG_MODE_FULL_FEATURES;
+            break;
+    }
 
     mask_debugger_signal();
     signal_debugger();
@@ -344,6 +421,22 @@ static void execute_cmd(cmd_t *cmd)
             UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
             break;
 
+        case WISP_CMD_SERIAL_ECHO: {
+            uint8_t echo_value = cmd->data[0];
+
+            mask_debugger_signal();
+            signal_debugger_with_data(echo_value);
+            unmask_debugger_signal();
+
+            msg_len = 0;
+            tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
+            tx_buf[msg_len++] = WISP_RSP_SERIAL_ECHO;
+            tx_buf[msg_len++] = 0;
+
+            UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
+            break;
+        }
+
         default: // invalid cmd
             break;
     }
@@ -396,6 +489,7 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
                     case WISP_CMD_READ_MEM:
                     case WISP_CMD_WRITE_MEM:
                     case WISP_CMD_BREAKPOINT:
+                    case WISP_CMD_SERIAL_ECHO:
                         msg_state = MSG_STATE_DATALEN;
                         break;
 
@@ -456,14 +550,22 @@ static inline void handle_debugger_signal()
 {
     switch (state) {
         case STATE_IDLE: // debugger requested us to enter debug mode
-            enter_debug_mode();
-            signal_debugger();
 
-            if (interrupt_context.type != INTERRUPT_TYPE_ENERGY_GUARD) {
+            // If entering debug mode on debugger's initiative (i.e. when we
+            // didn't request it), then need to set the features.
+            if (interrupt_context.type == INTERRUPT_TYPE_NONE) {
+                interrupt_context.type = INTERRUPT_TYPE_DEBUGGER_REQ;
+                interrupt_context.features = DEBUG_MODE_FULL_FEATURES;
+            }
+
+            enter_debug_mode();
+            signal_debugger_with_data(interrupt_context.features);
+
+            if (interrupt_context.features & DEBUG_MODE_INTERACTIVE) {
                 debug_main();
                 // debug loop exited (due to UART cmd to exit debugger)
                 release_debugger();
-            } /* else: exit the ISR, let the app continue, until it calls ENERGY_GUARD_END */
+            } // else: exit the ISR, let the app continue in tethered mode
             break;
         case STATE_SUSPENDED: // debugger finished restoring the energy level
             set_state(STATE_IDLE); // return to the application code

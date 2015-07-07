@@ -176,6 +176,10 @@ def cmd_write(mon, addr, *value):
 def cmd_pc(mon):
     print "0x%08x" % mon.get_pc()
 
+def cmd_secho(mon, value):
+    value = int(value, 16)
+    print mon.serial_echo(value)
+
 def print_prompt(active_mode=False):
     if active_mode:
         print "*> ",

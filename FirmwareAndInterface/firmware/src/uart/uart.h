@@ -120,6 +120,7 @@
 #define USB_CMD_CHARGE_CMP                      0x37 //!< charge Vcap to given level using comparator
 #define USB_CMD_DISCHARGE_CMP                   0x38 //!< discharge Vcap to given level using comparator
 #define USB_CMD_GET_INTERRUPT_CONTEXT           0x39 //!< ask why target interrupted execution
+#define USB_CMD_SERIAL_ECHO                     0x40 //!< test communication with WISP via serial encoding over the signal line
 /** @} End USB_CMD */
 
 /**
@@ -143,6 +144,7 @@
 #define USB_RSP_VINJ							0x0E //!< message containing Vinj ADC12 reading
 #define USB_RSP_RETURN_CODE                     0x0F //!< message containing a return code indicating success or failure
 #define USB_RSP_INTERRUPTED                     0x10 //!< message sent upon entering debug mode (includes saved Vcap level)
+#define USB_RSP_SERIAL_ECHO                     0x11 //!< response to serial communication test
 
 /** @} End USB_RSP */
 /** @} End USB_MSG_DESCRIPTORS */
@@ -177,6 +179,7 @@
 #define WISP_CMD_WRITE_MEM         				0x04 //!< write memory contents at an address
 #define WISP_CMD_BREAKPOINT        				0x05 //!< enable/disable target-side breakpoint
 #define WISP_CMD_GET_INTERRUPT_CONTEXT          0x06 //!< get the reason execution was interrupted
+#define WISP_CMD_SERIAL_ECHO                    0x07 //!< send serially encoded data over signal line
 /** @} End WISP_CMD */
 
 /**
@@ -189,6 +192,7 @@
 #define WISP_RSP_MEMORY							0x01 //!< message containing requested memory content
 #define WISP_RSP_BREAKPOINT			            0x02 //!< message acknowledging breakpoint cmd
 #define WISP_RSP_INTERRUPT_CONTEXT              0x03 //!< reason execution was interrupted
+#define WISP_RSP_SERIAL_ECHO                    0x04 //!< response to the serial test request
 /** @} End WISP_RSP */
 
 /** @} End WISP_MSG_DESCRIPTORS */
