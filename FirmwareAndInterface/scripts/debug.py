@@ -3,6 +3,9 @@
 import sys
 import traceback
 import wispmon
+import os
+import atexit
+import readline # loading this causes raw_input to offer a rich prompt
 
 monitor = None
 active_mode = False
@@ -180,17 +183,28 @@ def cmd_secho(mon, value):
     value = int(value, 16)
     print mon.serial_echo(value)
 
-def print_prompt(active_mode=False):
+def compose_prompt(active_mode):
     if active_mode:
-        print "*> ",
-    else:
-        print "> ",
+        return "*> "
+    return "> "
+
+cmd_hist_file = os.path.join(os.path.expanduser("~"), ".wispmon_history")
+try:
+    readline.read_history_file(cmd_hist_file)
+except IOError:
+    pass
+atexit.register(readline.write_history_file, cmd_hist_file)
 
 while True:
-    print_prompt(active_mode)
-    line = sys.stdin.readline()
-    if len(line) == 0: # EOF
+    try:
+        line = raw_input(compose_prompt(active_mode))
+    except EOFError:
+        print # print a newline to be nice to the shell
         break
+    except KeyboardInterrupt:
+        print # move to next line
+        continue
+
     line = line.strip()
     if len(line) == 0: # new-line character only (blank command)
         continue
