@@ -7,10 +7,15 @@
 
 #include <stdint.h>
 #include <msp430.h>
-#include "uart.h"
+
+#include <libdebug/target_comm.h>
+
+#include "host_comm.h"
 #include "minmax.h"
 #include "pin_assign.h"
 #include "config.h"
+
+#include "uart.h"
 
 #define BRS_BITS_INNER(brs) UCBRS_ ## brs
 #define BRS_BITS(brs) BRS_BITS_INNER(brs)
@@ -224,8 +229,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
         case CONSTRUCT_STATE_IDENTIFIER:
             // copy identifier to packet structure
             uartBuf_copyFrom(uartBuf, &(pkt->identifier), sizeof(uint8_t));
-            if(pkt->identifier != UART_USB_IDENTIFIER &&
-                                    pkt->identifier != UART_WISP_IDENTIFIER) {
+            if(pkt->identifier != UART_IDENTIFIER_USB &&
+                                    pkt->identifier != UART_IDENTIFIER_WISP) {
                 // unknown identifier
                 pkt->processed = 1; // reset packet processed state
                 state = CONSTRUCT_STATE_IDENTIFIER;
@@ -287,11 +292,11 @@ void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
     switch(interface)
     {
     case UART_INTERFACE_USB:
-        msg[msg_len++] = UART_USB_IDENTIFIER;
+        msg[msg_len++] = UART_IDENTIFIER_USB;
         break;
 
     case UART_INTERFACE_WISP:
-        msg[msg_len++] = UART_WISP_IDENTIFIER;
+        msg[msg_len++] = UART_IDENTIFIER_WISP;
         break;
 
     default:

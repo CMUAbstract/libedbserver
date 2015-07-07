@@ -13,6 +13,7 @@
 #include "timeLog.h"
 #include "timer1.h"
 #include "uart.h"
+#include "host_comm.h"
 
 #define DATA_BUF_MAX_LEN							30
 

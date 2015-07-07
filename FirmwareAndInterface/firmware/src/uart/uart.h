@@ -8,22 +8,6 @@
 #ifndef UART_H
 #define UART_H
 
-#include <libdebug/target_comm.h>
-
-/**
- * @defgroup    UART_USAGE  UART
- * @brief       UART usage
- * @details     The UART message structure looks like this:\n
- *              | Byte                 | Name                  | Description                                                           |
- *              | -------------------- | --------------------- | --------------------------------------------------------------------- |
- *              | 0                    | @ref UART_IDENTIFIERS | Identifies this as a UART message                                     |
- *              | 1                    | Message descriptor    | See @ref UART_MSG_DESCRIPTORS                                             |
- *              | 2                    | Length                | Length of the upcoming data (optional)                                |
- *              | 3 to (2 + length)    | Data                  | Message data (optional)                                               |
- *
- * @{
- */
-
 /**
  * @defgroup    UART_INTERFACES UART interfaces
  * @brief       Available UART interfaces
@@ -45,15 +29,6 @@
 /** @} End UART_MACROS */
 
 /**
- * @defgroup    UART_IDENTIFIERS    UART identifiers
- * @brief       Identify a UART message as valid
- * @{
- */
-#define UART_USB_IDENTIFIER                     0xF0 //!< First byte of each valid USB message
-#define UART_WISP_IDENTIFIER                    0xF1 //!< First byte of each valid UART message with the WISP
-/** @} End UART_IDENTIFIERS */
-
-/**
  * @defgroup	UART_TX_FORCING		UART TX blocking
  * @brief		Used to indicate whether to block while sending
  * @{
@@ -63,106 +38,6 @@
 #define UART_TX_DROP							0 //!< If there's no space in the TX buffer, drop this packet
 
 /** @} End UART_TX_FORCING */
-
-/**
- * @defgroup    UART_MSG_DESCRIPTORS    UART message descriptors
- * @brief       Message descriptors defining the type of message being sent.
- * @{
- */
-
-/**
- * @defgroup    USB_MSG_DESCRIPTORS     USB message descriptors
- * @brief       Message descriptors specifically for use with the USB interface.
- * @{
- */
-
-/**
- * @defgroup    USB_CMD    USB command descriptors
- * @brief       Message descriptors sent from the computer to
- *              the WISP monitor over the USB interface.
- * @{
- */
-#define USB_CMD_SENSE                 			0x01 //!< Get ADC12 reading of Vcap
-#define USB_CMD_STREAM_BEGIN          			0x02 //!< Start streaming ADC12 readings continuously
-#define USB_CMD_STREAM_END            			0x03 //!< Stop stream ADC12 readings continuously
-#define USB_CMD_SET_VCAP                    	0x04 //!< Inject charge until Vcap has this ADC12 reading, length should be 2
-#define USB_CMD_SET_VBOOST                     	0x05 //!< Inject charge until Vboost has this ADC12 reading, length should be 2
-#define USB_CMD_SET_VREG                      	0x06 //!< Inject charge until Vreg has this ADC12 reading, length should be 2
-#define USB_CMD_SET_VRECT                     	0x07 //!< Inject charge until Vrect has this ADC12 reading, length should be 2
-#define USB_CMD_RELEASE_POWER                	0x08 //!< Release the hold on power state now
-#define USB_CMD_ENTER_ACTIVE_DEBUG             	0x09 //!< Enter active debug mode by triggering the WISP's port interrupt
-#define USB_CMD_EXIT_ACTIVE_DEBUG             	0x0A //!< Exit active debug mode
-#define USB_CMD_GET_WISP_PC                     0x0B //!< Get current program counter
-#define USB_CMD_LOG_RF_RX_BEGIN                 0x15 //!< Start streaming RF RX data over USB
-#define USB_CMD_LOG_RF_RX_END                   0x16 //!< Stop streaming RF RX data
-#define USB_CMD_LOG_RF_TX_BEGIN            		0x17 //!< Start streaming RF TX activity on the WISP
-#define USB_CMD_LOG_RF_TX_END              		0x18 //!< Stop streaming RF TX activity on the WISP
-#define USB_CMD_SEND_RF_TX_DATA                 0x19 //!< Have the monitor send RF TX data
-#define USB_CMD_LOG_WISP_UART_BEGIN             0x1A //!< Start streaming UART activity between the WISP and the monitor
-#define USB_CMD_LOG_WISP_UART_END               0x1B //!< Stop streaming UART activity
-#define USB_CMD_ENABLE_PORT_INT_TAG_PWR         0x1C //!< Enable port interrupts on AUX_2 and AUX_3 to tag the power trace for WISP execution
-#define USB_CMD_DISABLE_PORT_INT_TAG_PWR        0x1D //!< Disable port interrupts on AUX_2 and AUX_3
-#define USB_CMD_PWM_ON							0x1E //!< Turn charging PWM on
-#define USB_CMD_PWM_OFF							0x1F //!< Turn charging PWM off
-#define USB_CMD_SET_PWM_FREQUENCY				0x20 //!< Set PWM frequency in SMCLK cycles, length should be 2, default is 16
-#define USB_CMD_SET_PWM_DUTY_CYCLE				0x21 //!< Set PWM duty cycle in SMCLK cycles, length should be 2, default is 8
-#define USB_CMD_PWM_HIGH						0x24 //!< Set PWM pin to GPIO and output high
-#define USB_CMD_PWM_LOW							0x25 //!< Set PWM pin to GPIO and output low
-#define USB_CMD_MONITOR_MARKER_BEGIN            0x26 //!< Start periodically reading a code marker GPIO pin
-#define USB_CMD_MONITOR_MARKER_END              0x27 //!< Stop periodically reading a code marker GPIO pin
-#define USB_CMD_RESET_STATE                     0x28 //!< Reset the state machine
-#define USB_CMD_CHARGE                          0x29 //!< Charge WISP capacitor to a given level
-#define USB_CMD_DISCHARGE                       0x30 //!< Discharge WISP capacitor to a given level
-#define USB_CMD_BREAK_AT_VCAP_LEVEL             0x31 //!< Interrupt execution when Vcap reaches a given level
-#define USB_CMD_READ_MEM                        0x32 //!< Read memory contents at an address
-#define USB_CMD_WRITE_MEM                       0x33 //!< Write memory contents at an address
-#define USB_CMD_CONT_POWER                      0x34 //!< Turn on a continuous power supply to the target
-#define USB_CMD_BREAKPOINT                      0x35 //!< Enable/disable breakpoint
-#define USB_CMD_INTERRUPT                       0x36 //!< wait for target to be on and enter debug mode
-#define USB_CMD_CHARGE_CMP                      0x37 //!< charge Vcap to given level using comparator
-#define USB_CMD_DISCHARGE_CMP                   0x38 //!< discharge Vcap to given level using comparator
-#define USB_CMD_GET_INTERRUPT_CONTEXT           0x39 //!< ask why target interrupted execution
-#define USB_CMD_SERIAL_ECHO                     0x40 //!< test communication with WISP via serial encoding over the signal line
-/** @} End USB_CMD */
-
-/**
- * @defgroup    USB_RSP  USB response descriptors
- * @brief       Message descriptors sent from the WISP monitor
- *              to the computer over the USB interface.
- * @{
- */
-#define USB_RSP_VOLTAGE                     	0x01 //!< message containing an ADC12 voltage reading
-#define USB_RSP_VOLTAGES                    	0x02 //!< message containing an list of ADC12 voltage reading
-#define USB_RSP_SET_POWER_COMPLETE              0x04 //!< message signaling that the power level has been set, data = last measured voltage
-#define USB_RSP_RELEASE_POWER_COMPLETE          0x05 //!< message signaling that the power state has been released
-#define USB_RSP_ADDRESS                         0x06 //!< message containing the WISP program counter
-#define USB_RSP_WISP_MEMORY                     0x07 //!< message containing a WISP memory address and contents at that address
-#define USB_RSP_RF_RX                           0x08 //!< message containing RF RX data
-#define USB_RSP_RF_TX                      		0x09 //!< message containing RF TX data sent by the WISP
-#define USB_RSP_UART_WISP_TO_MONITOR            0x0A //!< message containing UART message sent from the WISP to the monitor
-#define USB_RSP_UART_MONITOR_TO_WISP            0x0B //!< message containing UART message sent from the monitor to the WISP
-#define USB_RSP_TAG_PWR                         0x0C //!< message signaling that the power trace has been tagged here
-#define USB_RSP_TIME							0x0D //!< message containing a relative time in current execution (careful: timer will overflow!)
-#define USB_RSP_VINJ							0x0E //!< message containing Vinj ADC12 reading
-#define USB_RSP_RETURN_CODE                     0x0F //!< message containing a return code indicating success or failure
-#define USB_RSP_INTERRUPTED                     0x10 //!< message sent upon entering debug mode (includes saved Vcap level)
-#define USB_RSP_SERIAL_ECHO                     0x11 //!< response to serial communication test
-
-/** @} End USB_RSP */
-/** @} End USB_MSG_DESCRIPTORS */
-
-/**
- * @defgroup    RETURN_CODE Return codes for return code message
- * @{
- */
-#define RETURN_CODE_SUCCESS 0
-#define RETURN_CODE_INVALID_ARGS 1
-#define RETURN_CODE_BUFFER_TOO_SMALL 2
-#define RETURN_CODE_COMM_ERROR 3
-#define RETURN_CODE_UNSUPPORTED 4
-/** @} End RETURN_CODE */
-
-/** @} End UART_MSG_DESCRIPTORS */
 
 #define UART_BUF_MAX_LEN                            64 //!< Maximum length of the UART buffers
 #define UART_BUF_MAX_LEN_WITH_TAIL					(UART_BUF_MAX_LEN + 1) //!< Add a byte because the tail should never point to a full byte
@@ -299,7 +174,5 @@ static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len);
  *              It will overwrite anything in its way.
  */
 static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, uint8_t len);
-
-/** @} End UART_USAGE */
 
 #endif // UART_H

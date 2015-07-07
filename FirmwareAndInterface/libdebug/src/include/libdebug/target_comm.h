@@ -2,6 +2,20 @@
 #define TARGET_COMM_H
 
 /**
+ * @defgroup    UART_PROTOCOL  UART interface
+ * @brief       UART usage
+ * @details     The UART message structure looks like this:\n
+ *              | Byte                 | Name                  | Description                            |
+ *              | -------------------- | --------------------- | -------------------------------------- |
+ *              | 0                    | UART identifier       | Identifies the source of the message   |
+ *              | 1                    | Message descriptor    | Identifies the message                 |
+ *              | 2                    | Length                | Length of the upcoming data            |
+ *              | 3 to (2 + length)    | Data                  | Message data (optional)                |
+ *
+ * @{
+ */
+
+/**
  * @brief A magic value prefix in every message comming from the target
  */
 #define UART_IDENTIFIER_WISP			0xF1
@@ -31,6 +45,8 @@ typedef enum {
     WISP_RSP_INTERRUPT_CONTEXT      = 0x03, //!< reason execution was interrupted
     WISP_RSP_SERIAL_ECHO            = 0x04, //!< response to the serial echo request
 } wisp_rsp_t;
+
+/** @} End UART_PROTOCOL */
 
 #define WISP_CMD_MAX_LEN 16
 

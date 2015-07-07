@@ -21,6 +21,7 @@
 #include <libdebug/target_comm.h>
 
 #include "pin_assign.h"
+#include "host_comm.h"
 #include "ucs.h"
 #include "adc12.h"
 #include "uart.h"
