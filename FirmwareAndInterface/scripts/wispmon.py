@@ -269,13 +269,13 @@ class WispMonitor:
 
     def cmp_ref_for_v(self, voltage):
         if voltage > 2.5:
-            ref = "vcc"
+            ref = "VCC"
         elif voltage > 2.0:
-            ref = "vref2.5"
+            ref = "VREF_2_5"
         elif voltage > 1.5:
-            ref = "vref2.0"
+            ref = "VREF_2_0"
         else:
-            ref = "vref1.5"
+            ref = "VREF_1_5"
         return ref
 
     def voltage_to_cmp(self, voltage):
@@ -368,7 +368,7 @@ class WispMonitor:
         if energy_level is not None:
             energy_level_cmp, cmp_ref = self.voltage_to_cmp(energy_level)
         else:
-            energy_level_cmp, cmp_ref = 0, "vcc"
+            energy_level_cmp, cmp_ref = 0, "VCC"
 
         self.sendCmd(USB_CMD['BREAKPOINT'],
                      data=[BREAKPOINT_TYPE[type], idx] + \
