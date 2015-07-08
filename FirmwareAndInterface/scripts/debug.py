@@ -46,7 +46,7 @@ def cmd_power(mon, state):
     mon.cont_power(state == "on")
 
 def cmd_sense(mon, channel):
-    print mon.sense(wispmon.ADC_CHANNEL_INDEX[channel])
+    print mon.sense(wispmon.ADC_CHAN_INDEX[channel.upper()])
 
 def cmd_stream(mon, out_file, duration_sec, *channels):
     if duration_sec == "-":
@@ -54,7 +54,7 @@ def cmd_stream(mon, out_file, duration_sec, *channels):
     else:
         duration_sec = float(duration_sec)
     print "chans=", channels
-    channel_indexes = map(lambda c: wispmon.ADC_CHANNEL_INDEX[c], channels)
+    channel_indexes = map(lambda c: wispmon.ADC_CHAN_INDEX[c.upper()], channels)
     print "chansidx=", channel_indexes
     if out_file == "-":
         fp = sys.stdout
@@ -136,14 +136,14 @@ def cmd_cont(mon):
 def cmd_ebreak(mon, target_voltage, impl="adc"):
     global active_mode
     target_voltage = float(target_voltage)
-    saved_vcap = mon.break_at_vcap_level(target_voltage, impl)
+    saved_vcap = mon.break_at_vcap_level(target_voltage, impl.upper())
     print "Vcap_saved = %.4f" % saved_vcap
     active_mode = True
 
 def cmd_break(mon, type, idx, op, energy_level=None):
     idx = int(idx)
     enable = "enable".startswith(op)
-    type = match_keyword(type, wispmon.BREAKPOINT_TYPE.keys())
+    type = match_keyword(type.upper(), wispmon.BREAKPOINT_TYPE.keys())
     energy_level = float(energy_level) if energy_level is not None else None
     mon.breakpoint(type, idx, enable, energy_level)
 
@@ -158,7 +158,7 @@ def cmd_wait(mon):
         pass
 
 def cmd_intctx(mon, source="debugger"):
-    source = match_keyword(source, wispmon.INTERRUPT_SOURCE)
+    source = match_keyword(source.upper(), wispmon.INTERRUPT_SOURCE)
     int_context = mon.get_interrupt_context(source)
     print_interrupt_context(int_context)
 

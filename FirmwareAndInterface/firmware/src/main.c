@@ -79,20 +79,6 @@
 #define COMP_PORT_DIS(idx) COMP_PORT_DIS_INNER(idx)
 
 /**
- * @brief   Assigns a permanent index to each ADC channels
- *
- * @details This maps a application's name for an ADC channel to an index
- *          understandable to the ADC12 driver in adc12.c.
- */
-typedef enum {
-    ADC_CHAN_INDEX_VCAP = 0,
-    ADC_CHAN_INDEX_VBOOST,
-    ADC_CHAN_INDEX_VREG,
-    ADC_CHAN_INDEX_VRECT,
-    ADC_CHAN_INDEX_VINJ,
-} adc_chan_index_t;
-
-/**
  * Debugger state machine states
  */
 typedef enum {
@@ -115,29 +101,10 @@ typedef enum {
 } comparator_op_t;
 
 typedef enum {
-    BREAKPOINT_TYPE_PASSIVE,
-    BREAKPOINT_TYPE_INTERNAL,
-    BREAKPOINT_TYPE_EXTERNAL,
-} breakpoint_type_t;
-
-/**
- * @brief Select which implementation to use for energy breakpoints
- */
-typedef enum {
-    ENERGY_BREAKPOINT_IMPL_ADC,
-    ENERGY_BREAKPOINT_IMPL_CMP,
-} energy_breakpoint_impl_t;
-
-typedef enum {
     CMP_EDGE_ANY,
     CMP_EDGE_FALLING,
     CMP_EDGE_RISING,
 } comparator_edge_t;
-
-typedef enum {
-    INTERRUPT_SOURCE_DEBUGGER = 0,
-    INTERRUPT_SOURCE_TARGET,
-} interrupt_source_t;
 
 typedef struct {
     interrupt_type_t type;

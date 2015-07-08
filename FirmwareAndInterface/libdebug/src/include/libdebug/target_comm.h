@@ -108,12 +108,12 @@ typedef enum {
  * @brief Reason target execution is interrupted
  */
 typedef enum {
-    INTERRUPT_TYPE_NONE = 0,
-    INTERRUPT_TYPE_DEBUGGER_REQ,
-    INTERRUPT_TYPE_TARGET_REQ,
-    INTERRUPT_TYPE_BREAKPOINT,
-    INTERRUPT_TYPE_ENERGY_BREAKPOINT,
-    INTERRUPT_TYPE_ENERGY_GUARD, // not a true interrupt: execution continues immediately
+    INTERRUPT_TYPE_NONE                     = 0,
+    INTERRUPT_TYPE_DEBUGGER_REQ             = 1,
+    INTERRUPT_TYPE_TARGET_REQ               = 2,
+    INTERRUPT_TYPE_BREAKPOINT               = 3,
+    INTERRUPT_TYPE_ENERGY_BREAKPOINT        = 4,
+    INTERRUPT_TYPE_ENERGY_GUARD             = 5, // not a true interrupt: execution continues immediately
 } interrupt_type_t;
 
 #endif // TARGET_COMM_H

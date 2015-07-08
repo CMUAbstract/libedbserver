@@ -105,4 +105,54 @@ typedef enum {
 
 /** @} End UART_PROTOCOL */
 
+/**
+ * @brief Specifies the type of breakpoint among ones supported
+ *
+ * @defails Several distict breakpoint mechanisms are supported
+ *          each with its own advantages and disadvantages. See
+ *          libdebug/debug.h for details.
+ */
+typedef enum {
+    BREAKPOINT_TYPE_PASSIVE                 = 0,
+    BREAKPOINT_TYPE_INTERNAL                = 1,
+    BREAKPOINT_TYPE_EXTERNAL                = 2,
+} breakpoint_type_t;
+
+/**
+ * @brief Select which implementation to use for energy breakpoints
+ */
+typedef enum {
+    ENERGY_BREAKPOINT_IMPL_ADC              = 0,
+    ENERGY_BREAKPOINT_IMPL_CMP              = 1,
+} energy_breakpoint_impl_t;
+
+/**
+ * @brief Specify the initiator who caused target execution to be interrupted
+ */
+typedef enum {
+    INTERRUPT_SOURCE_DEBUGGER               = 0,
+    INTERRUPT_SOURCE_TARGET                 = 1,
+} interrupt_source_t;
+
+/**
+ * @brief   Assigns a permanent index to each ADC channels
+ *
+ * @details This maps a application's name for an ADC channel to an index
+ *          understandable to the ADC12 driver in adc12.c.
+ */
+typedef enum {
+    ADC_CHAN_INDEX_VCAP                     = 0,
+    ADC_CHAN_INDEX_VBOOST                   = 1,
+    ADC_CHAN_INDEX_VREG                     = 2,
+    ADC_CHAN_INDEX_VRECT                    = 3,
+    ADC_CHAN_INDEX_VINJ                     = 4,
+} adc_chan_index_t;
+
+typedef enum {
+    CMP_REF_VCC                             = 0,
+    CMP_REF_VREF_2_5                        = 1,
+    CMP_REF_VREF_2_0                        = 2,
+    CMP_REF_VREF_1_5                        = 3,
+} comparator_ref_t;
+
 #endif // HOST_COMM_H
