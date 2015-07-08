@@ -10,14 +10,6 @@
 
 #include "uart.h"
 
-typedef enum {
-    CMP_REF_VCC = 0,
-    CMP_REF_VREF_2_5,
-    CMP_REF_VREF_2_0,
-    CMP_REF_VREF_1_5,
-} comparator_ref_t;
-
-
 /**
  * @brief   Execute a command received over USB
  * @param   pkt     UART packet containing message information

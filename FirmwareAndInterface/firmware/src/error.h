@@ -9,6 +9,7 @@ typedef enum {
     ERROR_UNEXPECTED_CODEPOINT,
     ERROR_UNEXPECTED_INTERRUPT,
     ERROR_INVALID_VALUE,
+    ERROR_ASSERT_FAIL,
 } error_t;
 
 /* @brief Blink led at a given rate indefinitely
@@ -22,5 +23,7 @@ typedef enum {
 
 /* @brief Report and handle error */
 void error(error_t num);
+
+#define ASSERT(cond) if (!(cond)) error(ERROR_ASSERT_FAIL);
 
 #endif

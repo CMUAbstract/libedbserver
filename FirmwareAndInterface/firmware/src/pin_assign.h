@@ -10,6 +10,9 @@
 #define INTFLAG_INNER(port, pin) P ## port ## IV_ ## P ## port ## IFG ## pin
 #define INTFLAG(port, pin) INTFLAG_INNER(port, pin)
 
+#define TIMER_INNER(name, reg) T ## name ## reg
+#define TIMER(name, reg) TIMER_INNER(name, reg)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
@@ -70,6 +73,10 @@
 #define NUM_CODEPOINT_PINS                      2
 #define WORKAROUND_FLIP_CODEPOINT_PINS // the hardware routing routes AUX1,AUX2 to pins out of order
 
+#define PORT_SERIAL_DECODE                      1 //!< GPIO port for serial decoder state
+#define PIN_SERIAL_DECODE_PULSE                 5 //!< input pulse trigged decoder interrupt
+#define PIN_SERIAL_DECODE_TIMER                 4 //!< decoder timer started, rolled over, or stopped
+
 /* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
 #define PIN_RF_TX                               1 //!< RF TX line
@@ -91,6 +98,10 @@
 #define PORT_I2C_TARGET                         4 //!< GPIO port with taps into target I2C lines
 #define PIN_I2C_TARGET_SDA                      1 //!< target I2C SDA line
 #define PIN_I2C_TARGET_SCL                      2 //!< target I2C SCL line
+
+// TODO: warning: timer shared with voltage logging code
+// NOTE: if changed, the ISR in main.c must also be changed
+#define TIMER_SIG_SERIAL_DECODE                 A2
 
 /** @} End PORTS */
 

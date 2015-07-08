@@ -80,6 +80,15 @@
  */
 // #define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
+
+/**
+ * @brief Route serial decoder events to external pins
+ * @details For testing and tuning decoding of serial protocol over the signal
+ *          line. Applies only to the USB_CMD_SERIAL_ECHO, not to regular
+ *          debug mode enter sequence.
+ */
+// #define CONFIG_SIG_SERIAL_DECODE_PINS
+
 // The rest essentially defines the register settings that carry out the above
 
 #define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)

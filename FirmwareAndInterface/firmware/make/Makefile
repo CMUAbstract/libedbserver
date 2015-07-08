@@ -10,6 +10,9 @@ LD = $(CG_TOOL_BIN)/cl430
 HEX = $(CG_TOOL_BIN)/hex430
 FLASHER := LD_LIBRARY_PATH=$(FLASHER_ROOT) $(FLASHER_ROOT)/MSP430Flasher
 
+# Debugger shares headers with libdebug since it communicates with the target
+LIBDEBUG_ROOT := ../../libdebug
+
 SRC_ROOT = ../src
 LD_SCRIPT = $(SRC_ROOT)/lnk_msp430f5340.cmd
 
@@ -38,6 +41,7 @@ CFLAGS = \
 	--preproc_with_compile \
 	--include_path="$(CG_TOOL_ROOT)/include" \
 	--include_path="$(PLATFORM_ROOT)/include" \
+	--include_path="$(LIBDEBUG_ROOT)/src/include" \
 	--include_path="$(SRC_ROOT)" \
 	--include_path="$(SRC_ROOT)/adc12" \
 	--include_path="$(SRC_ROOT)/gpio" \

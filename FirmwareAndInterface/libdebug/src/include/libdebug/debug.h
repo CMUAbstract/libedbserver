@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "pin_assign.h"
+#include "target_comm.h"
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
@@ -22,51 +23,16 @@
 // #define CONFIG_PASSIVE_BREAKPOINT_IMPL_C
 #define CONFIG_PASSIVE_BREAKPOINT_IMPL_ASM
 
-#define CONFIG_BREAKPOINT_TEST
-
-#define DEBUG_UART_BUF_LEN				2
-#define DEBUG_CMD_MAX_LEN               16
-
-#define UART_IDENTIFIER_WISP			0xF1
-
 /**
- * @defgroup	WISP_MSG_DESCRIPTORS	WISP UART message descriptors
- * @brief		Descriptors for UART communcation between the WISP and
- * 				debugger
- * @{
+ * @brief Size of the buffer for receiving bytes from the debugger via UART
+ *
+ * @details A read from the UART (a chunk that could be a part of the message
+ *          or multiple messages) goes into this buffer.  Currently the chunk
+ *          size is fixed at one byte, so this buffer size is not relevant.
  */
-
-/**
- * @defgroup	WISP_CMD				WISP command descriptors
- * @brief		Command descriptors sent from the debugger to the WISP.
- * @{
- */
-#define WISP_CMD_GET_PC					0x00 //!< get WISP program counter
-#define WISP_CMD_EXAMINE_MEMORY			0x01 //!< examine WISP memory
-#define WISP_CMD_EXIT_ACTIVE_DEBUG		0x02 //!< prepare to exit active debug mode
-#define WISP_CMD_READ_MEM               0x03 //!< read memory contents at an address
-#define WISP_CMD_WRITE_MEM              0x04 //!< read memory contents at an address
-#define WISP_CMD_BREAKPOINT             0x05 //!< enable/disable target-side breakpoint
-/** @} End WISP_CMD */
-
-/**
- * @defgroup	WISP_RSP				WISP response descriptors
- * @brief		Response descriptors sent from the WISP to the debugger.
- * @{
- */
-#define WISP_RSP_ADDRESS                0x00 //!< message containing program counter
-#define WISP_RSP_MEMORY					0x01 //!< message containing requested memory content
-#define WISP_RSP_BREAKPOINT             0x02 //!< message acknowledging breakpoint cmd
-/** @} End WISP_RSP */
-
-/** @} End WISP_MSG_DESCRIPTORS */
+#define CONFIG_DEBUG_UART_BUF_LEN				2
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
-
-/** @brief Latency between a code point marker GPIO setting and the signal to enter debug mode 
- *  @details The execution on the target continues for this long after the codepoint.
- */
-#define ENTER_DEBUG_MODE_LATENCY_CYCLES 100
 
 // The index argument to breakpoint macros identifies a breakpoint *group*.
 // All breakpionts in a group can be enabled/disabled together (not separately).
@@ -125,7 +91,7 @@
  */
 extern volatile uint16_t _libdebug_internal_breakpoints;
 
-void request_debug_mode();
+void request_debug_mode(interrupt_type_t int_type, uint8_t id);
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -154,7 +120,8 @@ void request_debug_mode();
  *          bit-width of the mask, which could easily be increased.
  */
 #define INTERNAL_BREAKPOINT(idx) \
-    if (_libdebug_internal_breakpoints & (1 << idx)) request_debug_mode()
+    if (_libdebug_internal_breakpoints & (1 << idx)) \
+        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 
 #ifndef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -175,12 +142,24 @@ void request_debug_mode();
  *          only two (AUX1 and AUX2).
  */
 #define EXTERNAL_BREAKPOINT(idx) \
-    if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) request_debug_mode()
+    if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) \
+        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+
+#define ASSERT(idx, cond) \
+    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, idx)
+
+#define ENERGY_GUARD_BEGIN() request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0)
+#define ENERGY_GUARD_END() resume_application()
 
 /**
  * @brief	Initialize pins used by the debugger board
  */
 void debug_setup();
+
+/**
+ * @brief Initiate disconnection from debugger to eventually resume application
+ */
+void resume_application();
 
 #endif

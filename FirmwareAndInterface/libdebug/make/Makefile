@@ -40,6 +40,7 @@ CFLAGS = \
 	--include_path="$(PLATFORM_ROOT)/include" \
 	--include_path="$(WISP_BASE_ROOT)" \
 	--include_path="$(SRC_ROOT)" \
+	--include_path="$(SRC_ROOT)/include/libdebug" \
 
 ASFLAGS = $(CFLAGS)
 

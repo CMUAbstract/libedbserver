@@ -18,7 +18,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <libdebug/target_comm.h>
+
 #include "pin_assign.h"
+#include "host_comm.h"
 #include "ucs.h"
 #include "adc12.h"
 #include "uart.h"
@@ -46,6 +49,7 @@
 #define FLAG_LOGGING                0x0020 //!< Logging ADC conversion results to USB
 #define FLAG_RF_DATA				0x0040 //!< RF Rx activity ready to be logged
 #define FLAG_CHARGER_COMPLETE		0x0080 //!< Charge or discharge operation completed
+#define FLAG_INTERRUPTED     		0x0100 //!< target is in active debug mode
 /** @} End MAIN_FLAG_DEFINES */
 
 /**
@@ -60,8 +64,8 @@
 #define LOG_VINJ					0x10 //!< Logging Vinj
 /** @} End LOG_DEFINES */
 
-#define WISP_CMD_MAX_LEN 16
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
+#define USB_REPLY_MAX_LEN 16
 
 // See libdebug/debug.h for description
 #define MAX_PASSIVE_BREAKPOINTS ((1 << NUM_CODEPOINT_PINS) - 1)
@@ -75,20 +79,6 @@
 #define COMP_PORT_DIS(idx) COMP_PORT_DIS_INNER(idx)
 
 /**
- * @brief   Assigns a permanent index to each ADC channels
- *
- * @details This maps a application's name for an ADC channel to an index
- *          understandable to the ADC12 driver in adc12.c.
- */
-typedef enum {
-    ADC_CHAN_INDEX_VCAP = 0,
-    ADC_CHAN_INDEX_VBOOST,
-    ADC_CHAN_INDEX_VREG,
-    ADC_CHAN_INDEX_VRECT,
-    ADC_CHAN_INDEX_VINJ,
-} adc_chan_index_t;
-
-/**
  * Debugger state machine states
  */
 typedef enum {
@@ -96,6 +86,7 @@ typedef enum {
     STATE_ENTERING,
     STATE_DEBUG,
     STATE_EXITING,
+    STATE_SERIAL_ECHO, // for testing purposes only
 } state_t;
 
 /**
@@ -110,38 +101,36 @@ typedef enum {
 } comparator_op_t;
 
 typedef enum {
-    BREAKPOINT_TYPE_PASSIVE,
-    BREAKPOINT_TYPE_INTERNAL,
-    BREAKPOINT_TYPE_EXTERNAL,
-} breakpoint_type_t;
-
-/**
- * @brief Select which implementation to use for energy breakpoints
- */
-typedef enum {
-    ENERGY_BREAKPOINT_IMPL_ADC,
-    ENERGY_BREAKPOINT_IMPL_CMP,
-} energy_breakpoint_impl_t;
-
-typedef enum {
     CMP_EDGE_ANY,
     CMP_EDGE_FALLING,
     CMP_EDGE_RISING,
 } comparator_edge_t;
+
+typedef struct {
+    interrupt_type_t type;
+    uint8_t id;
+    uint16_t saved_vcap;
+} interrupt_context_t;
 
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
 static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
 static state_t state = STATE_IDLE;
 static comparator_op_t comparator_op = CMP_OP_NONE;
+static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
+static int8_t sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
+
+static uint8_t sig_serial_echo_value = 0;
+static state_t saved_sig_serial_echo_state;
 
 static uint16_t adc12Target; // target ADC reading
-static uint16_t saved_vcap; // energy level before entering active debug mode
+static interrupt_context_t interrupt_context;
 
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
 static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
+static uint8_t usb_reply_buf[USB_REPLY_MAX_LEN];
 
 // Bitmasks indicate whether a breakpoint (group) of given index is enabled
 static uint16_t passive_breakpoints = 0;
@@ -208,8 +197,9 @@ static void signal_target()
  */
 static void unmask_target_signal()
 {
-    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
     GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
 }
 
 /**
@@ -231,10 +221,44 @@ static void continuous_power_off()
     GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
 }
 
+static inline void setup_serial_decode_timer()
+{
+    TIMER(TIMER_SIG_SERIAL_DECODE, CCR0) = SIG_SERIAL_BIT_DURATION_ON_DEBUGGER;
+    TIMER(TIMER_SIG_SERIAL_DECODE, CTL) |= TACLR | TASSEL__SMCLK;
+    TIMER(TIMER_SIG_SERIAL_DECODE, CCTL0) &= ~CCIFG;
+    TIMER(TIMER_SIG_SERIAL_DECODE, CCTL0) |= CCIE;
+}
+
+static inline void start_serial_decode_timer()
+{
+    TIMER(TIMER_SIG_SERIAL_DECODE, CTL) |= MC__UP; // start
+
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+    GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_TIMER);
+    GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_TIMER);
+#endif
+}
+
+static inline void stop_serial_decode_timer()
+{
+    TIMER(TIMER_SIG_SERIAL_DECODE, CTL) = 0;
+
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+    GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_TIMER);
+    GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_TIMER);
+#endif
+}
+
 static void send_vcap(uint16_t vcap)
 {
     UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
                  (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
+}
+
+static void send_serial_echo(uint8_t value)
+{
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_SERIAL_ECHO,
+                 &value, sizeof(uint8_t), UART_TX_FORCE);
 }
 
 static void send_return_code(uint8_t code)
@@ -243,25 +267,58 @@ static void send_return_code(uint8_t code)
                  (uint8_t *)(&code), sizeof(uint8_t), UART_TX_FORCE);
 }
 
-static void send_interrupted(uint16_t saved_vcap)
+static void send_interrupt_context(interrupt_context_t *int_context)
 {
+    uint8_t reply_len;
+
+    reply_len = 0;
+    usb_reply_buf[reply_len++] = int_context->type;
+    usb_reply_buf[reply_len++] = int_context->id;
+    usb_reply_buf[reply_len++] = (int_context->saved_vcap >> 0) & 0xff;
+    usb_reply_buf[reply_len++] = (int_context->saved_vcap >> 8) & 0xff;
+    ASSERT(reply_len <= USB_REPLY_MAX_LEN); // better late than never (writes already happened)
+
     UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
-                 (uint8_t *)(&saved_vcap), sizeof(uint16_t), UART_TX_FORCE);
+                 usb_reply_buf, reply_len, UART_TX_FORCE);
 }
 
-static void enter_debug_mode()
+static void enter_debug_mode(interrupt_type_t int_type)
 {
     set_state(STATE_ENTERING);
 
-    saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP); // read Vcap and set as the target for exit
+    interrupt_context.type = int_type;
+    interrupt_context.id = 0;
+    interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+
+    sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
+    setup_serial_decode_timer();
+
+    debug_mode_flags = 0;
+    switch (int_type)
+    {
+        case INTERRUPT_TYPE_DEBUGGER_REQ:
+        case INTERRUPT_TYPE_BREAKPOINT: // passive breakpoint only
+        case INTERRUPT_TYPE_ENERGY_BREAKPOINT:
+            debug_mode_flags |= DEBUG_MODE_INTERACTIVE |
+                                DEBUG_MODE_WITH_UART | DEBUG_MODE_WITH_I2C;
+            break;
+        case INTERRUPT_TYPE_TARGET_REQ:
+            /* debugger mode flags read from signal line (serially encoded) */
+            break;
+    }
+
     mask_target_signal();
     signal_target();
     unmask_target_signal();
+    continuous_power_on();
 }
 
 static void exit_debug_mode()
 {
     set_state(STATE_EXITING);
+
+    // interrupt_context cleared after the target acks the exit request
+
     unmask_target_signal();
     UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
 }
@@ -335,7 +392,6 @@ static void disarm_comparator()
     CBCTL1 &= ~CBON; // turn off
 }
 
-
 static void interrupt_target()
 {
     uint16_t cur_vreg;
@@ -348,10 +404,22 @@ static void interrupt_target()
 
     __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
 
-    enter_debug_mode();
+    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ);
 }
 
-static void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
+static void get_target_interrupt_context(interrupt_context_t *int_context)
+{
+    // In case target requested the interrupt, ask it for more details
+    UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_INTERRUPT_CONTEXT,
+                 0, 0, UART_TX_FORCE); // send request
+    while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+            (wispRxPkt.descriptor != WISP_RSP_INTERRUPT_CONTEXT)); // wait for response
+    int_context->type = (interrupt_type_t)wispRxPkt.data[0];
+    int_context->id = wispRxPkt.data[1];
+    wispRxPkt.processed = 1;
+}
+
+static void set_external_breakpoint_pin_state(uint8_t bitmask, bool state)
 {
 #ifdef WORKAROUND_FLIP_CODEPOINT_PINS
     if (bitmask == 0x1)
@@ -483,43 +551,102 @@ static void toggle_breakpoint(breakpoint_type_t type, uint8_t index,
     send_return_code(rc);
 }
 
+static void finish_enter_debug_mode()
+{
+    // WISP has entered debug main loop
+    set_state(STATE_DEBUG);
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+
+    if (debug_mode_flags & DEBUG_MODE_WITH_UART)
+        UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
+    if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
+        I2C_setup();
+
+    if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
+          flags |= FLAG_INTERRUPTED; // main loop notifies the host
+
+    unmask_target_signal(); // listen because target *may* request to exit active debug mode
+}
+
+static void finish_exit_debug_mode()
+{
+    uint16_t restored_vcap;
+
+    // WISP has shutdown UART and is asleep waiting for int to resume
+    if (debug_mode_flags & DEBUG_MODE_WITH_UART)
+        UART_teardown(UART_INTERFACE_WISP);
+    if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
+        I2C_teardown();
+
+    continuous_power_off();
+    restored_vcap = discharge_adc(interrupt_context.saved_vcap); // restore energy level
+
+    if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
+        send_vcap(restored_vcap); // TODO: take this out of the critical path
+
+    interrupt_context.type = INTERRUPT_TYPE_NONE;
+    interrupt_context.id = 0;
+    interrupt_context.saved_vcap = 0;
+
+    debug_mode_flags = 0;
+
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    set_state(STATE_IDLE);
+    signal_target(); // tell target to continue execution
+    unmask_target_signal(); // target may request to enter active debug mode
+}
+
 /**
  * @brief	Handle an interrupt from the target device
  */
 static void handle_target_signal()
 {
-    uint16_t restored_vcap;
-
     switch (state) {
         case STATE_IDLE: // target-initiated request to enter debug mode
             // NOTE: if the debugger/target speedup is very high, then might need a delay here
             // for the target to start listening for the interrupt
-            enter_debug_mode();
+            mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+            enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ);
             break;
+
         case STATE_ENTERING:
-            // WISP has entered debug main loop
-            set_state(STATE_DEBUG);
-            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-            continuous_power_on();
-            UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
-            I2C_setup();
-            send_interrupted(saved_vcap); // do it here: reply marks completion
-            // leave target signal masked: no requests originate from the target
+            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
+                --sig_serial_bit_index;
+                start_serial_decode_timer();
+            } else if (sig_serial_bit_index >= 0) {
+                debug_mode_flags |= 1 << sig_serial_bit_index;
+            } else { // bitstream over (there is a terminating edge)
+                stop_serial_decode_timer();
+
+                mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+                finish_enter_debug_mode();
+            }
             break;
-        case STATE_EXITING:
-            // WISP has shutdown UART and is asleep waiting for int to resume
-            UART_teardown(UART_INTERFACE_WISP);
-            I2C_teardown();
-            continuous_power_off();
-            restored_vcap = discharge_adc(saved_vcap); // restore energy level
-            send_vcap(restored_vcap);
-            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-            set_state(STATE_IDLE);
-            signal_target(); // tell target to continue execution
-            unmask_target_signal(); // target may request to enter active debug mode
+
+        case STATE_EXITING: // Targed acknowledged our request to exit debug mode
+        case STATE_DEBUG: // Target requested to exit debug mode
+            mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+            finish_exit_debug_mode();
             break;
+
+        case STATE_SERIAL_ECHO: // for testing purposes
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+            GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
+            GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
+#endif
+            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
+                sig_serial_bit_index--;
+                start_serial_decode_timer();
+            } else if (sig_serial_bit_index >= 0) {
+                sig_serial_echo_value |= 1 << sig_serial_bit_index;
+            } else {
+                stop_serial_decode_timer();
+                set_state(saved_sig_serial_echo_state);
+            }
+            break;
+
         default:
-            // received an unexpected signal
+            error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
 }
@@ -555,6 +682,11 @@ static void pin_setup()
 #ifdef CONFIG_STATE_PINS
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+#endif
+
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+    GPIO(PORT_SERIAL_DECODE, OUT) &= ~(BIT(PIN_SERIAL_DECODE_PULSE) | BIT(PIN_SERIAL_DECODE_TIMER));
+    GPIO(PORT_SERIAL_DECODE, DIR) |= BIT(PIN_SERIAL_DECODE_PULSE) | BIT(PIN_SERIAL_DECODE_TIMER);
 #endif
 
 #ifdef CONFIG_PULL_DOWN_ON_SIG_LINE
@@ -611,6 +743,17 @@ int main(void)
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
 
     while(1) {
+
+        if (flags & FLAG_INTERRUPTED) {
+            flags &= ~FLAG_INTERRUPTED;
+
+            if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
+                debug_mode_flags & DEBUG_MODE_WITH_UART)
+                get_target_interrupt_context(&interrupt_context);
+            // do it here: reply marks completion of enter sequence
+            send_interrupt_context(&interrupt_context);
+        }
+
         if(flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
             flags &= ~FLAG_ADC12_COMPLETE;
@@ -738,7 +881,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
-        enter_debug_mode();
+        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ);
         break;
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
@@ -965,6 +1108,56 @@ static void executeUSBCmd(uartPkt_t *pkt)
         toggle_breakpoint(type, index, energy_level, cmp_ref, enable);
         break;
     }
+
+    case USB_CMD_GET_INTERRUPT_CONTEXT: {
+        interrupt_context_t target_int_context;
+        interrupt_source_t source = (interrupt_source_t)pkt->data[0];
+
+        switch (source) {
+            case INTERRUPT_SOURCE_DEBUGGER:
+                send_interrupt_context(&interrupt_context);
+                break;
+            case INTERRUPT_SOURCE_TARGET:
+                get_target_interrupt_context(&target_int_context);
+                send_interrupt_context(&target_int_context);
+                break;
+            default:
+                send_return_code(RETURN_CODE_INVALID_ARGS);
+                break;
+        }
+        break;
+    }
+
+    case USB_CMD_SERIAL_ECHO: {
+        uint8_t value = pkt->data[0];
+
+        saved_sig_serial_echo_state = state;
+        set_state(STATE_SERIAL_ECHO);
+
+        sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
+        setup_serial_decode_timer();
+
+        sig_serial_echo_value = 0;
+        unmask_target_signal();
+
+        cmd_len = 0;
+        wisp_cmd_buf[cmd_len++] = value;
+
+        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_SERIAL_ECHO,
+                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+
+        // Wait while the ISRs decode the serial bit stream
+        volatile uint16_t timeout = 0xffff;
+        while (state == STATE_SERIAL_ECHO && --timeout > 0);
+        if (state == STATE_SERIAL_ECHO) // timeout
+            set_state(saved_sig_serial_echo_state);
+
+        while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+                (wispRxPkt.descriptor != WISP_RSP_SERIAL_ECHO)); // wait for response
+        wispRxPkt.processed = 1;
+
+        send_serial_echo(sig_serial_echo_value);
+    }
     default:
         break;
     }
@@ -1106,7 +1299,7 @@ static void break_at_vcap_level_adc(uint16_t level)
         cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
     } while (cur_vreg < MCU_ON_THRES || cur_vcap > level);
 
-    enter_debug_mode();
+    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT);
 }
 
 static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
@@ -1146,7 +1339,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 		RFID_RxHandler();
 		break;
 	case INTFLAG(PORT_SIG, PIN_SIG):
-		mask_target_signal();
 		handle_target_signal();
 		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
 		break;
@@ -1170,7 +1362,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
 
-            enter_debug_mode();
+            enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT);
         }
         break;
     }
@@ -1203,7 +1395,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
         case CMP_OP_ENERGY_BREAKPOINT:
-            enter_debug_mode();
+            enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT);
             // TODO: should the interrupt be re-enabled upon exit from debug mode?
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
@@ -1222,4 +1414,22 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
+}
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=TIMER2_A0_VECTOR
+__interrupt void TIMER2_A0_ISR (void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(TIMER2_A0_VECTOR))) TIMER2_A0_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    --sig_serial_bit_index;
+
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+    GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_TIMER);
+    GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_TIMER);
+#endif
+    TA2CCTL0 &= ~CCIFG;
 }
