@@ -166,6 +166,7 @@ static void set_state(state_t new_state)
 #endif
 }
 
+#ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
 /**
  * @brief       Pulse a designated pin for triggering an oscilloscope
  */
@@ -175,7 +176,7 @@ static void trigger_scope()
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
 }
-
+#endif // CONFIG_SCOPE_TRIGGER_SIGNAL
 
 /**
  * @brief	Send an interrupt to the target device
@@ -676,8 +677,11 @@ static void pin_setup()
 
     GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
     GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
+
+#ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
+#endif
 
 #ifdef CONFIG_STATE_PINS
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
@@ -856,7 +860,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
     uint8_t cmd_len;
     uint8_t i;
 
+#ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     trigger_scope();
+#endif
 
     switch(pkt->descriptor)
     {

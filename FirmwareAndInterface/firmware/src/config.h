@@ -89,6 +89,12 @@
  */
 // #define CONFIG_SIG_SERIAL_DECODE_PINS
 
+/**
+ * @brief Enable an auxiliary signal useful for triggering a scope
+ * @details A pulse is issued when a host command is ready for execution.
+ */
+// #define CONFIG_SCOPE_TRIGGER_SIGNAL
+
 // The rest essentially defines the register settings that carry out the above
 
 #define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)
