@@ -183,7 +183,7 @@ failed_TRCal:
 ;	CLR.B	&PRXIFG					;[] clr any pending flasgs (safety)
 	BIC.B	#PIN_RX,	&PRXIFG		;[] clear pending Rx flags (safety)
 	BIC.B	#PIN_RX,	&PRXSEL		;[] disable timer
-	BIC.A	#4010h,		TA0CCTL1	;[5] Turn off timer
+	BIC.W	#(CM0+CM1+CCIE), &TA0CCTL1	;[5] Turn off timer by seting capture mode to none and dis int
 
  ;   RETI                        	;[5] return from interrupt
 
