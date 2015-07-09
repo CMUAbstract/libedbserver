@@ -179,9 +179,9 @@ delimDelay:
 startup_T0A1_ISR:
 	; Timer0A1 interrupt should not fire at falling edge of delay cycle that
 	; happens after the good delimiter
-	BIS.W	#(CM_2 + CCIE),	&TA0CCTL1
-
 	BIC		#CCIFG,	&TA0CCTL1		;[] clear the interrupt flag for Timer0A1 capture
+	BIS.W	#(CM_2 + CCIE),	&TA0CCTL1 ; [] turn on timer by setting capture mode (falling edge) + interrupt
+
 	CLR		&TA0R					;[] reset TAR value
 	CLR		&(rfid.edge_capture_prev_ccr) ;[] reset previous value of CCR capture
 ;	CLR		&(rfid.edge_capture_prev_ccr)
