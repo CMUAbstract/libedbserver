@@ -7,12 +7,9 @@ import re
 import sys
 from binascii import hexlify
 
+import env
 from delayed_keyboard_interrupt import *
 from header_parser import Header
-
-CONFIG_HEADER = '../firmware/src/config.h'
-HOST_COMM_HEADER = '../firmware/src/host_comm.h'
-TARGET_COMM_HEADER = '../libdebug/src/include/libdebug/target_comm.h'
 
 SERIAL_PORT                         = '/dev/ttyUSB0'
 
@@ -39,7 +36,7 @@ def key_lookup(d, value):
             return k
     return None
 
-host_comm_header = Header('../firmware/src/host_comm.h',
+host_comm_header = Header(env.HOST_COMM_HEADER,
     enums=[
         'USB_CMD',
         'USB_RSP',
@@ -56,10 +53,10 @@ host_comm_header = Header('../firmware/src/host_comm.h',
         'UART_IDENTIFIER_USB'
     ])
 
-target_comm_header = Header('../libdebug/src/include/libdebug/target_comm.h',
+target_comm_header = Header(env.TARGET_COMM_HEADER,
     enums=['INTERRUPT_TYPE'])
 
-config_header = Header('../firmware/src/config.h',
+config_header = Header(env.CONFIG_HEADER,
     string_macros=[
         'CONFIG_TIMELOG_TIMER_SOURCE'
     ],
