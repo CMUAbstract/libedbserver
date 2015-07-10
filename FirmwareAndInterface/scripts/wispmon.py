@@ -6,9 +6,9 @@ import time
 import re
 import sys
 from binascii import hexlify
-from collections import OrderedDict 
 
 from delayed_keyboard_interrupt import *
+from header_parser import Header
 
 CONFIG_HEADER = '../firmware/src/config.h'
 HOST_COMM_HEADER = '../firmware/src/host_comm.h'
@@ -39,69 +39,36 @@ def key_lookup(d, value):
             return k
     return None
 
-def number_from_string(s):
-    if s.startswith('0x'):
-        val = int(s, 16)
-    else:
-        val = int(s)
-    return val
+host_comm_header = Header('../firmware/src/host_comm.h',
+    enums=[
+        'USB_CMD',
+        'USB_RSP',
+        'RETURN_CODE',
+        'BREAKPOINT_TYPE',
+        'INTERRUPT_SOURCE',
+        'ADC_CHAN_INDEX',
+        'ENERGY_BREAKPOINT_IMPL',
+        'CMP_REF',
+        'STREAM',
+        'RF_EVENT'
+    ],
+    numeric_macros=[
+        'UART_IDENTIFIER_USB'
+    ])
 
-def parse_enum(header_file, prefix):
-    enum_dict = OrderedDict()
-    for line in open(header_file):
-        m = re.match(r'^\s*' + prefix + r'_(?P<name>\w+)\s*=\s*(?P<value>[0-9xA-F]+)', line)
-        if m is None:
-            continue
-        name = m.group('name')
-        enum_dict[name] = number_from_string(m.group('value'))
-    return enum_dict
+target_comm_header = Header('../libdebug/src/include/libdebug/target_comm.h',
+    enums=['INTERRUPT_TYPE'])
 
-def parse_def(header_file, name, cast_func=number_from_string):
-    for line in open(header_file):
-        m = re.match(r'^\s*#define\s+' + name + '\s+(?P<value>\w+)\s*', line)
-        if m is None:
-            continue
-        return cast_func(m.group('value'))
-    raise Exception("Macro '" + name + "' not found in '" + header_file + "'")
-
-def parse_config_def(name):
-    return parse_def(CONFIG_HEADER, name)
-def parse_config_def_str(name):
-    return parse_def(CONFIG_HEADER, name, cast_func=str)
-
-def parse_host_comm_enum(prefix):
-    return parse_enum(HOST_COMM_HEADER, prefix)
-def parse_host_comm_def(name):
-    return parse_def(HOST_COMM_HEADER, name)
-
-def parse_target_comm_enum(prefix):
-    return parse_enum(TARGET_COMM_HEADER, prefix)
-def parse_target_comm_def(name):
-    return parse_def(TARGET_COMM_HEADER, name)
-
-CONFIG_USB_UART_BAUDRATE = parse_config_def('CONFIG_USB_UART_BAUDRATE')
-CONFIG_TIMELOG_TIMER_SOURCE = parse_config_def_str('CONFIG_TIMELOG_TIMER_SOURCE')
-
-# Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
-if CONFIG_TIMELOG_TIMER_SOURCE == 'TASSEL__ACLK':
-    assert parse_config_def('CONFIG_XT1_FREQ') == parse_config_def('CONFIG_REFO_FREQ')
-    TIME_TIMER_FREQ = parse_config_def('CONFIG_XT1_FREQ')
-elif CONFIG_TIMELOG_TIMER_SOURCE == 'TASSEL__SMCLK':
-    TIME_TIMER_FREQ = parse_config_def('CONFIG_DCOCLKDIV_FREQ')
-
-USB_CMD = parse_host_comm_enum('USB_CMD')
-USB_RSP = parse_host_comm_enum('USB_RSP')
-RETURN_CODE = parse_host_comm_enum('RETURN_CODE')
-BREAKPOINT_TYPE = parse_host_comm_enum('BREAKPOINT_TYPE')
-INTERRUPT_SOURCE = parse_host_comm_enum('INTERRUPT_SOURCE')
-ADC_CHAN_INDEX = parse_host_comm_enum('ADC_CHAN_INDEX')
-ENERGY_BREAKPOINT_IMPL = parse_host_comm_enum('ENERGY_BREAKPOINT_IMPL')
-CMP_REF = parse_host_comm_enum('CMP_REF')
-UART_IDENTIFIER_USB = parse_host_comm_def('UART_IDENTIFIER_USB')
-STREAM = parse_host_comm_enum('STREAM')
-RF_EVENT = parse_host_comm_enum('RF_EVENT')
-
-INTERRUPT_TYPE = parse_target_comm_enum('INTERRUPT_TYPE')
+config_header = Header('../firmware/src/config.h',
+    string_macros=[
+        'CONFIG_TIMELOG_TIMER_SOURCE'
+    ],
+    numeric_macros=[
+        'CONFIG_USB_UART_BAUDRATE',
+        'CONFIG_XT1_FREQ',
+        'CONFIG_REFO_FREQ',
+        'CONFIG_DCOCLKDIV_FREQ'
+    ])
 
 class StreamInterrupted(Exception):
     pass
@@ -122,14 +89,13 @@ class StreamDecodeException(Exception):
 
 class WispMonitor:
     VDD                                 = VDD # V
-    CLK_FREQ                            = TIME_TIMER_FREQ # Hz
-    CLK_PERIOD                          = 1.0 / CLK_FREQ # seconds
     CMP_VREF                            = 2.5
     CMP_BITS                            = 5
 
     def __init__(self):
         self.rxPkt = RxPkt()
-        self.serial = serial.Serial(port=SERIAL_PORT, baudrate=CONFIG_USB_UART_BAUDRATE,
+        self.serial = serial.Serial(port=SERIAL_PORT,
+                                    baudrate=config_header.macros['CONFIG_USB_UART_BAUDRATE'],
                                     timeout=1)
         self.serial.close()
         self.serial.open()
@@ -145,6 +111,15 @@ class WispMonitor:
                 "VINJ": self.decode_adc_value,
                 "RF_EVENTS": self.decode_rf_event_value,
         }
+
+        # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
+        timelog_source = config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE']
+        if timelog_source == 'TASSEL__ACLK':
+            assert config_header.macros['CONFIG_XT1_FREQ'] == config_header.macros['CONFIG_REFO_FREQ']
+            self.CLK_FREQ = config_header.macros['CONFIG_XT1_FREQ']
+        elif timelog_source == 'TASSEL__SMCLK':
+            self.CLK_FREQ = config_header.macros['CONFIG_DCOCLKDIV_FREQ']
+        self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
         
     def destroy(self):
         self.serial.close()
@@ -158,11 +133,12 @@ class WispMonitor:
                 self.rxPkt.identifier = buf.pop(0) # get the identifier byte
                 minBufLen -= 1
                 
-                if(self.rxPkt.identifier != UART_IDENTIFIER_USB):
+                if(self.rxPkt.identifier != host_comm_header.macros['UART_IDENTIFIER_USB']):
                     # unknown identifier - reset state
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
                     print >>sys.stderr, "packet construction failed: unknown identifier: ", \
-                            self.rxPkt.identifier, " (exp ", str(UART_IDENTIFIER_USB), ")"
+                            self.rxPkt.identifier, " (exp ", \
+                            str(host_comm_header.macros['UART_IDENTIFIER_USB']), ")"
                     continue
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
@@ -194,13 +170,13 @@ class WispMonitor:
     
     # Note that when sending data, the byte order is reversed.
     # Example: to send a command to set Vcap to 2.2 V, do the following.
-    #               descriptor = USB_CMD['SET_VCAP']
+    #               descriptor = host_comm_header.enums['USB_CMD']['SET_VCAP']
     #               adc = 2.2 * 2^12 / VDD = 2.2 * 4096 / 3.35 = 2689.91
     #               data = byteReverse(round(adc)) = byteReverse(2690)
     #                    = byteReverse(0x0A82)
     #                    = bytearray([0x82, 0x0A])
     def sendCmd(self, descriptor, data=[]):
-        serialMsg = bytearray([UART_IDENTIFIER_USB, descriptor])
+        serialMsg = bytearray([host_comm_header.macros['UART_IDENTIFIER_USB'], descriptor])
         serialMsg += bytearray([len(data)]) + bytearray(data)
         self.serial.write(serialMsg)
 
@@ -208,19 +184,19 @@ class WispMonitor:
         if self.buildRxPkt(self.rcv_buf):
             pkt = { "descriptor" : self.rxPkt.descriptor }
 
-            if self.rxPkt.descriptor == USB_RSP['RETURN_CODE']:
+            if self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']:
                 pkt["code"] = self.rxPkt.data[0]
 
-            elif self.rxPkt.descriptor == USB_RSP['TIME']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['TIME']:
                 cycles = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                          (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0])
                 pkt["time_sec"] = float(cycles) * self.CLK_PERIOD
 
-            elif self.rxPkt.descriptor == USB_RSP['VOLTAGE']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['VOLTAGE']:
                 adc_reading = (self.rxPkt.data[1] << 8) | self.rxPkt.data[0]
                 pkt["voltage"] = self.adc_to_voltage(adc_reading)
 
-            elif self.rxPkt.descriptor == USB_RSP['VOLTAGES']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['VOLTAGES']:
                 offset = 0
                 num_channels = self.rxPkt.data[offset]
                 offset += 1
@@ -230,25 +206,25 @@ class WispMonitor:
                                    self.rxPkt.data[offset + 2 * i]
                     pkt["voltages"].append(self.adc_to_voltage(adc_reading))
 
-            elif self.rxPkt.descriptor == USB_RSP['INTERRUPTED']:
-                pkt["interrupt_type"] = key_lookup(INTERRUPT_TYPE, self.rxPkt.data[0])
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['INTERRUPTED']:
+                pkt["interrupt_type"] = key_lookup(target_comm_header.enums['INTERRUPT_TYPE'], self.rxPkt.data[0])
                 pkt["interrupt_id"] = self.rxPkt.data[1]
                 saved_vcap_adc_reading = (self.rxPkt.data[3] << 8) | self.rxPkt.data[2]
                 pkt["saved_vcap"] = self.adc_to_voltage(saved_vcap_adc_reading)
 
-            elif self.rxPkt.descriptor == USB_RSP['WISP_MEMORY']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['WISP_MEMORY']:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
                 pkt["value"] = self.rxPkt.data[4:]
 
-            elif self.rxPkt.descriptor == USB_RSP['ADDRESS']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ADDRESS']:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
 
-            elif self.rxPkt.descriptor == USB_RSP['SERIAL_ECHO']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['SERIAL_ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
-            elif self.rxPkt.descriptor == USB_RSP['STREAM_DATA']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_DATA']:
                 FIELD_LEN_STREAMS = 1
                 FIELD_LEN_TIMESTAMP = 4
 
@@ -267,7 +243,7 @@ class WispMonitor:
                     while offset < len(self.rxPkt.data):
                         # invalid pkt, but best we can do here is not fail
                         if offset + FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
-                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: timestamp field"
+                            print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: timestamp field"
                             break
 
                         timestamp_cycles = (self.rxPkt.data[offset + 3] << 24) | \
@@ -282,8 +258,8 @@ class WispMonitor:
                             # Decode the pkt into a dictionary: stream->value.
                             # Order is implied by the bit index of each stream as defined by the enum
                             value_set = {}
-                            for stream in STREAM:
-                                if pkt_streams & STREAM[stream]:
+                            for stream in host_comm_header.enums['STREAM']:
+                                if pkt_streams & host_comm_header.enums['STREAM'][stream]:
                                     value, length = self.stream_decoders[stream](self.rxPkt.data, offset)
                                     offset += length
                                     value_set[stream] = value
@@ -291,11 +267,11 @@ class WispMonitor:
                             data_points.append(StreamDataPoint(timestamp_sec, value_set))
                         except StreamDecodeException:
                             # invalid pkt, best we can do here is not fail
-                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: value field"
+                            print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: value field"
                             break
                 else:
                     # invalid pkt, best we can do here is not fail
-                    print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: streams field"
+                    print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: streams field"
 
                 pkt["data_points"] = data_points
 
@@ -321,7 +297,7 @@ class WispMonitor:
                         reply["descriptor"], "(exp ", str(descriptor), ")"
                 reply = None
                 continue
-        if descriptor == USB_RSP['RETURN_CODE']: # this one is generic, so handle it here
+        if descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
             if reply["code"] != 0:
                 raise Exception("Command failed: return code " + str(reply["code"]))
         return reply
@@ -382,24 +358,24 @@ class WispMonitor:
             raise StreamDecodeException()
         rf_event_id = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         #print "rf_event_id = 0x%08x" % rf_event_id
-        rf_event = key_lookup(RF_EVENT, rf_event_id)
+        rf_event = key_lookup(host_comm_header.enums['RF_EVENT'], rf_event_id)
         if rf_event is None:
             raise StreamDecodeException()
         length = 2 # sizeof(rf_event_t.id field + padding in the struct)
         return rf_event, length
 
     def sense(self, channel):
-        self.sendCmd(USB_CMD['SENSE'], data=[channel])
-        reply = self.receive_reply(USB_RSP['VOLTAGE'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['SENSE'], data=[channel])
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['VOLTAGE'])
         return reply["voltage"]
 
     def stream_begin(self, streams_bitmask):
         self.stream_bytes = 0
         self.stream_start = time.time()
-        self.sendCmd(USB_CMD['STREAM_BEGIN'], data=[streams_bitmask])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_BEGIN'], data=[streams_bitmask])
 
     def stream_end(self, streams_bitmask):
-        self.sendCmd(USB_CMD['STREAM_END'], data=[streams_bitmask])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_END'], data=[streams_bitmask])
         self.flush()
 
     def stream_datarate_kbps(self):
@@ -408,42 +384,42 @@ class WispMonitor:
     def charge(self, target_voltage):
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
-        self.sendCmd(USB_CMD['CHARGE'], data=cmd_data)
-        reply = self.receive_reply(USB_RSP['VOLTAGE'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['CHARGE'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['VOLTAGE'])
         return reply["voltage"]
 
     def discharge(self, target_voltage):
         target_voltage_adc = self.voltage_to_adc(target_voltage)
         cmd_data = self.uint16_to_bytes(target_voltage_adc)
-        self.sendCmd(USB_CMD['DISCHARGE'], data=cmd_data)
-        reply = self.receive_reply(USB_RSP['VOLTAGE'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['DISCHARGE'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['VOLTAGE'])
         return reply["voltage"]
 
     def charge_cmp(self, target_voltage):
         target_voltage_cmp, ref = self.voltage_to_cmp(target_voltage)
-        cmd_data = self.uint16_to_bytes(target_voltage_cmp) + [CMP_REF[ref]]
-        self.sendCmd(USB_CMD['CHARGE_CMP'], data=cmd_data)
-        self.receive_reply(USB_RSP['RETURN_CODE'])
+        cmd_data = self.uint16_to_bytes(target_voltage_cmp) + [host_comm_header.enums['CMP_REF'][ref]]
+        self.sendCmd(host_comm_header.enums['USB_CMD']['CHARGE_CMP'], data=cmd_data)
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
     def discharge_cmp(self, target_voltage):
         target_voltage_cmp, ref = self.voltage_to_cmp(target_voltage)
-        cmd_data = self.uint16_to_bytes(target_voltage_cmp) + [CMP_REF[ref]]
-        self.sendCmd(USB_CMD['DISCHARGE_CMP'], data=cmd_data)
-        self.receive_reply(USB_RSP['RETURN_CODE'])
+        cmd_data = self.uint16_to_bytes(target_voltage_cmp) + [host_comm_header.enums['CMP_REF'][ref]]
+        self.sendCmd(host_comm_header.enums['USB_CMD']['DISCHARGE_CMP'], data=cmd_data)
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
     def enter_debug_mode(self):
-        self.sendCmd(USB_CMD['ENTER_ACTIVE_DEBUG'])
-        reply = self.receive_reply(USB_RSP['INTERRUPTED'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['ENTER_ACTIVE_DEBUG'])
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
         return reply["saved_vcap"]
 
     def exit_debug_mode(self):
-        self.sendCmd(USB_CMD['EXIT_ACTIVE_DEBUG'])
-        reply = self.receive_reply(USB_RSP['VOLTAGE'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['EXIT_ACTIVE_DEBUG'])
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['VOLTAGE'])
         return reply["voltage"]
 
     def interrupt(self):
-        self.sendCmd(USB_CMD['INTERRUPT'])
-        reply = self.receive_reply(USB_RSP['INTERRUPTED'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['INTERRUPT'])
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
         return reply["saved_vcap"]
 
     def break_at_vcap_level(self, level, impl):
@@ -452,12 +428,12 @@ class WispMonitor:
             level = self.voltage_to_adc(level)
         elif impl == "cmp":
             level, ref = self.voltage_to_cmp(level)
-            extra_args += [CMP_REF[ref]]
+            extra_args += [host_comm_header.enums['CMP_REF'][ref]]
         else:
             raise Exception("Invalid energy breakpoint implementation method: " + impl)
-        cmd_data = self.uint16_to_bytes(level) + [ENERGY_BREAKPOINT_IMPL[impl]] + extra_args
-        self.sendCmd(USB_CMD['BREAK_AT_VCAP_LEVEL'], data=cmd_data)
-        reply = self.receive_reply(USB_RSP['INTERRUPTED'])
+        cmd_data = self.uint16_to_bytes(level) + [host_comm_header.enums['ENERGY_BREAKPOINT_IMPL'][impl]] + extra_args
+        self.sendCmd(host_comm_header.enums['USB_CMD']['BREAK_AT_VCAP_LEVEL'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
         return reply["saved_vcap"]
 
     def breakpoint(self, type, idx, enable, energy_level=None):
@@ -467,52 +443,52 @@ class WispMonitor:
         else:
             energy_level_cmp, cmp_ref = 0, "VCC"
 
-        self.sendCmd(USB_CMD['BREAKPOINT'],
-                     data=[BREAKPOINT_TYPE[type], idx] + \
+        self.sendCmd(host_comm_header.enums['USB_CMD']['BREAKPOINT'],
+                     data=[host_comm_header.enums['BREAKPOINT_TYPE'][type], idx] + \
                            self.uint16_to_bytes(energy_level_cmp) + \
-                           [CMP_REF[cmp_ref], enable])
-        self.receive_reply(USB_RSP['RETURN_CODE'])
+                           [host_comm_header.enums['CMP_REF'][cmp_ref], enable])
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
     def wait_for_interrupt(self):
-        pkt = self.receive_reply(USB_RSP['INTERRUPTED'])
+        pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
         return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
 
     def get_interrupt_context(self, source):
-        self.sendCmd(USB_CMD['GET_INTERRUPT_CONTEXT'], data=[INTERRUPT_SOURCE[source]])
-        pkt = self.receive_reply(USB_RSP['INTERRUPTED'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['GET_INTERRUPT_CONTEXT'], data=[host_comm_header.enums['INTERRUPT_SOURCE'][source]])
+        pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
         return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
 
     def read_mem(self, addr, len):
         cmd_data = self.uint32_to_bytes(addr) + [len]
-        self.sendCmd(USB_CMD['READ_MEM'], data=cmd_data)
-        reply = self.receive_reply(USB_RSP['WISP_MEMORY'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['READ_MEM'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['WISP_MEMORY'])
         return reply["address"], reply["value"]
 
     def write_mem(self, addr, value):
         cmd_data = self.uint32_to_bytes(addr) + [len(value)] + value
-        self.sendCmd(USB_CMD['WRITE_MEM'], data=cmd_data)
-        self.receive_reply(USB_RSP['RETURN_CODE'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['WRITE_MEM'], data=cmd_data)
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
     def get_pc(self):
-        self.sendCmd(USB_CMD['GET_WISP_PC'])
-        reply = self.receive_reply(USB_RSP['ADDRESS'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['GET_WISP_PC'])
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ADDRESS'])
         return reply["address"]
 
     def cont_power(self, on):
         cmd_data = [on]
-        self.sendCmd(USB_CMD['CONT_POWER'], data=cmd_data)
-        self.receive_reply(USB_RSP['RETURN_CODE'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['CONT_POWER'], data=cmd_data)
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
     def serial_echo(self, value):
         cmd_data = [value]
-        self.sendCmd(USB_CMD['SERIAL_ECHO'], data=cmd_data)
-        reply = self.receive_reply(USB_RSP['SERIAL_ECHO'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['SERIAL_ECHO'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['SERIAL_ECHO'])
         return reply["value"]
 
     def stream(self, streams, duration_sec=None, out_file=None, silent=True):
         streams_bitmask = 0x0
         for stream in streams:
-            streams_bitmask |= STREAM[stream]
+            streams_bitmask |= host_comm_header.enums['STREAM'][stream]
 
         streaming = True
         self.stream_begin(streams_bitmask)
@@ -535,7 +511,7 @@ class WispMonitor:
             "VREG": format_voltage,
             "VRECT": format_voltage,
             "VINJ": format_voltage,
-            "RF_EVENTS": format_rf_event,
+            "host_comm_header.enums['RF_EVENT']S": format_rf_event,
         }
         
         with DelayedKeyboardInterrupt(): # prevent partial lines
@@ -543,7 +519,7 @@ class WispMonitor:
         
         try:
             while duration_sec is None or timestamp_sec < duration_sec:
-                pkt = self.receive_reply(USB_RSP['STREAM_DATA'])
+                pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['STREAM_DATA'])
 
                 for data_point in pkt["data_points"]:
 
