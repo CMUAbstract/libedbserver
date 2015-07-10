@@ -159,6 +159,17 @@ badDelim:
 	CLR		&(rfid.edge_capture_prev_ccr) ;[] clear previous value of CCR capture
 ;	CLR.B	&PRXIFG					;[] clear port 1 flag
 	BIC.B	#PIN_RX,	&PRXIFG		;[] clear Rx interrupt flag
+
+; record this failure event for the host
+;	PUSH	R12						; save since will be clobbered by append_event
+;	PUSH	R11						; save since will be clobbered by append_event
+;	PUSH	R15						; save since will be clobbered by append_event
+;	MOV		#rf_event_type_t.RF_EVENT_ERR_BAD_DELIM, R12 ;[] arg for the following function call
+;	CALLA	#append_event			; add event to rf events buffer
+;	POP		R15						; restore reg clobbered by append_event
+;	POP		R11						; restore reg clobbered by append_event
+;	POP		R12						; restore reg clobbered by append_event
+
 	RETA
 
 ;************************************

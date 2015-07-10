@@ -173,7 +173,16 @@ ModeD_setupNewByte:
 ;	MODE FAILS: Reset RX State Machine																								 *
 ;*************************************************************************************************************************************
 failed_RTCal:
+;	PUSH R12	; save since will be clobbered by append_event
+;	MOV		#rf_event_type_t.RF_EVENT_ERR_RT_CAL, R12 ;[] arg for append_event
+;	JMP		failed_Cal
+
 failed_TRCal:
+;	PUSH R12	; save since will be clobbered by append_event
+;	MOV		#rf_event_type_t.RF_EVENT_ERR_TR_CAL, R12 ;[] arg for append_event
+;	JMP		failed_Cal
+
+failed_Cal:
 ;	CLR 	R_bits					;[1] reset R5 for rentry into RX State Machine
 	MOV		#RESET_BITS_VAL,	R_bits
 	CLR		R_bitCt					;[]
@@ -184,6 +193,13 @@ failed_TRCal:
 	BIC.B	#PIN_RX,	&PRXIFG		;[] clear pending Rx flags (safety)
 	BIC.B	#PIN_RX,	&PRXSEL		;[] disable timer
 	BIC.W	#(CM0+CM1+CCIE), &TA0CCTL1	;[5] Turn off timer by seting capture mode to none and dis int
+
+;	PUSH	R11						; save since will be clobbered by append_event
+;	PUSH	R15						; save since will be clobbered by append_event
+;	CALLA	#append_event			;[] record this failure event for the host
+;	POP		R15						; restore reg clobbered by append_event
+;	POP		R11						; restore reg clobbered by append_event
+;	POP		R12						; restore reg clobbered by append_event
 
  ;   RETI                        	;[5] return from interrupt
 
