@@ -48,55 +48,26 @@ def cmd_power(mon, state):
 def cmd_sense(mon, channel):
     print mon.sense(wispmon.ADC_CHAN_INDEX[channel.upper()])
 
-def cmd_stream(mon, out_file, duration_sec, *channels):
+def cmd_stream(mon, out_file, duration_sec, *streams):
     if duration_sec == "-":
-        duration_sec = -1 # stream indefinitely
+        duration_sec = None # stream indefinitely
     else:
         duration_sec = float(duration_sec)
-    print "chans=", channels
-    channel_indexes = map(lambda c: wispmon.ADC_CHAN_INDEX[c.upper()], channels)
-    print "chansidx=", channel_indexes
+
+    streams = map(str.upper, streams)
+
     if out_file == "-":
         fp = sys.stdout
+        silent = True
     else:
-        fp = open(out_file)
+        fp = open(out_file, "w")
+        #silent = False
+        silent = True # TODO: temprorary
 
-    streaming = True
-    mon.stream_begin(channel_indexes)
-    print("Logging... Ctrl-C to stop")
-
-    start_time_sec = None
-    time_sec = 0
-    num_samples = 0
-    total_bytes = 0
-
-    fp.write("time_sec," + ",".join(channels) + "\n")
-    
-    while streaming and (duration_sec < 0 or time_sec < duration_sec):
-        while streaming:
-            try:
-                pkt = mon.receive()
-            except KeyboardInterrupt:
-                streaming = False
-                break
-
-            if pkt is None:
-                continue
-            
-            if(pkt["descriptor"] == wispmon.USB_RSP_TIME):
-                if start_time_sec is None: # first time data - store it for reference
-                    start_time_sec = pkt["time_sec"]
-                time_sec = pkt["time_sec"] - start_time_sec # adjust to when we started
-            
-            elif(pkt["descriptor"] == wispmon.USB_RSP_VOLTAGES):
-                num_samples += 1
-                fp.write("%f,%s\n" % (time_sec, ",".join(map(lambda v: "%.4f" % v, pkt["voltages"]))))
-
-            if fp != sys.stdout:
-                print "\r%.2f KB/s" % mon.stream_datarate_kbps()
-
-        mon.stream_end(channel_indexes)
-        print "%d samples in %f seconds (target time)" % (num_samples, time_sec)
+    try:
+        mon.stream(streams, duration_sec=duration_sec, out_file=fp, silent=silent)
+    except KeyboardInterrupt:
+        pass # this is a clean termination
 
 def cmd_charge(mon, target_voltage, method="adc"):
     target_voltage = float(target_voltage)

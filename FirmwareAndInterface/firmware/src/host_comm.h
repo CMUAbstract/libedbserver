@@ -36,10 +36,6 @@ typedef enum {
     USB_CMD_ENTER_ACTIVE_DEBUG              = 0x09, //!< Enter active debug mode by triggering the WISP's port interrupt
     USB_CMD_EXIT_ACTIVE_DEBUG               = 0x0A, //!< Exit active debug mode
     USB_CMD_GET_WISP_PC                     = 0x0B, //!< Get current program counter
-    USB_CMD_LOG_RF_RX_BEGIN                 = 0x15, //!< Start streaming RF RX data over USB
-    USB_CMD_LOG_RF_RX_END                   = 0x16, //!< Stop streaming RF RX data
-    USB_CMD_LOG_RF_TX_BEGIN                 = 0x17, //!< Start streaming RF TX activity on the WISP
-    USB_CMD_LOG_RF_TX_END                   = 0x18, //!< Stop streaming RF TX activity on the WISP
     USB_CMD_SEND_RF_TX_DATA                 = 0x19, //!< Have the monitor send RF TX data
     USB_CMD_LOG_WISP_UART_BEGIN             = 0x1A, //!< Start streaming UART activity between the WISP and the monitor
     USB_CMD_LOG_WISP_UART_END               = 0x1B, //!< Stop streaming UART activity
@@ -79,8 +75,7 @@ typedef enum {
     USB_RSP_RELEASE_POWER_COMPLETE          = 0x05, //!< message signaling that the power state has been released
     USB_RSP_ADDRESS                         = 0x06, //!< message containing the WISP program counter
     USB_RSP_WISP_MEMORY                     = 0x07, //!< message containing a WISP memory address and contents at that address
-    USB_RSP_RF_RX                           = 0x08, //!< message containing RF RX data
-    USB_RSP_RF_TX                           = 0x09, //!< message containing RF TX data sent by the WISP
+    USB_RSP_STREAM_DATA                     = 0x08, //!< message containing data from one or more streams
     USB_RSP_UART_WISP_TO_MONITOR            = 0x0A, //!< message containing UART message sent from the WISP to the monitor
     USB_RSP_UART_MONITOR_TO_WISP            = 0x0B, //!< message containing UART message sent from the monitor to the WISP
     USB_RSP_TAG_PWR                         = 0x0C, //!< message signaling that the power trace has been tagged here
@@ -148,11 +143,75 @@ typedef enum {
     ADC_CHAN_INDEX_VINJ                     = 4,
 } adc_chan_index_t;
 
+/**
+ * @brief Identifies the data stream to collect and deliver over USB UART
+ */
+typedef enum {
+    STREAM_VCAP                             = 0x0001,
+    STREAM_VBOOST                           = 0x0002,
+    STREAM_VREG                             = 0x0004,
+    STREAM_VRECT                            = 0x0008,
+    STREAM_VINJ                             = 0x0010,
+    STREAM_RF_EVENTS                        = 0x0020,
+} stream_t;
+
+/**
+ * @brief Bitmask that covers all streams that come from the ADC (for convenience)
+ */
+#define ADC_STREAMS \
+    (STREAM_VCAP | STREAM_VBOOST | STREAM_VREG | STREAM_VRECT | STREAM_VINJ)
+
 typedef enum {
     CMP_REF_VCC                             = 0,
     CMP_REF_VREF_2_5                        = 1,
     CMP_REF_VREF_2_0                        = 2,
     CMP_REF_VREF_1_5                        = 3,
 } comparator_ref_t;
+
+
+/**
+ * @brief Identifiers for RFID events that happen on the target
+ * @details Commands are sent from the reader and decoded by the target,
+ *          responses are sent by the target to the reader.
+ *
+ *          Currently, decoding of target transmissions is not supported,
+ *          so there is only one response event: a bit that indicates that a
+ *          transmission was attempted.
+ *
+ *          These identifiers are used for RF protocol decoding and tracing.
+ *          The values appear to be actual protocol values, but that does not
+ *          matter for the functionality of the debugger.
+ */
+typedef enum {
+    RF_EVENT_INVALID				    = 0x00,
+
+    RF_EVENT_CMD_QUERYREP				= 0x01,
+    RF_EVENT_CMD_ACK					= 0x40,
+    RF_EVENT_CMD_QUERY					= 0x80,
+    RF_EVENT_CMD_QUERYADJUST			= 0x90,
+    RF_EVENT_CMD_SELECT					= 0xA0,
+    RF_EVENT_CMD_NAK					= 0xC0,
+    RF_EVENT_CMD_REQRN					= 0xC1,
+    RF_EVENT_CMD_READ					= 0xC2,
+    RF_EVENT_CMD_WRITE					= 0xC3,
+    RF_EVENT_CMD_KILL					= 0xC4,
+    RF_EVENT_CMD_LOCK					= 0xC5,
+    RF_EVENT_CMD_ACCESS					= 0xC6,
+    RF_EVENT_CMD_BLOCKWRITE				= 0xC7,
+    RF_EVENT_CMD_BLOCKERASE				= 0xC8,
+    RF_EVENT_CMD_BLOCKPERMALOCK			= 0xC9,
+    RF_EVENT_CMD_READBUFFER				= 0xD2,
+    RF_EVENT_CMD_FILEOPEN				= 0xD3,
+    RF_EVENT_CMD_CHALLENGE				= 0xD4,
+    RF_EVENT_CMD_AUTHENTICATE			= 0xD5,
+    RF_EVENT_CMD_SECURECOMM				= 0xD6,
+    RF_EVENT_CMD_AUTHCOMM				= 0xD7,
+
+    RF_EVENT_RSP_GENERIC                = 0xB0,
+
+    RF_EVENT_ERR_BAD_DELIM              = 0xE1,
+    RF_EVENT_ERR_RT_CAL                 = 0xE2,
+    RF_EVENT_ERR_TR_CAL                 = 0xE3,
+} rf_event_type_t;
 
 #endif // HOST_COMM_H

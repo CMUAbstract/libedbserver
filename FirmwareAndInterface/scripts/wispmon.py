@@ -4,7 +4,11 @@ import serial
 import math
 import time
 import re
+import sys
 from binascii import hexlify
+from collections import OrderedDict 
+
+from delayed_keyboard_interrupt import *
 
 CONFIG_HEADER = '../firmware/src/config.h'
 HOST_COMM_HEADER = '../firmware/src/host_comm.h'
@@ -43,7 +47,7 @@ def number_from_string(s):
     return val
 
 def parse_enum(header_file, prefix):
-    enum_dict = dict()
+    enum_dict = OrderedDict()
     for line in open(header_file):
         m = re.match(r'^\s*' + prefix + r'_(?P<name>\w+)\s*=\s*(?P<value>[0-9xA-F]+)', line)
         if m is None:
@@ -94,6 +98,8 @@ ADC_CHAN_INDEX = parse_host_comm_enum('ADC_CHAN_INDEX')
 ENERGY_BREAKPOINT_IMPL = parse_host_comm_enum('ENERGY_BREAKPOINT_IMPL')
 CMP_REF = parse_host_comm_enum('CMP_REF')
 UART_IDENTIFIER_USB = parse_host_comm_def('UART_IDENTIFIER_USB')
+STREAM = parse_host_comm_enum('STREAM')
+RF_EVENT = parse_host_comm_enum('RF_EVENT')
 
 INTERRUPT_TYPE = parse_target_comm_enum('INTERRUPT_TYPE')
 
@@ -105,6 +111,14 @@ class InterruptContext:
         self.type = type
         self.id = id
         self.saved_vcap = saved_vcap
+
+class StreamDataPoint:
+    def __init__(self, timestamp_sec, value_set):
+        self.timestamp_sec = timestamp_sec
+        self.value_set = value_set 
+
+class StreamDecodeException(Exception):
+    pass
 
 class WispMonitor:
     VDD                                 = VDD # V
@@ -122,6 +136,15 @@ class WispMonitor:
 
         self.rcv_buf = bytearray()
         self.stream_bytes = 0
+
+        self.stream_decoders = {
+                "VCAP": self.decode_adc_value,
+                "VBOOST": self.decode_adc_value,
+                "VREG": self.decode_adc_value,
+                "VRECT": self.decode_adc_value,
+                "VINJ": self.decode_adc_value,
+                "RF_EVENTS": self.decode_rf_event_value,
+        }
         
     def destroy(self):
         self.serial.close()
@@ -133,13 +156,14 @@ class WispMonitor:
         while minBufLen > 0:
             if(self.rxPkt.constructState == CONSTRUCT_STATE_IDENTIFIER):
                 self.rxPkt.identifier = buf.pop(0) # get the identifier byte
+                minBufLen -= 1
                 
                 if(self.rxPkt.identifier != UART_IDENTIFIER_USB):
                     # unknown identifier - reset state
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
-                    raise Exception("packet construction failed: unknown identifier: " +
-                            str(self.rxPkt.identifier) + " (exp " + str(UART_IDENTIFIER_USB) + ")")
-                minBufLen -= 1
+                    print >>sys.stderr, "packet construction failed: unknown identifier: ", \
+                            self.rxPkt.identifier, " (exp ", str(UART_IDENTIFIER_USB), ")"
+                    continue
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
                 self.rxPkt.descriptor = buf.pop(0) # get descriptor byte
@@ -224,11 +248,62 @@ class WispMonitor:
             elif self.rxPkt.descriptor == USB_RSP['SERIAL_ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
+            elif self.rxPkt.descriptor == USB_RSP['STREAM_DATA']:
+                FIELD_LEN_STREAMS = 1
+                FIELD_LEN_TIMESTAMP = 4
+
+                offset = 0
+
+                data_points = []
+
+                if offset + FIELD_LEN_STREAMS <= len(self.rxPkt.data):
+
+                    pkt_streams = self.rxPkt.data[offset]
+                    #print "pkt_streams=0x%08x" % pkt_streams
+                    offset += 1
+                    offset += 1 # padding
+
+
+                    while offset < len(self.rxPkt.data):
+                        # invalid pkt, but best we can do here is not fail
+                        if offset + FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
+                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: timestamp field"
+                            break
+
+                        timestamp_cycles = (self.rxPkt.data[offset + 3] << 24) | \
+                                           (self.rxPkt.data[offset + 2] << 16) | \
+                                           (self.rxPkt.data[offset + 1] <<  8) | \
+                                           (self.rxPkt.data[offset + 0] <<  0)
+                        offset += 4
+
+                        timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
+
+                        try:
+                            # Decode the pkt into a dictionary: stream->value.
+                            # Order is implied by the bit index of each stream as defined by the enum
+                            value_set = {}
+                            for stream in STREAM:
+                                if pkt_streams & STREAM[stream]:
+                                    value, length = self.stream_decoders[stream](self.rxPkt.data, offset)
+                                    offset += length
+                                    value_set[stream] = value
+
+                            data_points.append(StreamDataPoint(timestamp_sec, value_set))
+                        except StreamDecodeException:
+                            # invalid pkt, best we can do here is not fail
+                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: value field"
+                            break
+                else:
+                    # invalid pkt, best we can do here is not fail
+                    print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: streams field"
+
+                pkt["data_points"] = data_points
+
             return pkt
 
         newData = self.serial.read()
 
-        if(len(newData) > 0):
+        if len(newData) > 0:
             newBytes = bytearray(newData)
             UART_LOG_FILE.write(newBytes)
             UART_LOG_FILE.flush()
@@ -239,10 +314,13 @@ class WispMonitor:
     def receive_reply(self, descriptor):
         reply = None
         while reply is None:
-            reply = self.receive()
-        if reply["descriptor"] != descriptor:
-            raise Exception("unexpected reply: " + \
-                    str(reply["descriptor"]) + "(exp " + str(descriptor) + ")")
+            while reply is None:
+                reply = self.receive()
+            if reply["descriptor"] != descriptor:
+                print >>sys.stderr, "unexpected reply: ", \
+                        reply["descriptor"], "(exp ", str(descriptor), ")"
+                reply = None
+                continue
         if descriptor == USB_RSP['RETURN_CODE']: # this one is generic, so handle it here
             if reply["code"] != 0:
                 raise Exception("Command failed: return code " + str(reply["code"]))
@@ -289,24 +367,39 @@ class WispMonitor:
     def cmp_to_voltage(self, value, ref):
         return (float(value) + 1) * (COMPARATOR_REF_VOLTAGE[ref] / 2**CMP_BITS)
 
+    def decode_adc_value(self, bytes, offset):
+        FIELD_LEN = 2
+        #if offset + FIELD_LEN > len(bytes):
+        #    raise StreamDecodeException()
+        adc_value = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
+        length = 2
+        voltage = self.adc_to_voltage(adc_value)
+        return voltage, length
+
+    def decode_rf_event_value(self, bytes, offset):
+        FIELD_LEN = 2
+        if offset + FIELD_LEN > len(bytes):
+            raise StreamDecodeException()
+        rf_event_id = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
+        #print "rf_event_id = 0x%08x" % rf_event_id
+        rf_event = key_lookup(RF_EVENT, rf_event_id)
+        if rf_event is None:
+            raise StreamDecodeException()
+        length = 2 # sizeof(rf_event_t.id field + padding in the struct)
+        return rf_event, length
+
     def sense(self, channel):
         self.sendCmd(USB_CMD['SENSE'], data=[channel])
         reply = self.receive_reply(USB_RSP['VOLTAGE'])
         return reply["voltage"]
 
-    def build_stream_cmd_data(self, channels):
-        cmd_data = [len(channels)]
-        for chan in channels:
-            cmd_data.append(chan)
-        return cmd_data
-
-    def stream_begin(self, channels):
+    def stream_begin(self, streams_bitmask):
         self.stream_bytes = 0
         self.stream_start = time.time()
-        self.sendCmd(USB_CMD['STREAM_BEGIN'], data=self.build_stream_cmd_data(channels))
+        self.sendCmd(USB_CMD['STREAM_BEGIN'], data=[streams_bitmask])
 
-    def stream_end(self, channels):
-        self.sendCmd(USB_CMD['STREAM_END'], data=self.build_stream_cmd_data(channels))
+    def stream_end(self, streams_bitmask):
+        self.sendCmd(USB_CMD['STREAM_END'], data=[streams_bitmask])
         self.flush()
 
     def stream_datarate_kbps(self):
@@ -416,6 +509,75 @@ class WispMonitor:
         reply = self.receive_reply(USB_RSP['SERIAL_ECHO'])
         return reply["value"]
 
+    def stream(self, streams, duration_sec=None, out_file=None, silent=True):
+        streams_bitmask = 0x0
+        for stream in streams:
+            streams_bitmask |= STREAM[stream]
+
+        streaming = True
+        self.stream_begin(streams_bitmask)
+
+        if not silent:
+            print "Logging... Ctrl-C to stop"
+
+        start_time_sec = None
+        timestamp_sec = 0
+        num_samples = 0
+
+        def format_voltage(voltage):
+            return "%f" % voltage
+        def format_rf_event(rf_event):
+            return rf_event # a string
+
+        stream_formaters = {
+            "VCAP": format_voltage,
+            "VBOOST": format_voltage,
+            "VREG": format_voltage,
+            "VRECT": format_voltage,
+            "VINJ": format_voltage,
+            "RF_EVENTS": format_rf_event,
+        }
+        
+        with DelayedKeyboardInterrupt(): # prevent partial lines
+            out_file.write("timestamp_sec," + ",".join(streams) + "\n")
+        
+        try:
+            while duration_sec is None or timestamp_sec < duration_sec:
+                pkt = self.receive_reply(USB_RSP['STREAM_DATA'])
+
+                for data_point in pkt["data_points"]:
+
+                    if start_time_sec is None: # first time data - store it for reference
+                        start_time_sec = data_point.timestamp_sec
+                    timestamp_sec = data_point.timestamp_sec - start_time_sec
+
+                    line = "%f" % timestamp_sec
+                    for stream in streams:
+                        # a column per requested stream, so may have blanks on some rows
+                        line += ","
+                        if stream in data_point.value_set:
+                            line += stream_formaters[stream](data_point.value_set[stream])
+                    line += "\n"
+
+                    with DelayedKeyboardInterrupt(): # prevent partial lines
+                        out_file.write(line)
+
+                    num_samples += 1
+
+                if not silent:
+                    print "\r%.2f KB/s" % self.stream_datarate_kbps()
+
+        finally:
+            self.stream_end(streams_bitmask)
+
+            # clear partial packets from the input buf (flush a few times just
+            # in case data is backed up in the buffer on the device side)
+            for i in range(1, 8):
+                time.sleep(0.25)
+                self.serial.flushInput()
+
+        if not silent:
+            print "%d samples in %f seconds (target time)" % (num_samples, timestamp_sec)
 
 class RxPkt():
     def __init__(self):

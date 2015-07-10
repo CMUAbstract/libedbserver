@@ -14,11 +14,16 @@
 #include "minmax.h"
 #include "pin_assign.h"
 #include "config.h"
+#include "error.h"
 
 #include "uart.h"
 
 #define BRS_BITS_INNER(brs) UCBRS_ ## brs
 #define BRS_BITS(brs) BRS_BITS_INNER(brs)
+
+// Buffer and len available to all modules that may send over UART
+uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
+uint8_t host_msg_len;
 
 static uint16_t *pUSBFlags;
 static uint16_t *pWISPFlags;

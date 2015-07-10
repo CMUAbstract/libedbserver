@@ -13,6 +13,7 @@
 
 #include <msp430.h>
 
+#include "host_comm.h"
 #include "pin_assign.h"
 
 // from wisp-base project -- globals.h
@@ -43,42 +44,21 @@
                                                             /* changing this will affect timing criteria on RTCal measurement       */
 // ====================================================
 
-#define FORCE_SKIP_TX_ACTIVITY	(1096) //!< SMCLK cycles to skip Tx activity after it starts (~36us, but this gives us ~50us for safety)
+#define TX_MSG_DURATION_CYCLES  3288 //!< transmission time of one RF message from target to the reader (SMCLK cycles @ 21.921792 MHz = 150us, measured)
 
-
-// descriptors to define RFID commands
-#define RFID_CMD_QUERYREP				0x00
-#define RFID_CMD_ACK					0x40
-#define RFID_CMD_QUERY					0x80
-#define RFID_CMD_QUERYADJUST			0x90
-#define RFID_CMD_SELECT					0xA0
-#define RFID_CMD_NAK					0xC0
-#define RFID_CMD_REQRN					0xC1
-#define RFID_CMD_READ					0xC2
-#define RFID_CMD_WRITE					0xC3
-#define RFID_CMD_KILL					0xC4
-#define RFID_CMD_LOCK					0xC5
-#define RFID_CMD_ACCESS					0xC6
-#define RFID_CMD_BLOCKWRITE				0xC7
-#define RFID_CMD_BLOCKERASE				0xC8
-#define RFID_CMD_BLOCKPERMALOCK			0xC9
-#define RFID_CMD_READBUFFER				0xD2
-#define RFID_CMD_FILEOPEN				0xD3
-#define RFID_CMD_CHALLENGE				0xD4
-#define RFID_CMD_AUTHENTICATE			0xD5
-#define RFID_CMD_SECURECOMM				0xD6
-#define RFID_CMD_AUTHCOMM				0xD7
-
-void RFID_setup(uint16_t *pFlags, uint16_t rxFlag, uint16_t txFlag);
+void RFID_setup(uint16_t *pFlags, uint16_t data_ready_flag_arg);
 void RFID_startRxLog();
 void RFID_stopRxLog();
 void RFID_startTxLog();
 void RFID_stopTxLog();
-void RFID_UARTSendRxData();
-void RFID_UARTSendTxData();
+void RFID_start_event_stream();
+void RFID_stop_event_stream();
+void RFID_send_rf_events_to_host();
 
 void RFID_RxHandler();
-void RFID_TxHandler(uint32_t curTime);
+void RFID_TxHandler();
+
+void append_event(rf_event_type_t id);
 
 // RFID command handles
 void handleQR(void);

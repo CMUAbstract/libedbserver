@@ -75,6 +75,12 @@ typedef struct {
 } uartBuf_t;
 
 /**
+ * @brief Buffer and len available to all modules that may send messages to host
+ */
+extern uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
+extern uint8_t host_msg_len;
+
+/**
  * @brief       Set up UART
  * @param       interface       UART interface to set up.  See @ref UART_INTERFACES
  * @param       flag_bitmask    Bitmask where flags will be set on UART Rx and Tx

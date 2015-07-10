@@ -113,7 +113,6 @@ typedef struct {
 } interrupt_context_t;
 
 static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
-static uint8_t log_flags = 0; // bit mask containing active log values to send via USB
 
 static state_t state = STATE_IDLE;
 static comparator_op_t comparator_op = CMP_OP_NONE;
@@ -126,11 +125,11 @@ static state_t saved_sig_serial_echo_state;
 static uint16_t adc12Target; // target ADC reading
 static interrupt_context_t interrupt_context;
 
+static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
+
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
-static uint8_t stream_buf[STREAM_REPLY_MAX_LEN];
-static uint8_t usb_reply_buf[USB_REPLY_MAX_LEN];
 
 // Bitmasks indicate whether a breakpoint (group) of given index is enabled
 static uint16_t passive_breakpoints = 0;
@@ -270,18 +269,19 @@ static void send_return_code(uint8_t code)
 
 static void send_interrupt_context(interrupt_context_t *int_context)
 {
-    uint8_t reply_len;
+    uint8_t host_msg_len;
 
-    reply_len = 0;
-    usb_reply_buf[reply_len++] = int_context->type;
-    usb_reply_buf[reply_len++] = int_context->id;
-    usb_reply_buf[reply_len++] = (int_context->saved_vcap >> 0) & 0xff;
-    usb_reply_buf[reply_len++] = (int_context->saved_vcap >> 8) & 0xff;
+    host_msg_len = 0;
+    host_msg_buf[host_msg_len++] = int_context->type;
+    host_msg_buf[host_msg_len++] = int_context->id;
+    host_msg_buf[host_msg_len++] = (int_context->saved_vcap >> 0) & 0xff;
+    host_msg_buf[host_msg_len++] = (int_context->saved_vcap >> 8) & 0xff;
+
     // writes already happened, but better late than never 
-    ASSERT(ASSERT_HOST_MSG_BUF_OVERFLOW, reply_len <= USB_REPLY_MAX_LEN);
+    ASSERT(ASSERT_HOST_MSG_BUF_OVERFLOW, host_msg_len <= USB_REPLY_MAX_LEN);
 
     UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
-                 usb_reply_buf, reply_len, UART_TX_FORCE);
+                 host_msg_buf, host_msg_len, UART_TX_FORCE);
 }
 
 static void enter_debug_mode(interrupt_type_t int_type)
@@ -712,6 +712,7 @@ static void pin_setup()
 #endif
 
     // In our IDLE state, target might request to enter active debug mode
+    // NOTE: this might interfere with RFID protocol decoding
     unmask_target_signal();
 }
 
@@ -719,6 +720,7 @@ int main(void)
 {
     uartPkt_t usbRxPkt = { .processed = 1 };
     uint32_t count = 0;
+    uint8_t values_len;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
@@ -736,9 +738,10 @@ int main(void)
     PWM_setup(1024-1, 512); // dummy default values
     UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
 
+    // TODO: enable the RFID decoding only when the stream is requested
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
     // use the same flag for Rx and Tx so we only have to check one flag
-    RFID_setup(&flags, FLAG_RF_DATA, FLAG_RF_DATA);
+    RFID_setup(&flags, FLAG_RF_DATA);
 #endif
 
     ADC12_init(&adc12);
@@ -764,21 +767,24 @@ int main(void)
             flags &= ~FLAG_ADC12_COMPLETE;
 
             if(flags & FLAG_LOGGING) {
-                // send ADC conversion time and conversion results
-                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_TIME,
-                        (uint8_t *)(&(adc12.timeComplete)), sizeof(uint32_t),
-                        UART_TX_DROP);
 
-                /* TODO: inefficient: try to get rid of the this copy */
-                stream_buf[0] = adc12.config.num_channels;
-                memcpy(stream_buf + sizeof(uint8_t), adc12.results,
-                       adc12.config.num_channels * sizeof(uint16_t));
+                // TODO: eliminate the copy by having the ADC ISR fill the msg buffer directly
+                host_msg_len = 0;
+                host_msg_buf[host_msg_len++] = adc_streams_bitmask;
+                host_msg_buf[host_msg_len++] = 0; // padding
+                host_msg_buf[host_msg_len++] = (adc12.timeComplete >>  0) & 0xff;
+                host_msg_buf[host_msg_len++] = (adc12.timeComplete >>  8) & 0xff;
+                host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 16) & 0xff;
+                host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 24) & 0xff;
 
-                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGES, stream_buf,
-                    sizeof(uint8_t) + adc12.config.num_channels * sizeof(uint16_t),
-                    UART_TX_DROP);
+                values_len = adc12.config.num_channels * sizeof(uint16_t);
+                memcpy(host_msg_buf + host_msg_len, adc12.results, values_len);
+                host_msg_len += values_len;
 
-                ADC12_start();
+                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
+                             host_msg_buf, host_msg_len, UART_TX_DROP);
+
+                ADC12_trigger();
             }
         }
 
@@ -834,8 +840,7 @@ int main(void)
 
         if(flags & FLAG_RF_DATA) {
         	flags &= ~FLAG_RF_DATA;
-        	RFID_UARTSendRxData(); // send any data that we may have collected
-        	RFID_UARTSendTxData();
+            RFID_send_rf_events_to_host();
         }
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
@@ -909,46 +914,61 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	break;
 
     case USB_CMD_STREAM_BEGIN: {
-        uint8_t num_chans = pkt->data[0];
-        adc_chan_index_t *chan_indexes = (adc_chan_index_t *)&pkt->data[1];
-        flags |= FLAG_LOGGING; // for main loop
-        TimeLog_request(1); // request timer overflow notifications
-        for (i = 0; i < num_chans; ++i)
-            ADC12_addChannel(&adc12, chan_indexes[i]);
-        ADC12_restart(&adc12);
+        uint8_t streams = pkt->data[0];
+
+        TimeLog_request(1); // start the time-keeping clock
+
+        adc_streams_bitmask = streams & ADC_STREAMS;
+
+        if (streams & STREAM_VCAP)
+            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VCAP);
+        if (streams & STREAM_VBOOST)
+            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VBOOST);
+        if (streams & STREAM_VREG)
+            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VREG);
+        if (streams & STREAM_VRECT)
+            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VRECT);
+        if (streams & STREAM_VINJ)
+            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VINJ);
+        if (streams & STREAM_RF_EVENTS)
+            RFID_start_event_stream();
+
+        // actions common to all adc streams
+        if (adc12.config.num_channels > 0) {
+            flags |= FLAG_LOGGING; // for main loop
+            ADC12_arm(&adc12);
+            ADC12_trigger();
+        }
         break;
     }
 
     case USB_CMD_STREAM_END: {
-        uint8_t num_chans = pkt->data[0];
-        adc_chan_index_t *chan_indexes = (adc_chan_index_t *)&pkt->data[1];
-		flags &= ~FLAG_LOGGING; // for main loop
+        uint8_t streams = pkt->data[0];
+
         TimeLog_request(0);
-        for (i = 0; i < num_chans; ++i)
-            ADC12_removeChannel(&adc12, chan_indexes[i]);
-        ADC12_restart(&adc12);
+
+        adc_streams_bitmask &= ~(streams & ADC_STREAMS);
+
+        if (streams & STREAM_VCAP)
+            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VCAP);
+        if (streams & STREAM_VBOOST)
+            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VBOOST);
+        if (streams & STREAM_VREG)
+            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VREG);
+        if (streams & STREAM_VRECT)
+            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VRECT);
+        if (streams & STREAM_VINJ)
+            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VINJ);
+        if (streams & STREAM_RF_EVENTS)
+            RFID_stop_event_stream();
+
+        // actions common to all adc streams
+        if (adc12.config.num_channels == 0) {
+		    flags &= ~FLAG_LOGGING; // for main loop
+            ADC12_stop();
+        }
         break;
     }
-
-    case USB_CMD_LOG_RF_RX_BEGIN:
-    	TimeLog_request(1); // request timer overflow notifications
-    	RFID_startRxLog();
-    	break;
-
-    case USB_CMD_LOG_RF_RX_END:
-    	TimeLog_request(0);
-    	RFID_stopRxLog();
-    	break;
-
-    case USB_CMD_LOG_RF_TX_BEGIN:
-    	TimeLog_request(1); // request timer overflow notifications
-    	RFID_startTxLog();
-    	break;
-
-    case USB_CMD_LOG_RF_TX_END:
-    	TimeLog_request(0);
-    	RFID_stopTxLog();
-    	break;
 
     case USB_CMD_SEND_RF_TX_DATA:
 		// not implemented
@@ -1243,8 +1263,6 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 	uint16_t result;
 	int8_t compare;
 	uint8_t threshold = 1;
-	ADC12_addChannel(&adc12, adc_chan_index);
-	ADC12_restart(&adc12);
 
 	// Here, we want to choose a starting PWM duty cycle close to, but not above,
 	// what the correct one will be.  We want it to be close because we will test
@@ -1282,17 +1300,6 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 			PWM_DECREASE_DUTY_CYCLE;
 		}
 	} while(compare != 0);
-
-	// We've found the correct PWM duty cycle for the target voltage.
-	// Leave PWM on, but remove this channel from the ADC configuration
-	// if necessary.
-	if((adc_chan_index == ADC_CHAN_INDEX_VCAP && !(log_flags & LOG_VCAP)) ||
-				(adc_chan_index == ADC_CHAN_INDEX_VBOOST && !(log_flags & LOG_VBOOST))) {
-		// We don't need this ADC channel anymore, since we're done here and
-		// we're not logging this voltage right now.
-		ADC12_removeChannel(&adc12, adc_chan_index);
-		ADC12_restart(&adc12);
-	}
 }
 
 static void break_at_vcap_level_adc(uint16_t level)
@@ -1339,11 +1346,12 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	switch(__even_in_range(P1IV, 16))
 	{
 	case INTFLAG(PORT_RF, PIN_RF_TX):
-		RFID_TxHandler(TIMELOG_CURRENT_TIME);
+		RFID_TxHandler();
 		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
 		break;
 	case INTFLAG(PORT_RF, PIN_RF_RX):
 		RFID_RxHandler();
+		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_RX);
 		break;
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();

@@ -60,7 +60,7 @@ void ADC12_init(adc12_t *adc12);
  *              configured channels.  The interrupt sets the flag bit mask
  *              present in the adc12_t data structure.
  */
-void ADC12_configure(adc12_t *adc12, adc12Mode_t mode);
+void ADC12_arm(adc12_t *adc12);
 
 /**
  * @brief   Add an ADC channel to the adc12 configuration structure
@@ -77,7 +77,7 @@ void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index);
 /**
  * @brief       Start an ADC conversion in the mode configured previously
  */
-void ADC12_start();
+void ADC12_trigger();
 
 /**
  * @brief       Stop the ADC conversion and disable the ADC
@@ -85,24 +85,13 @@ void ADC12_start();
 void ADC12_stop();
 
 /**
- * @brief       Wait for the ADC to complete conversion
- */
-void ADC12_wait();
-
-/**
- * @brief   Reconfigure and restart ADC defined by the adc12 configuration structure
- */
-void ADC12_restart(adc12_t *adc12);
-
-/**
  * @brief   Blocking read of an ADC channel
- * @param   channel Channel to read
+ * @param   chan_index   Permanent index assigned to the ADC channel
  * @return  ADC12 conversion result
  * @details This function reconfigures the ADC to read only the channel
- *          requested, and returns the result.  It then restores the ADC
- *          to the configuration defined by the adc12 structure.
+ *          requested, and returns the result.
  */
-uint16_t ADC12_read(adc12_t *adc12, uint16_t channel);
+uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index);
 
 /**
  * @brief   Retrieve a recorded sample from memory
