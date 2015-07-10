@@ -508,7 +508,7 @@ class WispMonitor:
             "VREG": format_voltage,
             "VRECT": format_voltage,
             "VINJ": format_voltage,
-            "host_comm_header.enums['RF_EVENT']S": format_rf_event,
+            "RF_EVENTS": format_rf_event,
         }
         
         with DelayedKeyboardInterrupt(): # prevent partial lines
