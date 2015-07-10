@@ -252,7 +252,7 @@ callAuthCommHandler:
 ;/ If the abort flag has been set during the RFID transaction, return! Otherwise, keep doing RFID.									 *
 ;/************************************************************************************************************************************/
 endDoRFID:
-	TST.B	(rfid.abortFlag)
+	TST.B	&(rfid.abortFlag)
 	JZ		keepDoingRFID
 	CALLA	#RFID_stopRxLog
 	RETA
