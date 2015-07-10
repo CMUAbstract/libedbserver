@@ -12,6 +12,8 @@ TARGET_COMM_HEADER = '../libdebug/src/include/libdebug/target_comm.h'
 
 SERIAL_PORT                         = '/dev/ttyUSB0'
 
+UART_LOG_FILE   = open("uart.log", "w")
+
 VDD = 3.3
 
 COMPARATOR_REF_VOLTAGE = {
@@ -228,6 +230,8 @@ class WispMonitor:
 
         if(len(newData) > 0):
             newBytes = bytearray(newData)
+            UART_LOG_FILE.write(newBytes)
+            UART_LOG_FILE.flush()
             self.rcv_buf.extend(newBytes)
             self.stream_bytes += len(newData)
         return None
