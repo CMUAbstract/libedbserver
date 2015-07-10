@@ -18,8 +18,6 @@ void error(error_t error)
             BLINK_LOOP(PIN_LED_RED, 200000);
         case ERROR_INVALID_VALUE:
             BLINK_LOOP(PIN_LED_RED, 300000);
-        case ERROR_ASSERT_FAIL:
-            BLINK_LOOP(PIN_LED_RED, 400000);
         default:
             GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
             while (1);

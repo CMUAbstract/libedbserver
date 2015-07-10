@@ -9,8 +9,13 @@ typedef enum {
     ERROR_UNEXPECTED_CODEPOINT,
     ERROR_UNEXPECTED_INTERRUPT,
     ERROR_INVALID_VALUE,
-    ERROR_ASSERT_FAIL,
 } error_t;
+
+typedef enum {
+	ASSERT_INVALID_STREAM_DATA_LEN				= 1,
+	ASSERT_RF_EVENTS_BUF_OVERFLOW				= 2,
+	ASSERT_HOST_MSG_BUF_OVERFLOW				= 3,
+} assert_t;
 
 /* @brief Blink led at a given rate indefinitely
  * @details This has to be a macro because arg to __delay_cycles intrinsic must be a
@@ -24,6 +29,6 @@ typedef enum {
 /* @brief Report and handle error */
 void error(error_t num);
 
-#define ASSERT(cond) if (!(cond)) error(ERROR_ASSERT_FAIL);
+#define ASSERT(idx, cond) if (!(cond)) BLINK_LOOP(PIN_LED_RED, 400000 * (idx));
 
 #endif

@@ -277,7 +277,8 @@ static void send_interrupt_context(interrupt_context_t *int_context)
     usb_reply_buf[reply_len++] = int_context->id;
     usb_reply_buf[reply_len++] = (int_context->saved_vcap >> 0) & 0xff;
     usb_reply_buf[reply_len++] = (int_context->saved_vcap >> 8) & 0xff;
-    ASSERT(reply_len <= USB_REPLY_MAX_LEN); // better late than never (writes already happened)
+    // writes already happened, but better late than never 
+    ASSERT(ASSERT_HOST_MSG_BUF_OVERFLOW, reply_len <= USB_REPLY_MAX_LEN);
 
     UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
                  usb_reply_buf, reply_len, UART_TX_FORCE);
