@@ -332,7 +332,7 @@ void rfid_decoder_tx_pin_isr()
 
 /** @brief TX "ignore" timer ISR */
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A0_VECTOR
+#pragma vector=TIMER1_A1_VECTOR
 __interrupt void TIMER1_A1_ISR(void)
 #elif defined(__GNUC__)
 void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
