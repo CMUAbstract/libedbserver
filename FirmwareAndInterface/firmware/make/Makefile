@@ -85,7 +85,6 @@ C_SRCS = \
 	rfid/rfid.c \
 	rfid/rfid_decoder.c \
 	adc12/adc12.c \
-	marker.c \
 
 ASM_SRCS = \
 

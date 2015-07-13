@@ -1039,11 +1039,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
     // USB_CMD_PWM_LOW and USB_CMD_PWM_OFF do the same thing
 
     case USB_CMD_MONITOR_MARKER_BEGIN:
-        marker_monitor_begin();
-        break;
-
     case USB_CMD_MONITOR_MARKER_END:
-        marker_monitor_end();
+        // DEPRECATED
         break;
 
     case USB_CMD_BREAK_AT_VCAP_LEVEL: {
