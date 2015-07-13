@@ -17,6 +17,7 @@
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <libdebug/target_comm.h>
 
