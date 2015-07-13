@@ -148,20 +148,6 @@ void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
 uint8_t UART_RxBufEmpty(uint8_t interface);
 
 /**
- * @brief       Determine the length of the circular buffer
- * @param       buf        Pointer to the circular buffer
- * @return      Length of the buffer
- */
-inline uint8_t uartBuf_len(uartBuf_t *buf) {
-    int16_t diff = buf->tail - buf->head;
-    if(diff >= 0) {
-        return (uint8_t) diff;
-    } else {
-        return (uint8_t)(diff + UART_BUF_MAX_LEN_WITH_TAIL);
-    }
-}
-
-/**
  * @brief       Copy an array of bytes into a uartBuf_t circular buffer
  * @param       bufInto     Pointer to a uartBuf_t structure to which bytes will be copied
  * @param       bufFrom     Pointer to a byte array from which bytes will be copied

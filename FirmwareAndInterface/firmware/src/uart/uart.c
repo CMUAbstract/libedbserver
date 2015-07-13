@@ -37,7 +37,19 @@ static uartBuf_t wispTx = { .head = 0, .tail = 0 };
 
 static uint8_t msg[UART_BUF_MAX_LEN];
 
-extern inline uint8_t uartBuf_len(uartBuf_t *buf);
+/**
+ * @brief       Determine the length of the circular buffer
+ * @param       buf        Pointer to the circular buffer
+ * @return      Length of the buffer
+ */
+static inline uint8_t uartBuf_len(uartBuf_t *buf) {
+    int16_t diff = buf->tail - buf->head;
+    if(diff >= 0) {
+        return (uint8_t) diff;
+    } else {
+        return (uint8_t)(diff + UART_BUF_MAX_LEN_WITH_TAIL);
+    }
+}
 
 void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)
 {
