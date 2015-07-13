@@ -13,6 +13,12 @@
 #define TIMER_INNER(name, reg) T ## name ## reg
 #define TIMER(name, reg) TIMER_INNER(name, reg)
 
+#define TIMER_CC_INNER(name, ccridx, reg) T ## name ## reg ## ccridx
+#define TIMER_CC(name, ccridx, reg) TIMER_CC_INNER(name, ccridx, reg)
+
+#define TIMERA_INTFLAG_INNER(id, ccridx) T ## id ## IV_ ## TACCR ## ccridx
+#define TIMERA_INTFLAG(id, ccridx) TIMERA_INTFLAG_INNER(id, ccridx)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
@@ -77,10 +83,17 @@
 #define PIN_SERIAL_DECODE_PULSE                 5 //!< input pulse trigged decoder interrupt
 #define PIN_SERIAL_DECODE_TIMER                 4 //!< decoder timer started, rolled over, or stopped
 
+#define PORT_RFID_DEC_STATE                     1
+#define PORT_RFID_DEC_STATE_0                   3
+#define PORT_RFID_DEC_STATE_1                   4
+#define PORT_RFID_DEC_STATE_2                   5
+
 /* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
 #define PIN_RF_TX                               1 //!< RF TX line
 #define PIN_RF_RX                               2 //!< RF RX line
+#define TMRCC_RF_RX                             1 //!< timer capture-compare register index
+#define TMRCC_RF_TX                             0 //!< timer capture-compare register index
 
 /* The same as above, but for asm, which is limited to a simple pre-processor */
 #define PIN_RX BIT2
@@ -102,6 +115,10 @@
 // TODO: warning: timer shared with voltage logging code
 // NOTE: if changed, the ISR in main.c must also be changed
 #define TIMER_SIG_SERIAL_DECODE                 A2
+
+// NOTE: if changed, the ISR definition in rfid_decoder.c must be also changed
+#define TIMER_RF_RX_DECODE                      A0
+#define TIMER_RF_TX_DECODE                      A1
 
 /** @} End PORTS */
 

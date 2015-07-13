@@ -82,15 +82,12 @@ C_SRCS = \
 	i2c/i2c.c \
 	timers/pwm.c \
 	timers/timeLog.c \
-	timers/timer1.c \
 	rfid/rfid.c \
+	rfid/rfid_decoder.c \
 	adc12/adc12.c \
 	marker.c \
 
 ASM_SRCS = \
-	rfid/RFID_RxHandler.asm \
-	rfid/RFID_startRxLog.asm \
-	rfid/Timer0A1_ISR.asm \
 
 LIBS = \
 

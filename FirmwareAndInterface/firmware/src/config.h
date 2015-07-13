@@ -54,6 +54,14 @@
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
 
+// Encode RFID decoder state onto pins for debugging purposes
+#define CONFIG_RFID_DECODER_STATE_PINS
+
+// Use implementation of symbol time validity checks that requires bounds to
+// be calculated at runtime. More aligned with the spec without chosen magic
+// values, however might be prohibitevely expensive in terms of cycles.
+// #define CONFIG_RFID_DECODER_RUNTIME_BOUNDS
+
 /**
  * @brief Enable pull-down on the debugger<->target interrupt line.
  *

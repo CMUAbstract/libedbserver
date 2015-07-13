@@ -178,40 +178,54 @@ typedef enum {
  *          so there is only one response event: a bit that indicates that a
  *          transmission was attempted.
  *
- *          These identifiers are used for RF protocol decoding and tracing.
- *          The values appear to be actual protocol values, but that does not
- *          matter for the functionality of the debugger.
+ *          These identifiers in the LSB match the codes in the RFID protocol,
+ *          the MSB distinguishes between event types.
  */
 typedef enum {
-    RF_EVENT_INVALID				    = 0x00,
+    RF_EVENT_INVALID                    = 0x0000,
 
-    RF_EVENT_CMD_QUERYREP				= 0x01,
-    RF_EVENT_CMD_ACK					= 0x40,
-    RF_EVENT_CMD_QUERY					= 0x80,
-    RF_EVENT_CMD_QUERYADJUST			= 0x90,
-    RF_EVENT_CMD_SELECT					= 0xA0,
-    RF_EVENT_CMD_NAK					= 0xC0,
-    RF_EVENT_CMD_REQRN					= 0xC1,
-    RF_EVENT_CMD_READ					= 0xC2,
-    RF_EVENT_CMD_WRITE					= 0xC3,
-    RF_EVENT_CMD_KILL					= 0xC4,
-    RF_EVENT_CMD_LOCK					= 0xC5,
-    RF_EVENT_CMD_ACCESS					= 0xC6,
-    RF_EVENT_CMD_BLOCKWRITE				= 0xC7,
-    RF_EVENT_CMD_BLOCKERASE				= 0xC8,
-    RF_EVENT_CMD_BLOCKPERMALOCK			= 0xC9,
-    RF_EVENT_CMD_READBUFFER				= 0xD2,
-    RF_EVENT_CMD_FILEOPEN				= 0xD3,
-    RF_EVENT_CMD_CHALLENGE				= 0xD4,
-    RF_EVENT_CMD_AUTHENTICATE			= 0xD5,
-    RF_EVENT_CMD_SECURECOMM				= 0xD6,
-    RF_EVENT_CMD_AUTHCOMM				= 0xD7,
+    RF_EVENT_CMD_QUERYREP               = 0x0100,
+    RF_EVENT_CMD_ACK                    = 0x0140,
+    RF_EVENT_CMD_QUERY                  = 0x0180,
+    RF_EVENT_CMD_QUERYADJUST            = 0x0190,
+    RF_EVENT_CMD_SELECT                 = 0x01A0,
+    RF_EVENT_CMD_NAK                    = 0x01C0,
+    RF_EVENT_CMD_REQRN                  = 0x01C1,
+    RF_EVENT_CMD_READ                   = 0x01C2,
+    RF_EVENT_CMD_WRITE                  = 0x01C3,
+    RF_EVENT_CMD_KILL                   = 0x01C4,
+    RF_EVENT_CMD_LOCK                   = 0x01C5,
+    RF_EVENT_CMD_ACCESS                 = 0x01C6,
+    RF_EVENT_CMD_BLOCKWRITE             = 0x01C7,
+    RF_EVENT_CMD_BLOCKERASE             = 0x01C8,
+    RF_EVENT_CMD_BLOCKPERMALOCK         = 0x01C9,
+    RF_EVENT_CMD_READBUFFER             = 0x01D2,
+    RF_EVENT_CMD_FILEOPEN               = 0x01D3,
+    RF_EVENT_CMD_CHALLENGE              = 0x01D4,
+    RF_EVENT_CMD_AUTHENTICATE           = 0x01D5,
+    RF_EVENT_CMD_SECURECOMM             = 0x01D6,
+    RF_EVENT_CMD_AUTHCOMM               = 0x01D7,
 
-    RF_EVENT_RSP_GENERIC                = 0xB0,
+    RF_EVENT_RSP_GENERIC                = 0x0200,
 
-    RF_EVENT_ERR_BAD_DELIM              = 0xE1,
-    RF_EVENT_ERR_RT_CAL                 = 0xE2,
-    RF_EVENT_ERR_TR_CAL                 = 0xE3,
+    RF_EVENT_ERR_BAD_DELIM              = 0x0E01,
+    RF_EVENT_ERR_RT_CAL                 = 0x0E02,
+    RF_EVENT_ERR_TR_CAL                 = 0x0E03,
 } rf_event_type_t;
+
+/**
+ * @defgroup RF_EVENT_TYPE
+ * @brief Byte that identifies the RFID event type
+ *
+ * @details Must match the MSB in rf_event_type_t.
+ *
+ *          This value repitition could be avoided by using function-macros, but this
+ *          header is parsed by Python on the host which can't handle function-macros.
+ */
+#define RF_EVENT_TYPE_INVALID           0x0000
+#define RF_EVENT_TYPE_CMD               0x0100
+#define RF_EVENT_TYPE_RSP               0x0200
+#define RF_EVENT_TYPE_ERROR             0x0E00
+/* @} End RF_EVENT_TYPE */
 
 #endif // HOST_COMM_H

@@ -28,8 +28,8 @@
 #include "i2c.h"
 #include "pwm.h"
 #include "timeLog.h"
-#include "timer1.h"
 #include "rfid.h"
+#include "rfid_decoder.h"
 #include "marker.h"
 #include "minmax.h"
 #include "main.h"
@@ -713,7 +713,8 @@ static void pin_setup()
 
     // In our IDLE state, target might request to enter active debug mode
     // NOTE: this might interfere with RFID protocol decoding
-    unmask_target_signal();
+    // TODO: temporary
+    //unmask_target_signal();
 }
 
 int main(void)
@@ -1346,12 +1347,8 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	switch(__even_in_range(P1IV, 16))
 	{
 	case INTFLAG(PORT_RF, PIN_RF_TX):
-		RFID_TxHandler();
+        rfid_decoder_tx_pin_isr();
 		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
-		break;
-	case INTFLAG(PORT_RF, PIN_RF_RX):
-		RFID_RxHandler();
-		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_RX);
 		break;
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();

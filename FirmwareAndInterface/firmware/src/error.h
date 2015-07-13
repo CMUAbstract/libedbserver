@@ -12,9 +12,12 @@ typedef enum {
 } error_t;
 
 typedef enum {
-	ASSERT_INVALID_STREAM_DATA_LEN				= 1,
-	ASSERT_RF_EVENTS_BUF_OVERFLOW				= 2,
-	ASSERT_HOST_MSG_BUF_OVERFLOW				= 3,
+    ASSERT_INVALID_STREAM_DATA_LEN                = 1,
+    ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 2,
+    ASSERT_HOST_MSG_BUF_OVERFLOW                  = 3,
+    ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 4,
+    ASSERT_INVALID_RFID_DECODER_STATE             = 5,
+    ASSERT_INVALID_RFID_CMD_HANDLER               = 6,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely

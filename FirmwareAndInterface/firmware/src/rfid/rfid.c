@@ -1,20 +1,19 @@
 /*******************************************************************************
  * @file
- * @date            10 April 2015
- * @author          Graham Harvey
- * @brief           WISP RFID communication using the WISP monitor.
+ * @brief           Monitoring of WISP RFID communication and reporting to host
  ******************************************************************************/
 
 #include <msp430.h>
 #include <stdint.h>
-#include "rfid.h"
-#include "pin_assign.h"
 
+#include "pin_assign.h"
 #include "timeLog.h"
-#include "timer1.h"
 #include "uart.h"
 #include "host_comm.h"
 #include "error.h"
+#include "rfid_decoder.h"
+
+#include "rfid.h"
 
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_EVENTS_BUFFERED                         32 
@@ -29,19 +28,6 @@ typedef struct {
     uint32_t timestamp;
     rf_event_type_t id;
 } rf_event_t;
-
-
-RFIDstruct rfid;   // inventory state
-uint8_t cmd[CMD_BUFSIZE];
-
-uint16_t R_dest_saved;
-uint16_t R_bits_saved;
-uint16_t R_bitCt_saved;
-uint16_t R_newCt_saved;
-uint16_t R_pivot_saved;
-uint16_t R_scratch0_saved;
-uint16_t R_scratch2_saved;
-uint16_t R_wakeupBits_saved;
 
 /** @brief Memory allocated for the double-buffer pair
  *
@@ -76,10 +62,9 @@ static uint8_t rf_events_count = 0;
 static uint16_t *pFlags;
 static uint16_t data_ready_flag;
 
-void append_event(rf_event_type_t id)
+static void append_event(rf_event_type_t id)
 {
     rf_event_t *rf_event;
-
 
     ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count < NUM_EVENTS_BUFFERED);
 
@@ -91,6 +76,18 @@ void append_event(rf_event_type_t id)
     rf_event->id = id;
 
 	*pFlags |= data_ready_flag;	// alert the main loop that data is ready
+}
+
+static inline void handle_rfid_cmd(rfid_cmd_code_t cmd_code)
+{
+    // TODO: don't do anything yet
+    //append_event(RF_EVENT_TYPE_CMD | rx_cmd_code);
+}
+
+static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
+{
+    // TODO: don't do anything yet
+    //append_event(RF_EVENT_TYPE_RSP | rsp_code);
 }
 
 void RFID_setup(uint16_t *pFlag_bitmask, uint16_t data_ready_flag_arg)
@@ -107,11 +104,17 @@ void RFID_setup(uint16_t *pFlag_bitmask, uint16_t data_ready_flag_arg)
     rf_events_msg_bufs[0][0] = STREAM_RF_EVENTS;
     rf_events_msg_bufs[1][0] = STREAM_RF_EVENTS;
 
-    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_RX);   // set GPIO function
-    GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_RX);   // set input direction
-    GPIO(PORT_RF, IES) |= BIT(PIN_RF_RX);    // interrupt on falling edge
-    GPIO(PORT_RF, IFG) &= ~(BIT(PIN_RF_RX) | BIT(PIN_RF_TX));           // clear interrupt flags
-    GPIO(PORT_RF, IE) |= BIT(PIN_RF_RX);     // enable port interrupt
+    rfid_decoder_init(&handle_rfid_cmd, &handle_rfid_rsp);
+}
+
+void RFID_start_event_stream()
+{
+    rfid_decoder_start();
+}
+
+void RFID_stop_event_stream()
+{
+    rfid_decoder_stop();
 }
 
 /**
@@ -152,155 +155,4 @@ void RFID_send_rf_events_to_host()
                  rf_events_msg_bufs[ready_events_buf_idx],
                  STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
                  UART_TX_DROP);
-}
-
-void RFID_startTxLog()
-{
-	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear Tx interrupt flag
-	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);			// enable Tx interrupt
-}
-
-void RFID_stopTxLog()
-{
-	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
-	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear interrupt flag
-
-	TIMER1_STOP;
-}
-
-void RFID_TxHandler()
-{
-	// Disable the Tx interrupt and set a timer to enable it again.
-	// This allows us to only log activity once when a single Tx event occurs,
-	// since the Tx line makes several transitions when a transmission occurs.
-	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
-
-	Timer1_set(TX_MSG_DURATION_CYCLES, &RFID_startTxLog);
-
-    append_event(RF_EVENT_RSP_GENERIC);
-}
-
-void RFID_stopRxLog()
-{
-	TA0CTL = 0;				// disable timer
-	TA0CCTL1 = 0;			// reset timer control register
-	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_RX);		// disable Rx port interrupt
-	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_RX);		// clear Rx port interrupt flag
-}
-
-void RFID_start_event_stream()
-{
-    RFID_startRxLog();
-    RFID_startTxLog();
-}
-
-void RFID_stop_event_stream()
-{
-    RFID_stopRxLog();
-    RFID_stopTxLog();
-}
-
-void handleQR(void)
-{
-	append_event(RF_EVENT_CMD_QUERYREP);
-}
-
-void handleAck(void)
-{
-	append_event(RF_EVENT_CMD_ACK);
-}
-
-void handleQuery(void)
-{
-	append_event(RF_EVENT_CMD_QUERY);
-}
-
-void handleQA(void)
-{
-	append_event(RF_EVENT_CMD_QUERYADJUST);
-}
-
-void handleSelect(void)
-{
-	append_event(RF_EVENT_CMD_SELECT);
-}
-
-void handleNak(void)
-{
-	append_event(RF_EVENT_CMD_NAK);
-}
-
-void handleReqRN(void)
-{
-	append_event(RF_EVENT_CMD_REQRN);
-}
-
-void handleRead(void)
-{
-	append_event(RF_EVENT_CMD_READ);
-}
-
-void handleWrite(void)
-{
-	append_event(RF_EVENT_CMD_WRITE);
-}
-
-void handleKill(void)
-{
-	append_event(RF_EVENT_CMD_KILL);
-}
-
-void handleLock(void)
-{
-	append_event(RF_EVENT_CMD_LOCK);
-}
-
-void handleAccess(void)
-{
-	append_event(RF_EVENT_CMD_ACCESS);
-}
-
-void handleBlockWrite(void)
-{
-	append_event(RF_EVENT_CMD_BLOCKWRITE);
-}
-
-void handleBlockErase(void)
-{
-	append_event(RF_EVENT_CMD_BLOCKERASE);
-}
-
-void handleBlockPermalock(void)
-{
-	append_event(RF_EVENT_CMD_BLOCKPERMALOCK);
-}
-
-void handleReadBuffer(void)
-{
-	append_event(RF_EVENT_CMD_READBUFFER);
-}
-
-void handleFileOpen(void)
-{
-	append_event(RF_EVENT_CMD_FILEOPEN);
-}
-
-void handleChallenge(void)
-{
-	append_event(RF_EVENT_CMD_CHALLENGE);
-}
-
-void handleAuthenticate(void)
-{
-	append_event(RF_EVENT_CMD_AUTHENTICATE);
-}
-
-void handleSecureComm(void)
-{
-	append_event(RF_EVENT_CMD_SECURECOMM);
-}
-
-void handleAuthComm(void)
-{
-	append_event(RF_EVENT_CMD_AUTHCOMM);
 }
