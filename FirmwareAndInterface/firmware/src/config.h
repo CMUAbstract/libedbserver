@@ -2,20 +2,20 @@
 #define CONFIG_H
 
 // These are fixed constants properties of hardware
-#define CONFIG_XT1_FREQ 32768
+#define CONFIG_XT1_FREQ 32768UL
 #define CONFIG_XT1_CAP 12 // pF
-#define CONFIG_XT2_FREQ 12000000
+#define CONFIG_XT2_FREQ 12000000UL
 // #define CONFIG_XT2_FREQ 25000000
-#define CONFIG_REFO_FREQ 32768
+#define CONFIG_REFO_FREQ 32768UL
 
-#define MCU_ON_THRES 2607 /* 2.1 V */ // int(math.ceil(voltage * 4096 / self.VDD))
-#define MCU_BOOT_LATENCY_MS 3 // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
+#define MCU_ON_THRES 2607UL /* 2.1 V */ // int(math.ceil(voltage * 4096 / self.VDD))
+#define MCU_BOOT_LATENCY_MS 3UL // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
 
 #define CONFIG_DCO_REF_SOURCE_XT1
-#define CONFIG_DCO_REF_CLOCK_DIV 1
+#define CONFIG_DCO_REF_CLOCK_DIV 1UL
 
 // #define CONFIG_DCO_REF_SOURCE_XT2
 // #define CONFIG_DCO_REF_CLOCK_DIV 4
@@ -24,7 +24,7 @@
 // #define CONFIG_CLOCK_SOURCE_XT2
 
 // #define CONFIG_DCOCLKDIV_FREQ 24000000
-#define CONFIG_DCOCLKDIV_FREQ 21921792
+#define CONFIG_DCOCLKDIV_FREQ 21921792UL
 // #define CONFIG_DCOCLKDIV_FREQ 16384000
 // #define CONFIG_DCOCLKDIV_FREQ 12288000
 // #define CONFIG_DCOCLKDIV_FREQ 8192000
@@ -39,12 +39,12 @@
 
 // #define CONFIG_USB_UART_BAUDRATE 2000000
 // #define CONFIG_USB_UART_BAUDRATE 1000000
-#define CONFIG_USB_UART_BAUDRATE 921600
+#define CONFIG_USB_UART_BAUDRATE 921600UL
 // #define CONFIG_USB_UART_BAUDRATE 500000
 // #define CONFIG_USB_UART_BAUDRATE 171264
 // #define CONFIG_USB_UART_BAUDRATE 115200
 
-#define CONFIG_TARGET_UART_BAUDRATE 9600
+#define CONFIG_TARGET_UART_BAUDRATE 9600UL
 
 #define CONFIG_ABORT_ON_USB_UART_ERROR // red led on, and if error is overflow, green led blinking
 
