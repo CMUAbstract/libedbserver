@@ -288,30 +288,25 @@ static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
 
 /** @brief RX capture compare timer ISR */
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER0_A1_VECTOR
-__interrupt void TIMER0_A1_ISR(void)
+#pragma vector=TIMER0_A0_VECTOR
+__interrupt void TIMER0_A0_ISR(void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER0_A1_ISR (void)
+void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
 #else
 #error Compiler not supported!
 #endif
 {
     uint16_t rx_edge_timestamp;
 
-	switch(__even_in_range(TIMER(TIMER_RF_RX_DECODE, IV), 16)) {
-        case TIMERA_INTFLAG(TIMER_RF_RX_DECODE, TMRCC_RF_RX):
+    // The budget for this ISR is about 100 cycles: 6us / (1.0/20Mhz),
+    // where 6us is the minimum bit duration in RFID Gen2 and 20Mhz is
+    // our clock. This is at best about 50 instructions.
 
-            // The budget for this ISR is about 100 cycles: 6us / (1.0/20Mhz),
-            // where 6us is the minimum bit duration in RFID Gen2 and 20Mhz is
-            // our clock. This is at best about 50 instructions.
+    ASSERT(ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW,
+           !(TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) & COV));
 
-            ASSERT(ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW,
-                   !(TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) & COV));
-            rx_edge_timestamp = TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCR);
-            handle_rf_rx_edge(rx_edge_timestamp);
-        default:
-            error(ERROR_UNEXPECTED_INTERRUPT);
-    }
+    rx_edge_timestamp = TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCR);
+    handle_rf_rx_edge(rx_edge_timestamp);
 
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) &= ~CCIFG;
 }
