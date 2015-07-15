@@ -135,20 +135,26 @@ void RFID_stop_event_stream()
  */
 void RFID_send_rf_events_to_host()
 {
-    uint8_t ready_events_buf_idx;
+    uint8_t ready_events_buf_idx, next_rf_events_buf_idx;
     uint8_t ready_events_count;
+    rf_event_t *next_rf_events_buf;
 
-    // Switch double-buffers
+    // Swap double-buffers
+
+    // Nobody but this method can change the current index, so safe to compute
+    // the next index outside of critical section.
+    ready_events_buf_idx = rf_events_buf_idx;
+    next_rf_events_buf_idx = rf_events_buf_idx == 0 ? 1 : 0;
+    next_rf_events_buf = rf_events_bufs[rf_events_buf_idx];
 
     // Updates saving current count and updates to buf and to count must be
     // atomic: appends (from ISRs) must be disallowed
     __disable_interrupt();
-    ready_events_buf_idx = rf_events_buf_idx;
     ready_events_count = rf_events_count;
 
-    rf_events_buf_idx = rf_events_buf_idx == 0 ? 1 : 0;
-    rf_events_buf = rf_events_bufs[rf_events_buf_idx];
     rf_events_count = 0;
+    rf_events_buf_idx = next_rf_events_buf_idx;
+    rf_events_buf = next_rf_events_buf;
     __enable_interrupt();
 
 	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
