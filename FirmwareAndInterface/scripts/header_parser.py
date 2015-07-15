@@ -2,10 +2,13 @@ import re
 from collections import OrderedDict
 
 def number_from_string(s):
-    if s.startswith('0x'):
-        val = int(s, 16)
+    m = re.match(r'(?P<hex>0x)?(?P<val>[0-9a-fA-F]+)[uU]?([lL]+)?', s)
+    if m is None:
+        raise Exception("Invalid numeric value: " + s)
+    if m.group('hex') is not None and len(m.group('hex')) > 0:
+        val = int('0x' + m.group('val'), 16)
     else:
-        val = int(s)
+        val = int(m.group('val'))
     return val
 
 class Header:
@@ -27,7 +30,7 @@ class Header:
     def parse_enum(self, prefix):
         enum_dict = OrderedDict()
         for line in open(self.header_file):
-            m = re.match(r'^\s*' + prefix + r'_(?P<name>\w+)\s*=\s*(?P<value>[0-9xA-F]+)', line)
+            m = re.match(r'^\s*' + prefix + r'_(?P<name>\w+)\s*=\s*(?P<value>[0-9xa-fA-F]+)', line)
             if m is None:
                 continue
             name = m.group('name')
