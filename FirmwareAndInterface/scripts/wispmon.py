@@ -545,7 +545,7 @@ class WispMonitor:
 
             # clear partial packets from the input buf (flush a few times just
             # in case data is backed up in the buffer on the device side)
-            for i in range(1, 8):
+            for i in range(1, 2):
                 time.sleep(0.25)
                 self.serial.flushInput()
 
