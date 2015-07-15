@@ -81,7 +81,7 @@ static void append_event(rf_event_type_t id)
 static inline void handle_rfid_cmd(rfid_cmd_code_t cmd_code)
 {
     // TODO: don't do anything yet
-    //append_event(RF_EVENT_TYPE_CMD | rx_cmd_code);
+    //append_event(RF_EVENT_TYPE_CMD | cmd_code);
 }
 
 static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
