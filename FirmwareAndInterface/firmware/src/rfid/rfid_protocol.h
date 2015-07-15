@@ -44,7 +44,7 @@
 
 #else // compile-time only calculations
 
-#define RFID_CONST_TARI 12500ll // measured value (real value available only at runtime)
+#define RFID_CONST_TARI 5750ull // measured value (real value available only at runtime)
 
 #define RFID_PREAMBLE_RT_CAL_MIN(tari) RFID_PREAMBLE_RT_CAL_MIN_INTERNAL(RFID_CONST_TARI) 
 #define RFID_PREAMBLE_RT_CAL_MAX(tari) RFID_PREAMBLE_RT_CAL_MAX_INTERNAL(RFID_CONST_TARI)
