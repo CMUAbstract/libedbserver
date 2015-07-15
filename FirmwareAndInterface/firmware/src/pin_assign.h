@@ -19,6 +19,9 @@
 #define TIMERA_INTFLAG_INNER(id, ccridx) T ## id ## IV_ ## TACCR ## ccridx
 #define TIMERA_INTFLAG(id, ccridx) TIMERA_INTFLAG_INNER(id, ccridx)
 
+#define UART_INNER(name, reg) UC ## name ## reg
+#define UART(name, reg) UART_INNER(name, reg)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
@@ -111,6 +114,9 @@
 #define PORT_I2C_TARGET                         4 //!< GPIO port with taps into target I2C lines
 #define PIN_I2C_TARGET_SDA                      1 //!< target I2C SDA line
 #define PIN_I2C_TARGET_SCL                      2 //!< target I2C SCL line
+
+#define UART_HOST                               A0
+#define UART_TARGET                             A1
 
 // TODO: warning: timer shared with voltage logging code
 // NOTE: if changed, the ISR in main.c must also be changed
