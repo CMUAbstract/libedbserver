@@ -154,15 +154,16 @@ static inline void reset_rx_dec_state()
 }
 
 
-static inline void receive_cmd_bit(bool data_bit)
+#if CONFIG_DECODE_RFID_CMD_PAYLOAD
+static inline void receive_payload_bit(bool data_bit)
 {
-// TODO: there's absolutely no way this can happen on the debugger board,
-// the most we can do is collect bytes and ship them out. Even parsing
-// the command is optional, but seems to be efficient, because if we
-// don't parse the command code on the debuger then we wouldn't be able
-// to enqueue a packet to the host until way later (next command?)
-// since there's no delimiter for end-of-command. With parsing on-board,
-// we are able to report the command as soon as it is ready.
+    // TODO: there's absolutely no way fields can be decoded on the debugger board,
+    // the most we can do is packetize the raw bitstream and relay it to the host.
+    // Even parsing the command is optional, but seems to be efficient, because
+    // if we don't parse the command code on the debuger then we wouldn't be
+    // able to enqueue a packet to the host until way later (next command?)
+    // since there's no delimiter for end-of-command. With parsing on-board, we
+    // are able to report the command as soon as it is ready.
 
 #if 0 // TODO: field decoding code would go something like this:
     cmd_desc = &rx_cmd_desc_query_rep;
@@ -187,10 +188,9 @@ static inline void receive_cmd_bit(bool data_bit)
         rfid_cmd_handler(rx_cmd); // TODO: might involve copying the data into event buf,
                             // but could be done copy-free if alloced in event buf
     }
-#else // TODO: as a first cut, decode only command codes
-    rfid_cmd_handler(rx_cmd_code);
 #endif
 }
+#endif
 
 static inline void receive_data_bit(uint8_t data_bit)
 {
@@ -229,8 +229,7 @@ static inline void receive_data_bit(uint8_t data_bit)
                     switch (rx_cmd_code) {
                         case RFID_CMD_QUERYREP:
                         case RFID_CMD_ACK:
-                            rx_cmd_state = RX_CMD_STATE_PAYLOAD;
-                            break;
+                            goto rx_cmd_code_decoded;
                     }
                     break;
                 case 4:
@@ -238,8 +237,7 @@ static inline void receive_data_bit(uint8_t data_bit)
                         case RFID_CMD_QUERY:
                         case RFID_CMD_QUERYADJUST:
                         case RFID_CMD_SELECT:
-                            rx_cmd_state = RX_CMD_STATE_PAYLOAD;
-                            break;
+                            goto rx_cmd_code_decoded;
                     }
                     break;
                 case 8:
@@ -260,8 +258,7 @@ static inline void receive_data_bit(uint8_t data_bit)
                         case RFID_CMD_AUTHENTICATE:
                         case RFID_CMD_SECURECOMM:
                         case RFID_CMD_AUTHCOMM:
-                            rx_cmd_state = RX_CMD_STATE_PAYLOAD;
-                            break;
+                            goto rx_cmd_code_decoded;
                         default: // we don't support commands of >8 bits
                             reset_cmd_dec_state();
                             break;
@@ -270,9 +267,31 @@ static inline void receive_data_bit(uint8_t data_bit)
             }
             break;
         }
+#if CONFIG_DECODE_RFID_CMD_PAYLOAD
         case RX_CMD_STATE_PAYLOAD:
-            receive_cmd_bit(data_bit);
+            receive_payload_bit(data_bit);
+#endif
     }
+    return;
+
+rx_cmd_code_decoded:
+#if CONFIG_DECODE_RFID_CMD_PAYLOAD
+    rx_cmd_state = RX_CMD_STATE_PAYLOAD;
+#else
+
+    // For now, we only decode the cmd code and declare message decoding
+    // to be over. The rest of the edges will go by causing harmless
+    // failed attempts to decode the preamble out of them. Eventually,
+    // the plan is to decode all bits in a message (fixed messages are
+    // straightforward but variable-length messages need at least the
+    // length field decoded on the host. An alternative is to packetize
+    // the raw bitstream and relay it to host -- the problem is that
+    // the end of the message is only known by a decoder failure, instead
+    // of being a clean length comparison.
+
+    rfid_cmd_handler(rx_cmd_code);
+    reset_rx_dec_state();
+#endif
 }
 
 static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)

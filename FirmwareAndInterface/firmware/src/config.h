@@ -97,6 +97,11 @@
  */
 // #define CONFIG_ENABLE_RF_TX_DECODING
 
+/**
+ * @brief Decode the RFID command payload bits (not only the command code)
+ * @details NOT IMPLEMENTED
+ */
+// #define CONFIG_DECODE_RFID_CMD_PAYLOAD
 
 /**
  * @brief Route serial decoder events to external pins
