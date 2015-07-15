@@ -66,7 +66,12 @@ static void append_event(rf_event_type_t id)
 {
     rf_event_t *rf_event;
 
+#ifdef CONFIG_ABORT_ON_RFID_EVENT_OVERFLOW
     ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count < NUM_EVENTS_BUFFERED);
+#else
+    if (rf_events_count < NUM_EVENTS_BUFFERED)
+        return;
+#endif
 
     rf_event = &rf_events_buf[rf_events_count++];
 

@@ -51,6 +51,11 @@
 
 #define CONFIG_ABORT_ON_USB_UART_ERROR // red led on, and if error is overflow, green led blinking
 
+/**
+ * @brief Abort if RFID event buffer overflows or drop the events
+ */
+#define CONFIG_ABORT_ON_RFID_EVENT_OVERFLOW
+
 // #define CONFIG_CLOCK_TEST_MODE // enter a blinker loop after configuring clocks
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
 
