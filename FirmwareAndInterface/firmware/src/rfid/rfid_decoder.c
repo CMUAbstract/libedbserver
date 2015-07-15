@@ -60,8 +60,8 @@ static inline void set_rx_decoder_state(rx_dec_state_t state)
 
 #ifdef CONFIG_RFID_DECODER_STATE_PINS
     GPIO(PORT_RFID_DEC_STATE, OUT) = (GPIO(PORT_RFID_DEC_STATE, OUT) &
-        ~(BIT(PORT_RFID_DEC_STATE_0) | BIT(PORT_RFID_DEC_STATE_1) | BIT(PORT_RFID_DEC_STATE_2))) |
-        (state << PORT_RFID_DEC_STATE_0);
+        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2))) |
+        (state << PIN_RFID_RX_DEC_STATE_0);
 #endif
 }
 
@@ -90,9 +90,9 @@ void rfid_decoder_init(rfid_cmd_handler_t *rfid_cmd_handler_cb,
     // Expose the state on pins for debugging purposes
 #ifdef CONFIG_RFID_DECODER_STATE_PINS
     GPIO(PORT_RFID_DEC_STATE, OUT) &=
-        ~(BIT(PORT_RFID_DEC_STATE_0) | BIT(PORT_RFID_DEC_STATE_1) | BIT(PORT_RFID_DEC_STATE_2));
+        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2));
     GPIO(PORT_RFID_DEC_STATE, DIR) |=
-        BIT(PORT_RFID_DEC_STATE_0) | BIT(PORT_RFID_DEC_STATE_1) | BIT(PORT_RFID_DEC_STATE_2);
+        BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2);
 #endif
 }
 

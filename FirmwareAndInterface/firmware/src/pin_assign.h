@@ -84,9 +84,9 @@
 #define PIN_SERIAL_DECODE_TIMER                 4 //!< decoder timer started, rolled over, or stopped
 
 #define PORT_RFID_DEC_STATE                     1
-#define PORT_RFID_DEC_STATE_0                   3
-#define PORT_RFID_DEC_STATE_1                   4
-#define PORT_RFID_DEC_STATE_2                   5
+#define PIN_RFID_RX_DEC_STATE_0                   3
+#define PIN_RFID_RX_DEC_STATE_1                   4
+#define PIN_RFID_RX_DEC_STATE_2                   5
 
 /* RF line taps. Note: two sets of definitions for the same thing (see below) */
 #define PORT_RF                                 1 //!< GPIO port for RF RX/TX line taps
