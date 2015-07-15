@@ -82,7 +82,8 @@ class StreamDataPoint:
         self.value_set = value_set 
 
 class StreamDecodeException(Exception):
-    pass
+    def __init__(self, msg=""):
+        self.message = msg
 
 class WispMonitor:
     VDD                                 = VDD # V
@@ -240,7 +241,7 @@ class WispMonitor:
                     while offset < len(self.rxPkt.data):
                         # invalid pkt, but best we can do here is not fail
                         if offset + FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
-                            print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: timestamp field"
+                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: timestamp field"
                             break
 
                         timestamp_cycles = (self.rxPkt.data[offset + 3] << 24) | \
@@ -262,13 +263,14 @@ class WispMonitor:
                                     value_set[stream] = value
 
                             data_points.append(StreamDataPoint(timestamp_sec, value_set))
-                        except StreamDecodeException:
+                        except StreamDecodeException as e:
                             # invalid pkt, best we can do here is not fail
-                            print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: value field"
+                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: value field: " + \
+                                    e.message
                             break
                 else:
                     # invalid pkt, best we can do here is not fail
-                    print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: streams field"
+                    print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: streams field"
 
                 pkt["data_points"] = data_points
 
@@ -352,12 +354,12 @@ class WispMonitor:
     def decode_rf_event_value(self, bytes, offset):
         FIELD_LEN = 2
         if offset + FIELD_LEN > len(bytes):
-            raise StreamDecodeException()
+            raise StreamDecodeException("not enough bytes")
         rf_event_id = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         #print "rf_event_id = 0x%08x" % rf_event_id
         rf_event = key_lookup(host_comm_header.enums['RF_EVENT'], rf_event_id)
         if rf_event is None:
-            raise StreamDecodeException()
+            raise StreamDecodeException("invalid event id: " + "0x%04x" % rf_event_id)
         length = 2 # sizeof(rf_event_t.id field + padding in the struct)
         return rf_event, length
 
