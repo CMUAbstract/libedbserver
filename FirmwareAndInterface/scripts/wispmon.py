@@ -92,9 +92,17 @@ class WispMonitor:
 
     def __init__(self):
         self.rxPkt = RxPkt()
-        self.serial = serial.Serial(port=SERIAL_PORT,
-                                    baudrate=config_header.macros['CONFIG_USB_UART_BAUDRATE'],
-                                    timeout=1)
+
+        baudrate = config_header.macros['CONFIG_USB_UART_BAUDRATE']
+        self.serial = serial.Serial(port=SERIAL_PORT, baudrate=baudrate, timeout=1)
+        supported_baudrates = zip(*self.serial.getSupportedBaudrates())[1]
+
+        # Technically, serial class is supposed to complain, but it doesn't
+        # probably because it tries to support the baudrate as best it can
+        if baudrate not in supported_baudrates:
+            print >>sys.stderr, "WARNING: baudrate " + str(baudrate) + \
+                " not among supported by hardware: " + ",".join(supported_baudrates)
+
         self.serial.close()
         self.serial.open()
 
