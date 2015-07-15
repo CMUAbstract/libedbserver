@@ -370,15 +370,8 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     {
 
 #ifdef CONFIG_ABORT_ON_USB_UART_ERROR
-        if (UCA0STAT & UCRXERR) {
-                GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-                GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
-                while(1) {
-                    if (UCA0STAT & UCOE)
-                        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-                    __delay_cycles(10000);
-                }
-        }
+        ASSERT(ASSERT_UART_ERROR_OVERFLOW, !(UCA0STAT & UCRXERR & UCOE));
+        ASSERT(ASSERT_UART_ERROR_GENERIC,  !(UCA0STAT & UCRXERR));
 #endif
         usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
         usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail

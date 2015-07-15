@@ -18,6 +18,8 @@ typedef enum {
     ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 3,
     ASSERT_INVALID_RFID_DECODER_STATE             = 4,
     ASSERT_INVALID_RFID_CMD_HANDLER               = 5,
+    ASSERT_UART_ERROR_GENERIC                     = 6,
+    ASSERT_UART_ERROR_OVERFLOW                    = 7,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely
