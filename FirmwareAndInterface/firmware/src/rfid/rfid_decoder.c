@@ -104,7 +104,7 @@ void rfid_decoder_start()
     // Start RX timer in capture-on-falling-edge mode
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) &= ~CCIFG;
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) |= CCIE;
-    TIMER(TIMER_RF_RX_DECODE, CTL) |= MC__CONTINUOUS | TACLR;
+    TIMER(TIMER_RF_RX_DECODE, CTL) |= TASSEL__SMCLK | MC__CONTINUOUS | TACLR;
 
 	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear Tx interrupt flag
 	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);			// enable Tx interrupt
