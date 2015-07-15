@@ -214,7 +214,7 @@ static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
         case RX_DEC_STATE_IDLE:
             // Wait for *rising* edge of end of preamble delimeter
             TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) =
-                (TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) & (CM0 | CM1)) | CM_1;
+                (TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) & ~(CM0 | CM1)) | CM_1;
             set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_DELIM);
             break;
         case RX_DEC_STATE_PREAMBLE_DELIM:
