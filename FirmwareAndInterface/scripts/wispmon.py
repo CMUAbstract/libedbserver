@@ -533,17 +533,19 @@ class WispMonitor:
         with DelayedSignals(interrupt_signals): # prevent partial lines
             out_file.write("timestamp_sec," + ",".join(streams) + "\n")
 
-        streaming = True
-
         if duration_sec is not None:
             # The main point here is to cause the read system call to return
+            # Can't modify a variable in this scope, but can modify values in a dict
+            signal_handler_data = {'streaming' : True}
+
             def interrupt_loop(sig, frame):
-                streaming = False
+                signal_handler_data['streaming'] = False
+
             signal.signal(signal.SIGALRM, interrupt_loop)
             signal.setitimer(signal.ITIMER_REAL, duration_sec)
         
         try:
-            while streaming:
+            while signal_handler_data['streaming']:
                 pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['STREAM_DATA'])
 
                 for data_point in pkt["data_points"]:
