@@ -563,7 +563,7 @@ class WispMonitor:
                     num_samples += 1
 
                 if not silent:
-                    print "\r%.2f KB/s" % self.stream_datarate_kbps()
+                    print "\r%.2f KB/s" % self.stream_datarate_kbps(),
 
         # catch read syscall interrupt: that's clean exit
         # NOTE: serial.Serial uses select and the exception is not wrapped into an IOError
