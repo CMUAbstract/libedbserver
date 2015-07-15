@@ -12,6 +12,8 @@ CFLAGS = \
 	-mmcu=$(DEVICE) \
 	-O2 \
 	-g \
+	-std=c99 \
+	-pedantic \
 	-I $(TOOLCHAIN_ROOT)/include \
 	-I $(LIBDEBUG_ROOT)/src/include \
 	-I $(SRC_DIR) \
