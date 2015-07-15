@@ -246,8 +246,6 @@ static inline void receive_data_bit(uint8_t data_bit)
                         case RFID_CMD_QUERY:
                         case RFID_CMD_QUERYADJUST:
                         case RFID_CMD_SELECT:
-                            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-                            while(1);
                             rx_cmd_state = RX_CMD_STATE_PAYLOAD;
                             break;
                     }
