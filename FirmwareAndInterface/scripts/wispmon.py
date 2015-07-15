@@ -243,11 +243,12 @@ class WispMonitor:
 
                 if offset + FIELD_LEN_STREAMS <= len(self.rxPkt.data):
 
+                    # padding
+                    offset += 1
+
                     pkt_streams = self.rxPkt.data[offset]
                     #print "pkt_streams=0x%08x" % pkt_streams
                     offset += 1
-                    offset += 1 # padding
-
 
                     while offset < len(self.rxPkt.data):
                         # invalid pkt, but best we can do here is not fail

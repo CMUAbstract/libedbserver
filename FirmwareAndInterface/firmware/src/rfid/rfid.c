@@ -15,12 +15,32 @@
 
 #include "rfid.h"
 
+/*Buffer structure:
+ *  [ empty_space | header | rf_event_t #1 | rf_event_t #2 | ... | rf_event_t #n ]
+ * where len(empty_space + header) == sizeof(rf_event_t) because compiler might
+ * have alignment rules for structs: can't treat any memory address as pointer to
+ * a struct (this is a hypothesis, though).
+ *
+ * Note that rf_event_t items include padding from the struct.
+ *
+ * The bytes sent in the UART message start at header.
+ */
+
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_EVENTS_BUFFERED                         32 
 
-#define STREAM_DATA_MSG_HEADER_LEN (sizeof(uint8_t) + 1) // 'streams bitmask' field + padding
-#define RF_EVENT_BUF_OFFSET STREAM_DATA_MSG_HEADER_LEN
-#define RF_EVENT_BUF_SIZE (sizeof(rf_event_t) * NUM_EVENTS_BUFFERED)
+#define STREAM_DATA_MSG_HEADER_LEN (sizeof(uint8_t) + 1) // 'streams bitmask' field (units of bytes)
+                                                         // + padding (must be aligned to 2)
+#define RF_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(rf_event_t)
+#define RF_EVENT_BUF_PAYLOAD_SPACE NUM_EVENTS_BUFFERED // units of sizeof(rf_event_t)
+#define RF_EVENT_BUF_SIZE (RF_EVENT_BUF_HEADER_SPACE + RF_EVENT_BUF_PAYLOAD_SPACE) // units of sizeof(rf_event_t)
+
+#if STREAM_DATA_MSG_HEADER > RF_EVENT_BUF_HEADER_SPACE
+#error Not enough space for header in event buf: add more units of sizeof(struct rf_event_t)
+#endif
+
+#define RF_EVENT_BUF_HEADER_OFFSET \
+    (RF_EVENT_BUF_HEADER_SPACE * sizeof(rf_event_t) - STREAM_DATA_MSG_HEADER_LEN)
 
 #define STARTING_EVENT_BUF_IDX 0
 
@@ -34,15 +54,15 @@ typedef struct {
  *  @details To avoid an extra copy, the event buffer is contiguous with
  *           memory for the other message fields.
  */
-static uint8_t rf_events_msg_bufs[NUM_BUFFERS][RF_EVENT_BUF_OFFSET + RF_EVENT_BUF_SIZE];
+static rf_event_t rf_events_msg_bufs[NUM_BUFFERS][RF_EVENT_BUF_SIZE];
 
 /** @brief Pointers to each event buffer in the double-buffer pair
  *  @details These pointers point to the event data "payload" of the message,
  *           skipping the other message fields.
  */
 static rf_event_t * const rf_events_bufs[NUM_BUFFERS] = {
-    (rf_event_t *)&rf_events_msg_bufs[0][RF_EVENT_BUF_OFFSET],
-    (rf_event_t *)&rf_events_msg_bufs[1][RF_EVENT_BUF_OFFSET]
+    (rf_event_t *)&rf_events_msg_bufs[0][RF_EVENT_BUF_HEADER_SPACE],
+    (rf_event_t *)&rf_events_msg_bufs[1][RF_EVENT_BUF_HEADER_SPACE]
 };
 
 /** @brief Pointer and index to current event buffer among the double-buffer pair
@@ -85,8 +105,7 @@ static void append_event(rf_event_type_t id)
 
 static inline void handle_rfid_cmd(rfid_cmd_code_t cmd_code)
 {
-    // TODO: don't do anything yet
-    //append_event(RF_EVENT_TYPE_CMD | cmd_code);
+    append_event(RF_EVENT_TYPE_CMD | cmd_code);
 }
 
 static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
@@ -97,6 +116,10 @@ static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
 
 void RFID_setup(uint16_t *pFlag_bitmask, uint16_t data_ready_flag_arg)
 {
+    uint8_t i;
+    uint8_t offset;
+    uint8_t *header;
+
     // will set this flag in this bitmask when there is data to transmit to the host
 	pFlags = pFlag_bitmask;
 	data_ready_flag = data_ready_flag_arg;
@@ -106,8 +129,13 @@ void RFID_setup(uint16_t *pFlag_bitmask, uint16_t data_ready_flag_arg)
     rf_events_buf = rf_events_bufs[rf_events_buf_idx];
 
     // Initialize message header
-    rf_events_msg_bufs[0][0] = STREAM_RF_EVENTS;
-    rf_events_msg_bufs[1][0] = STREAM_RF_EVENTS;
+    for (i = 0; i < NUM_BUFFERS; ++i) {
+        header = (uint8_t *)&rf_events_msg_bufs[i][0] + RF_EVENT_BUF_HEADER_OFFSET;
+        offset = 0;
+        header[offset++] = 0; // padding
+        header[offset++] = STREAM_RF_EVENTS;
+        ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset <= STREAM_DATA_MSG_HEADER_LEN);
+    }
 
     rfid_decoder_init(&handle_rfid_cmd, &handle_rfid_rsp);
 }
@@ -163,7 +191,7 @@ void RFID_send_rf_events_to_host()
     __enable_interrupt();
 
 	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
-                 rf_events_msg_bufs[ready_events_buf_idx],
+                 (uint8_t *)&rf_events_msg_bufs[ready_events_buf_idx][0] + RF_EVENT_BUF_HEADER_OFFSET,
                  STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
                  UART_TX_DROP);
 }

@@ -771,8 +771,8 @@ int main(void)
 
                 // TODO: eliminate the copy by having the ADC ISR fill the msg buffer directly
                 host_msg_len = 0;
-                host_msg_buf[host_msg_len++] = adc_streams_bitmask;
                 host_msg_buf[host_msg_len++] = 0; // padding
+                host_msg_buf[host_msg_len++] = adc_streams_bitmask;
                 host_msg_buf[host_msg_len++] = (adc12.timeComplete >>  0) & 0xff;
                 host_msg_buf[host_msg_len++] = (adc12.timeComplete >>  8) & 0xff;
                 host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 16) & 0xff;
