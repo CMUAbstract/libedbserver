@@ -46,6 +46,7 @@ void ADC12_arm(adc12_t *adc12)
     uint8_t last_channel_index = _pAdc12->config.num_channels - 1;
     *(adc12mctl_registers[last_channel_index]) |= ADC12EOS;
 
+    ADC12IFG = 0; // clear int flags
     ADC12IE = (0x0001 << last_channel_index); // enable interupt on last sample
 
     ADC12CTL0 |= ADC12ENC; // enable ADC
