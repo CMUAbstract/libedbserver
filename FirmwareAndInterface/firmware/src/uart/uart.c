@@ -21,6 +21,9 @@
 #define BRS_BITS_INNER(brs) UCBRS_ ## brs
 #define BRS_BITS(brs) BRS_BITS_INNER(brs)
 
+#define BRF_BITS_INNER(brf) UCBRF_ ## brf
+#define BRF_BITS(brf) BRF_BITS_INNER(brf)
+
 // Buffer and len available to all modules that may send over UART
 uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
 uint8_t host_msg_len;
@@ -71,7 +74,17 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
 
         UCA0BR0 = CONFIG_USB_UART_BAUDRATE_BR0;
         UCA0BR1 = CONFIG_USB_UART_BAUDRATE_BR1;
-        UCA0MCTL |= BRS_BITS(CONFIG_USB_UART_BAUDRATE_BRS);
+        UCA0MCTL |= 0
+#ifdef CONFIG_USB_UART_BAUDRATE_UCOS16
+            | UCOS16
+#endif
+#ifdef CONFIG_USB_UART_BAUDRATE_BRS
+            | BRS_BITS(CONFIG_USB_UART_BAUDRATE_BRS)
+#endif
+#ifdef CONFIG_USB_UART_BAUDRATE_BRF
+            | BRF_BITS(CONFIG_USB_UART_BAUDRATE_BRF)
+#endif
+       ;
 
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
