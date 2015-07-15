@@ -91,6 +91,11 @@
  */
 #define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
+/**
+ * @brief Enable code to decode RFID transmissions from the target
+ */
+// #define CONFIG_ENABLE_RF_TX_DECODING
+
 
 /**
  * @brief Route serial decoder events to external pins
