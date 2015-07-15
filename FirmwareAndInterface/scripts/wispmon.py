@@ -5,6 +5,9 @@ import math
 import time
 import re
 import sys
+import os
+import errno
+import select
 from binascii import hexlify
 
 import env
@@ -520,12 +523,23 @@ class WispMonitor:
             "VINJ": format_voltage,
             "RF_EVENTS": format_rf_event,
         }
-        
-        with DelayedKeyboardInterrupt(): # prevent partial lines
+
+        interrupt_signals = [signal.SIGINT, signal.SIGALRM]
+
+        with DelayedSignals(interrupt_signals): # prevent partial lines
             out_file.write("timestamp_sec," + ",".join(streams) + "\n")
+
+        streaming = True
+
+        if duration_sec is not None:
+            # The main point here is to cause the read system call to return
+            def interrupt_loop(sig, frame):
+                streaming = False
+            signal.signal(signal.SIGALRM, interrupt_loop)
+            signal.setitimer(signal.ITIMER_REAL, duration_sec)
         
         try:
-            while duration_sec is None or timestamp_sec < duration_sec:
+            while streaming:
                 pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['STREAM_DATA'])
 
                 for data_point in pkt["data_points"]:
@@ -542,13 +556,22 @@ class WispMonitor:
                             line += stream_formaters[stream](data_point.value_set[stream])
                     line += "\n"
 
-                    with DelayedKeyboardInterrupt(): # prevent partial lines
+                    with DelayedSignals(interrupt_signals): # prevent partial lines
                         out_file.write(line)
 
                     num_samples += 1
 
                 if not silent:
                     print "\r%.2f KB/s" % self.stream_datarate_kbps()
+
+        # catch read syscall interrupt: that's clean exit
+        # NOTE: serial.Serial uses select and the exception is not wrapped into an IOError
+        except select.error as e:
+            err_num, err_msg = e.args
+            if err_num == errno.EINTR:
+                pass
+            else:
+                raise
 
         finally:
             self.stream_end(streams_bitmask)
@@ -560,7 +583,7 @@ class WispMonitor:
                 self.serial.flushInput()
 
         if not silent:
-            print "%d samples in %f seconds (target time)" % (num_samples, timestamp_sec)
+            print "%d samples in %f seconds" % (num_samples, duration_sec)
 
 class RxPkt():
     def __init__(self):

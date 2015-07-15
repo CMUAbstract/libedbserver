@@ -61,8 +61,7 @@ def cmd_stream(mon, out_file, duration_sec, *streams):
         silent = True
     else:
         fp = open(out_file, "w")
-        #silent = False
-        silent = True # TODO: temprorary
+        silent = False
 
     try:
         mon.stream(streams, duration_sec=duration_sec, out_file=fp, silent=silent)
