@@ -151,6 +151,9 @@ void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
 #error Compiler not supported!
 #endif
 {
+    // We do not use ASSERT here because oon oscillator fault, the
+    // clock frequency is not the same as nominal, so the assert id
+    // encoding onto blink rate would not be correct.
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
     if (UCSCTL7 & XT2OFFG)
