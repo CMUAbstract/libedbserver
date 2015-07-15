@@ -18,6 +18,8 @@ SERIAL_PORT                         = '/dev/ttyUSB0'
 
 UART_LOG_FILE   = open("uart.log", "w")
 
+REPORT_STREAM_PROGRESS_INTERVAL = 0.2 # sec
+
 VDD = 3.3
 
 COMPARATOR_REF_VOLTAGE = {
@@ -510,6 +512,7 @@ class WispMonitor:
         start_time_sec = None
         timestamp_sec = 0
         num_samples = 0
+        last_progress_report = time.time()
 
         def format_voltage(voltage):
             return "%f" % voltage
@@ -562,8 +565,11 @@ class WispMonitor:
 
                     num_samples += 1
 
-                if not silent:
-                    print "\r%.2f KB/s" % self.stream_datarate_kbps(),
+                now = time.time()
+                if not silent and now - last_progress_report > REPORT_STREAM_PROGRESS_INTERVAL:
+                    print "\r%d samples @ %.2f KB/s" % (num_samples, self.stream_datarate_kbps()),
+                    sys.stdout.flush()
+                    last_progress_report = now
 
         # catch read syscall interrupt: that's clean exit
         # NOTE: serial.Serial uses select and the exception is not wrapped into an IOError
@@ -584,6 +590,7 @@ class WispMonitor:
                 self.serial.flushInput()
 
         if not silent:
+            print # the rolling progress report does not newline
             print "%d samples in %f seconds" % (num_samples, duration_sec)
 
 class RxPkt():
