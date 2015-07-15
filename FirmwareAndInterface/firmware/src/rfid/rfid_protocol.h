@@ -9,19 +9,27 @@
 /**
  * @defgroup RFID_SYMBOL_TIMING
  * @brief Symbol lengths for RFID preamble and data bits
+ * @details NOTE: suffixes 'ull' are important: if not specified,
+ *          the msp430-gcc gives a warning about overflow during constant
+ *          folding, but if specified as 'ul' then there is still overflow (we
+ *          multiply by the frequency) but no warning! We overflow 32-bit
+ *          because we have to multiply by freq in Hz. Not that it matters at
+ *          all (relevant to compile-time only), but if we could use fractions
+ *          (us) then we could fit into 32-bit, but we can't because msp430-gcc
+ *          does not fold non-integer constant expressions.
  * @{
  */
-#define RFID_PREAMBLE_DELIM_MIN (12500UL - 625UL) // ns
-#define RFID_PREAMBLE_DELIM_MAX (12500UL + 625UL) // ns
+#define RFID_PREAMBLE_DELIM_MIN (12500ull - 625ull) // ns
+#define RFID_PREAMBLE_DELIM_MAX (12500ull + 625ull) // ns
 
-#define RFID_PREAMBLE_TARI_MIN  6250UL // ns
-#define RFID_PREAMBLE_TARI_MAX 25000UL // ns
+#define RFID_PREAMBLE_TARI_MIN  6250ull // ns
+#define RFID_PREAMBLE_TARI_MAX 25000ull // ns
 
-#define RFID_PREAMBLE_RT_CAL_MIN_INTERNAL(tari) (25UL * tari / 10UL)
-#define RFID_PREAMBLE_RT_CAL_MAX_INTERNAL(tari) (3UL * tari)
+#define RFID_PREAMBLE_RT_CAL_MIN_INTERNAL(tari) (25ull * tari / 10ull)
+#define RFID_PREAMBLE_RT_CAL_MAX_INTERNAL(tari) (3ull * tari)
 
-#define RFID_PREAMBLE_TR_CAL_MIN_INTERNAL(rt_cal) (11UL * rt_cal / 10UL)
-#define RFID_PREAMBLE_TR_CAL_MAX_INTERNAL(rt_cal) (3UL * rt_cal)
+#define RFID_PREAMBLE_TR_CAL_MIN_INTERNAL(rt_cal) (11ull * rt_cal / 10ull)
+#define RFID_PREAMBLE_TR_CAL_MAX_INTERNAL(rt_cal) (3ull * rt_cal)
 
 #ifdef CONFIG_RFID_DECODER_RUNTIME_BOUNDS
 
@@ -32,11 +40,11 @@
 #define RFID_PREAMBLE_TR_CAL_MAX(rt_cal) RFID_PREAMBLE_TR_CAL_MAX_INTERNAL(rt_cal)
 
 #define RFID_DATA_MIN(tari) (tari)
-#define RFID_DATA_MAX(tari) (2 * tari)
+#define RFID_DATA_MAX(tari) (2ull * tari)
 
 #else // compile-time only calculations
 
-#define RFID_CONST_TARI 12500UL // pick a value (real value available only at runtime)
+#define RFID_CONST_TARI 12500ll // measured value (real value available only at runtime)
 
 #define RFID_PREAMBLE_RT_CAL_MIN(tari) RFID_PREAMBLE_RT_CAL_MIN_INTERNAL(RFID_CONST_TARI) 
 #define RFID_PREAMBLE_RT_CAL_MAX(tari) RFID_PREAMBLE_RT_CAL_MAX_INTERNAL(RFID_CONST_TARI)
@@ -47,7 +55,7 @@
 #define RFID_PREAMBLE_TR_CAL_MAX(rt_cal) RFID_PREAMBLE_TR_CAL_MAX_INTERNAL(RFID_CONST_RTCAL)
 
 #define RFID_DATA_MIN(tari) (RFID_CONST_TARI)
-#define RFID_DATA_MAX(tari) (2 * RFID_CONST_TARI)
+#define RFID_DATA_MAX(tari) (2ull * RFID_CONST_TARI)
 
 #endif // CONFIG_RFID_DECODER_RUNTIME_BOUNDS
 
