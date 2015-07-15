@@ -12,12 +12,12 @@ typedef enum {
 } error_t;
 
 typedef enum {
-    ASSERT_INVALID_STREAM_DATA_LEN                = 1,
-    ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 2,
-    ASSERT_HOST_MSG_BUF_OVERFLOW                  = 3,
-    ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 4,
-    ASSERT_INVALID_RFID_DECODER_STATE             = 5,
-    ASSERT_INVALID_RFID_CMD_HANDLER               = 6,
+    ASSERT_INVALID_STREAM_DATA_LEN                = 0,
+    ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 1,
+    ASSERT_HOST_MSG_BUF_OVERFLOW                  = 2,
+    ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 3,
+    ASSERT_INVALID_RFID_DECODER_STATE             = 4,
+    ASSERT_INVALID_RFID_CMD_HANDLER               = 5,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely
@@ -32,6 +32,10 @@ typedef enum {
 /* @brief Report and handle error */
 void error(error_t num);
 
-#define ASSERT(idx, cond) if (!(cond)) BLINK_LOOP(PIN_LED_RED, 400000 * (idx));
+#define ASSERT(idx, cond) \
+    if (!(cond)) { \
+        GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
+        BLINK_LOOP(PIN_LED_GREEN, (CONFIG_DCOCLKDIV_FREQ >> 1) >> (idx)); \
+    }
 
 #endif
