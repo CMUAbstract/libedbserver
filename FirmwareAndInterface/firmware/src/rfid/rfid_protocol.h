@@ -31,6 +31,9 @@
 #define RFID_PREAMBLE_TR_CAL_MIN(rt_cal) RFID_PREAMBLE_TR_CAL_MIN_INTERNAL(rt_cal)
 #define RFID_PREAMBLE_TR_CAL_MAX(rt_cal) RFID_PREAMBLE_TR_CAL_MAX_INTERNAL(rt_cal)
 
+#define RFID_DATA_MIN(tari) (tari)
+#define RFID_DATA_MAX(tari) (2 * tari)
+
 #else // compile-time only calculations
 
 #define RFID_CONST_TARI 12500UL // pick a value (real value available only at runtime)
@@ -43,10 +46,11 @@
 #define RFID_PREAMBLE_TR_CAL_MIN(rt_cal) RFID_PREAMBLE_TR_CAL_MIN_INTERNAL(RFID_CONST_RTCAL)
 #define RFID_PREAMBLE_TR_CAL_MAX(rt_cal) RFID_PREAMBLE_TR_CAL_MAX_INTERNAL(RFID_CONST_RTCAL)
 
+#define RFID_DATA_MIN(tari) (RFID_CONST_TARI)
+#define RFID_DATA_MAX(tari) (2 * RFID_CONST_TARI)
+
 #endif // CONFIG_RFID_DECODER_RUNTIME_BOUNDS
 
-#define RFID_DATA_MIN(tari) (tari)
-#define RFID_DATA_MAX(tari) (2 * tari)
 /* @} End RFID_SYMBOL_TIMING */
 
 typedef enum {
