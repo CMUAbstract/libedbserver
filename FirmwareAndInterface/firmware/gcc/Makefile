@@ -10,7 +10,7 @@ LIBDEBUG_ROOT := ../../libdebug
 
 CFLAGS = \
 	-mmcu=$(DEVICE) \
-	-O2 \
+	-O1 \
 	-g \
 	-std=c99 \
 	-pedantic \
