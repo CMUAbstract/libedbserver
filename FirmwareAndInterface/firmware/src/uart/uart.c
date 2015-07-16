@@ -15,6 +15,7 @@
 #include "pin_assign.h"
 #include "config.h"
 #include "error.h"
+#include "main_loop.h"
 
 #include "uart.h"
 
@@ -27,11 +28,6 @@
 // Buffer and len available to all modules that may send over UART
 uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
 uint8_t host_msg_len;
-
-static uint16_t *pUSBFlags;
-static uint16_t *pWISPFlags;
-static uint16_t USBRxFlag, USBTxFlag;
-static uint16_t WISPRxFlag, WISPTxFlag;
 
 static uartBuf_t usbRx = { .head = 0, .tail = 0 };
 static uartBuf_t usbTx = { .head = 0, .tail = 0 };
@@ -54,15 +50,11 @@ static inline uint8_t uartBuf_len(uartBuf_t *buf) {
     }
 }
 
-void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)
+void UART_setup(uint8_t interface)
 {
     switch(interface)
     {
     case UART_INTERFACE_USB:
-        pUSBFlags = flag_bitmask;
-        USBRxFlag = rxFlag;
-        USBTxFlag = txFlag;
-
         // USCI_A0 option select
         GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
 
@@ -91,10 +83,6 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
         break;
 
     case UART_INTERFACE_WISP:
-        pWISPFlags = flag_bitmask;
-        WISPRxFlag = rxFlag;
-        WISPTxFlag = txFlag;
-
         // USCI_A1 option select
         GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
 
@@ -375,7 +363,8 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
 #endif
         usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
         usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
-        *pUSBFlags |= USBRxFlag;        // alert the main loop
+
+        main_loop_flags |= FLAG_UART_USB_RX;
         break;
     }
 
@@ -383,7 +372,8 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     {
         UCA0TXBUF = usbTx.buf[usbTx.head]; // place data in the TX register to send
         usbTx.head = (usbTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer head
-        *pUSBFlags |= USBTxFlag; // alert the main loop
+
+        main_loop_flags |= FLAG_UART_USB_TX;
 
         if(usbTx.head == usbTx.tail) {
             // the software buffer is empty
@@ -416,7 +406,8 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     {
         wispRx.buf[wispRx.tail] = UCA1RXBUF; // copy the new byte
         wispRx.tail = (wispRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
-        *pWISPFlags |= WISPRxFlag; // alert the main loop
+
+        main_loop_flags |= FLAG_UART_WISP_RX;
         break;
     }
 
@@ -424,7 +415,8 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     {
         UCA1TXBUF = wispTx.buf[wispTx.head]; // place data in the Tx register
         wispTx.head = (wispTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer headd
-        *pWISPFlags |= WISPTxFlag; // alert the main loop
+
+        main_loop_flags |= FLAG_UART_WISP_TX;
 
         if(wispTx.head == wispTx.tail) {
             // the software buffer is empty

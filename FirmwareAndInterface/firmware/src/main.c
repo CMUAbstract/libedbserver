@@ -35,22 +35,8 @@
 #include "main.h"
 #include "config.h"
 #include "error.h"
+#include "main_loop.h"
 
-/**
- * @defgroup    MAIN_FLAG_DEFINES   Main loop flags
- * @brief       Flags to set in a bit mask to check in the main loop
- * @{
- */
-#define FLAG_ADC12_COMPLETE         0x0001 //!< ADC12 has completed conversion
-#define FLAG_UART_USB_RX            0x0002 //!< Bytes received on the USB UART
-#define FLAG_UART_USB_TX            0x0004 //!< Bytes transmitted on the USB UART
-#define FLAG_UART_WISP_RX           0x0008 //!< Bytes received on the WISP UART
-#define FLAG_UART_WISP_TX           0x0010 //!< Bytes transmitted on the WISP UART
-#define FLAG_LOGGING                0x0020 //!< Logging ADC conversion results to USB
-#define FLAG_RF_DATA				0x0040 //!< RF Rx activity ready to be logged
-#define FLAG_CHARGER_COMPLETE		0x0080 //!< Charge or discharge operation completed
-#define FLAG_INTERRUPTED     		0x0100 //!< target is in active debug mode
-/** @} End MAIN_FLAG_DEFINES */
 
 /**
  * @defgroup    LOG_DEFINES     Logging flags
@@ -112,7 +98,7 @@ typedef struct {
     uint16_t saved_vcap;
 } interrupt_context_t;
 
-static uint16_t flags = 0; // bit mask containing bit flags to check in the main loop
+uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
 static state_t state = STATE_IDLE;
 static comparator_op_t comparator_op = CMP_OP_NONE;
@@ -148,9 +134,6 @@ static adc12_t adc12 = {
         },
         .num_channels = 0, // maintained at runtime
     },
-
-    .pFlags = &flags,
-    .flag_adc12Complete = FLAG_ADC12_COMPLETE,
 };
 
 static void set_state(state_t new_state)
@@ -560,12 +543,12 @@ static void finish_enter_debug_mode()
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
 
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
-        UART_setup(UART_INTERFACE_WISP, &flags, FLAG_UART_WISP_RX, FLAG_UART_WISP_TX);
+        UART_setup(UART_INTERFACE_WISP);
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
         I2C_setup();
 
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
-          flags |= FLAG_INTERRUPTED; // main loop notifies the host
+          main_loop_flags |= FLAG_INTERRUPTED; // main loop notifies the host
 
     unmask_target_signal(); // listen because target *may* request to exit active debug mode
 }
@@ -737,12 +720,12 @@ int main(void)
 #endif
 
     PWM_setup(1024-1, 512); // dummy default values
-    UART_setup(UART_INTERFACE_USB, &flags, FLAG_UART_USB_RX, FLAG_UART_USB_TX); // USCI_A0 UART
+    UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
 
     // TODO: enable the RFID decoding only when the stream is requested
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
     // use the same flag for Rx and Tx so we only have to check one flag
-    RFID_setup(&flags, FLAG_RF_DATA);
+    RFID_setup();
 #endif
 
     ADC12_init(&adc12);
@@ -753,8 +736,8 @@ int main(void)
 
     while(1) {
 
-        if (flags & FLAG_INTERRUPTED) {
-            flags &= ~FLAG_INTERRUPTED;
+        if (main_loop_flags & FLAG_INTERRUPTED) {
+            main_loop_flags &= ~FLAG_INTERRUPTED;
 
             if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
                 debug_mode_flags & DEBUG_MODE_WITH_UART)
@@ -763,11 +746,11 @@ int main(void)
             send_interrupt_context(&interrupt_context);
         }
 
-        if(flags & FLAG_ADC12_COMPLETE) {
+        if(main_loop_flags & FLAG_ADC12_COMPLETE) {
             // ADC12 has completed conversion on all active channels
-            flags &= ~FLAG_ADC12_COMPLETE;
+            main_loop_flags &= ~FLAG_ADC12_COMPLETE;
 
-            if(flags & FLAG_LOGGING) {
+            if(main_loop_flags & FLAG_LOGGING) {
 
                 // TODO: eliminate the copy by having the ADC ISR fill the msg buffer directly
                 host_msg_len = 0;
@@ -789,12 +772,12 @@ int main(void)
             }
         }
 
-        if (flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
-            flags &= ~FLAG_CHARGER_COMPLETE;
+        if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
+            main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
             send_return_code(RETURN_CODE_SUCCESS);
         }
 
-        if(flags & FLAG_UART_USB_RX) {
+        if(main_loop_flags & FLAG_UART_USB_RX) {
             // we've received a byte from USB
             if(UART_buildRxPkt(UART_INTERFACE_USB, &usbRxPkt) == 0) {
                 // packet is complete
@@ -804,19 +787,19 @@ int main(void)
             // check if we're done for now
             UART_DISABLE_USB_RX; // disable interrupt so new bytes don't come in
             if(UART_RxBufEmpty(UART_INTERFACE_USB)) {
-                flags &= ~FLAG_UART_USB_RX; // clear USB Rx flag
+                main_loop_flags &= ~FLAG_UART_USB_RX; // clear USB Rx flag
             }
             UART_ENABLE_USB_RX; // enable interrupt
         }
 
 /*
-        if(flags & FLAG_UART_USB_TX) {
+        if(main_loop_flags & FLAG_UART_USB_TX) {
             // USB UART Tx byte
-            flags &= ~FLAG_UART_USB_TX;
+            main_loop_flags &= ~FLAG_UART_USB_TX;
         }
 */
 /*
-        if(flags & FLAG_UART_WISP_RX) {
+        if(main_loop_flags & FLAG_UART_WISP_RX) {
             // we've received a byte over UART from the WISP
             if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
             	// packet is complete
@@ -827,20 +810,20 @@ int main(void)
             // check if we're done for now
             UART_DISABLE_WISP_RX; // disable interrupt so new bytes don't come in
             if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
-            	flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
+            	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
             }
             UART_ENABLE_WISP_RX; // enable interrupt
         }
 */
 /*
-        if(flags & FLAG_UART_WISP_TX) {
+        if(main_loop_flags & FLAG_UART_WISP_TX) {
             // WISP UART Tx byte
-            flags &= ~FLAG_UART_WISP_TX;
+            main_loop_flags &= ~FLAG_UART_WISP_TX;
         }
 */
 
-        if(flags & FLAG_RF_DATA) {
-        	flags &= ~FLAG_RF_DATA;
+        if(main_loop_flags & FLAG_RF_DATA) {
+        	main_loop_flags &= ~FLAG_RF_DATA;
             RFID_send_rf_events_to_host();
         }
 
@@ -936,7 +919,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
         // actions common to all adc streams
         if (adc12.config.num_channels > 0) {
-            flags |= FLAG_LOGGING; // for main loop
+            main_loop_flags |= FLAG_LOGGING; // for main loop
             ADC12_arm(&adc12);
             ADC12_trigger();
         }
@@ -965,7 +948,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
         // actions common to all adc streams
         if (adc12.config.num_channels == 0) {
-		    flags &= ~FLAG_LOGGING; // for main loop
+		    main_loop_flags &= ~FLAG_LOGGING; // for main loop
             ADC12_stop();
         }
         break;
@@ -1393,13 +1376,13 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
     switch (comparator_op) {
         case CMP_OP_CHARGE:
             GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
-            flags |= FLAG_CHARGER_COMPLETE;
+            main_loop_flags |= FLAG_CHARGER_COMPLETE;
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
         case CMP_OP_DISCHARGE:
             GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
-            flags |= FLAG_CHARGER_COMPLETE;
+            main_loop_flags |= FLAG_CHARGER_COMPLETE;
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;

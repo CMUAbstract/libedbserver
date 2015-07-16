@@ -10,6 +10,7 @@
 #include "adc12.h"
 #include "timeLog.h"
 #include "pin_assign.h"
+#include "main_loop.h"
 
 static adc12_t *_pAdc12;
 
@@ -138,29 +139,29 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
     case ADC12IV_ADC12OVIFG: return;                  // Vector  2:  ADC overflow
     case ADC12IV_ADC12TOVIFG: return;                 // Vector  4:  ADC timing overflow
     case ADC12IV_ADC12IFG0:                           // Vector  6:  ADC12IFG0
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         return;
     case ADC12IV_ADC12IFG1:                           // Vector  8:  ADC12IFG1
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         return;
     case ADC12IV_ADC12IFG2:                           // Vector 10:  ADC12IFG2
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         _pAdc12->results[2] = ADC12MEM2;
         return;
     case ADC12IV_ADC12IFG3:                           // Vector 12:  ADC12IFG3
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         _pAdc12->results[2] = ADC12MEM2;
         _pAdc12->results[3] = ADC12MEM3;
         return;
     case ADC12IV_ADC12IFG4:                           // Vector 14:  ADC12IFG4
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         _pAdc12->results[2] = ADC12MEM2;

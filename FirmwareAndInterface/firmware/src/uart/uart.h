@@ -83,15 +83,12 @@ extern uint8_t host_msg_len;
 /**
  * @brief       Set up UART
  * @param       interface       UART interface to set up.  See @ref UART_INTERFACES
- * @param       flag_bitmask    Bitmask where flags will be set on UART Rx and Tx
- * @param       rxFlag          Flag to set in flag_bitmask on UART Rx
- * @param       txFlag          Flag to set in flag_bitmask on UART Tx
  * @details     The FTDI FT232R USB to UART chip is connected to the
  *              MSP430 on the USCI_A0 UART.  The WISP is connected
  *              on the USCI_A1 UART.  This function sets
  *              registers to configure either interface.
  */
-void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag);
+void UART_setup(uint8_t interface);
 
 /**
  * @brief       Unsetup UART (put pins into high-z state)

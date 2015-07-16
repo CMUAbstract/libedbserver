@@ -12,6 +12,7 @@
 #include "host_comm.h"
 #include "error.h"
 #include "rfid_decoder.h"
+#include "main_loop.h"
 
 #include "rfid.h"
 
@@ -78,10 +79,6 @@ static rf_event_t *rf_events_buf;
 static uint8_t rf_events_count = 0;
 
 
-// TODO: the flag macros should just be in a shared header
-static uint16_t *pFlags;
-static uint16_t data_ready_flag;
-
 static void append_event(rf_event_type_t id)
 {
     rf_event_t *rf_event;
@@ -100,7 +97,7 @@ static void append_event(rf_event_type_t id)
     rf_event->timestamp = TIMELOG_CURRENT_TIME;
     rf_event->id = id;
 
-	*pFlags |= data_ready_flag;	// alert the main loop that data is ready
+    main_loop_flags |= FLAG_RF_DATA;
 }
 
 static inline void handle_rfid_cmd(rfid_cmd_code_t cmd_code)
@@ -114,15 +111,11 @@ static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
     //append_event(RF_EVENT_TYPE_RSP | rsp_code);
 }
 
-void RFID_setup(uint16_t *pFlag_bitmask, uint16_t data_ready_flag_arg)
+void RFID_setup()
 {
     uint8_t i;
     uint8_t offset;
     uint8_t *header;
-
-    // will set this flag in this bitmask when there is data to transmit to the host
-	pFlags = pFlag_bitmask;
-	data_ready_flag = data_ready_flag_arg;
 
     // Start filling up the first of the two buffers
     rf_events_buf_idx = 0;
