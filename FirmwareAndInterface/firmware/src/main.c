@@ -835,7 +835,8 @@ static inline void pin_setup()
 int main(void)
 {
     uint32_t count = 0;
-    uint8_t values_len;
+    uint16_t i;
+    uint16_t adc_value;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
@@ -893,9 +894,11 @@ int main(void)
                 host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 16) & 0xff;
                 host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 24) & 0xff;
 
-                values_len = adc12.config.num_channels * sizeof(uint16_t);
-                memcpy(host_msg_buf + host_msg_len, adc12.results, values_len);
-                host_msg_len += values_len;
+                for (i = 0; i < adc12.config.num_channels ; ++i) {
+                    adc_value = adc12.results[i];
+                    host_msg_buf[host_msg_len++] = adc_value & 0xff;
+                    host_msg_buf[host_msg_len++] = (adc_value >> 8) & 0xff;
+                }
 
                 UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
                              host_msg_buf, host_msg_len, UART_TX_DROP);
