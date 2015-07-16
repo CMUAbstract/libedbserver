@@ -533,10 +533,11 @@ class WispMonitor:
         with DelayedSignals(interrupt_signals): # prevent partial lines
             out_file.write("timestamp_sec," + ",".join(streams) + "\n")
 
+        # Can't modify a variable in this scope, but can modify values in a dict
+        signal_handler_data = {'streaming' : True}
+
         if duration_sec is not None:
             # The main point here is to cause the read system call to return
-            # Can't modify a variable in this scope, but can modify values in a dict
-            signal_handler_data = {'streaming' : True}
 
             def interrupt_loop(sig, frame):
                 signal_handler_data['streaming'] = False
