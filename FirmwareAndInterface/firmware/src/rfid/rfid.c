@@ -94,7 +94,7 @@ static void append_event(rf_event_type_t id)
 
     // We could take the timestamp a few cycles earlier (in the ISR/callbacks),
     // but it's hardly worth the sacrifice in code conciseness.
-    rf_event->timestamp = TIMELOG_CURRENT_TIME;
+    rf_event->timestamp = TIMELOG_CURRENT_TIME();
     rf_event->id = id;
 
     main_loop_flags |= FLAG_RF_DATA;
