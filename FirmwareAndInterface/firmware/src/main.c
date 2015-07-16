@@ -638,7 +638,7 @@ static void handle_target_signal()
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
  */
-static void pin_setup()
+static inline void pin_setup()
 {
     // Set unconnected pins to output low (note: OUT value is undefined on reset)
     P1DIR |= BIT7;
