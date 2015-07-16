@@ -10,25 +10,17 @@
 
 #define NS_TO_CYCLES(t) (t * CONFIG_DCOCLKDIV_FREQ / 1000000000UL)
 
-/**
- * @brief Match the bits in state variable to pins for quick encoding
- * @details Run-time shift is very expensive: in the worst case it
- *          compiles into a bunch of software emulation code, in the
- *          best case it is an many-cycle repeated shift instruction.
- */
-#define RX_DEC_STATE_OFFSET PIN_RFID_RX_DEC_STATE_0
-
 /** @brief States of RFID protocol decoder state machine
- *  @details Even values in order to use __even_in_range optimizatino
- *           which turns the switch statement into one jump.
+ *  @details Even values in order to use a jump table implementation
+ *           of a switch statement (a constant and small costs per case).
 */
 typedef enum {
-    RX_DEC_STATE_IDLE                               = 0x00 << RX_DEC_STATE_OFFSET,
-    RX_DEC_STATE_PREAMBLE_DELIM                     = 0x01 << RX_DEC_STATE_OFFSET,
-    RX_DEC_STATE_PREAMBLE_TARI                      = 0x02 << RX_DEC_STATE_OFFSET,
-    RX_DEC_STATE_PREAMBLE_RT_CAL                    = 0x03 << RX_DEC_STATE_OFFSET,
-    RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0          = 0x04 << RX_DEC_STATE_OFFSET,
-    RX_DEC_STATE_DATA                               = 0x05 << RX_DEC_STATE_OFFSET,
+    RX_DEC_STATE_IDLE                               = 0x00,
+    RX_DEC_STATE_PREAMBLE_DELIM                     = 0x02,
+    RX_DEC_STATE_PREAMBLE_TARI                      = 0x04,
+    RX_DEC_STATE_PREAMBLE_RT_CAL                    = 0x06,
+    RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0          = 0x08,
+    RX_DEC_STATE_DATA                               = 0x0a,
 } rx_dec_state_t;
 
 /** @brief Decoder sub-state for phases of decoding command data bits */
@@ -246,8 +238,6 @@ static inline void receive_data_bit(uint8_t data_bit)
                         case RFID_CMD_QUERY:
                         case RFID_CMD_QUERYADJUST:
                         case RFID_CMD_SELECT:
-                            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-                            while(1);
                             rx_cmd_state = RX_CMD_STATE_PAYLOAD;
                             break;
                     }
@@ -293,82 +283,107 @@ static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
     interval = rx_edge_timestamp - prev_rx_edge_timestamp;
     prev_rx_edge_timestamp = rx_edge_timestamp;
 
-    switch (rx_dec_state) { // TODO: are there tricks to optimize into one jump?
-        case RX_DEC_STATE_IDLE:
-            // Wait for *rising* edge of end of preamble delimeter
-            TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) =
-                (TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) & ~(CM0 | CM1)) | CM_1;
-            set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_DELIM);
-            break;
-        case RX_DEC_STATE_PREAMBLE_DELIM:
-            if (NS_TO_CYCLES(RFID_PREAMBLE_DELIM_MIN) <= interval &&
-                interval < NS_TO_CYCLES(RFID_PREAMBLE_DELIM_MAX)) {
-                set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_TARI);
-            } else {
-                goto fail;
-            }
-            break;
-        case RX_DEC_STATE_PREAMBLE_TARI:
-            if (NS_TO_CYCLES(RFID_PREAMBLE_TARI_MIN) <= interval &&
-                interval < NS_TO_CYCLES(RFID_PREAMBLE_TARI_MAX)) {
-                rx_tari = interval; // needed for symbol bounds checking later
-                set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_RT_CAL);
-            } else {
-                goto fail;
-            }
-            break;
-        case RX_DEC_STATE_PREAMBLE_RT_CAL:
-            if (NS_TO_CYCLES(RFID_PREAMBLE_RT_CAL_MIN(rx_tari)) <= interval &&
-                interval < NS_TO_CYCLES(RFID_PREAMBLE_RT_CAL_MAX(rx_tari))) {
-                rx_rt_cal = interval;
+    // Jump table implementation of switch: constant cost regardless of case
+    // as opposed to a chain of comparisons.  (NOTE: neither gcc nor TI compiler
+    // does this for us, incl.  with __even_in_range intrinsic.)
+        //" nop \n"
+    __asm__ goto (
+        " adda %[state], PC\n "
+        " jmp   %l[case_RX_DEC_STATE_IDLE]\n "
+        " jmp   %l[case_RX_DEC_STATE_PREAMBLE_DELIM]\n "
+        " jmp   %l[case_RX_DEC_STATE_PREAMBLE_TARI]\n "
+        " jmp   %l[case_RX_DEC_STATE_PREAMBLE_RT_CAL]\n "
+        " jmp   %l[case_RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0]\n "
+        " jmp   %l[case_RX_DEC_STATE_DATA]\n "
+        : /* no outputs */
+        : [state] "r" (rx_dec_state)
+        : /* no clobbers */
+        : case_RX_DEC_STATE_IDLE,
+          case_RX_DEC_STATE_PREAMBLE_DELIM,
+          case_RX_DEC_STATE_PREAMBLE_TARI,
+          case_RX_DEC_STATE_PREAMBLE_RT_CAL,
+          case_RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0,
+          case_RX_DEC_STATE_DATA
+    );
+
+    case_RX_DEC_STATE_IDLE:
+        // Wait for *rising* edge of end of preamble delimeter
+        TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) =
+            (TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) & ~(CM0 | CM1)) | CM_1;
+        set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_DELIM);
+        return;
+
+    case_RX_DEC_STATE_PREAMBLE_DELIM:
+        if (NS_TO_CYCLES(RFID_PREAMBLE_DELIM_MIN) <= interval &&
+            interval < NS_TO_CYCLES(RFID_PREAMBLE_DELIM_MAX)) {
+            set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_TARI);
+        } else {
+            goto fail;
+        }
+        return;
+
+    case_RX_DEC_STATE_PREAMBLE_TARI:
+        if (NS_TO_CYCLES(RFID_PREAMBLE_TARI_MIN) <= interval &&
+            interval < NS_TO_CYCLES(RFID_PREAMBLE_TARI_MAX)) {
+            rx_tari = interval; // needed for symbol bounds checking later
+            set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_RT_CAL);
+        } else {
+            goto fail;
+        }
+        return;
+
+    case_RX_DEC_STATE_PREAMBLE_RT_CAL:
+        if (NS_TO_CYCLES(RFID_PREAMBLE_RT_CAL_MIN(rx_tari)) <= interval &&
+            interval < NS_TO_CYCLES(RFID_PREAMBLE_RT_CAL_MAX(rx_tari))) {
+            rx_rt_cal = interval;
 #if C_COMPILER_WERE_NICE_TO_US
-                rx_pivot = rx_rt_cal / 2;
+            rx_pivot = rx_rt_cal / 2;
 #else
-                rx_pivot = rx_rt_cal;
-                __asm__ (
-                    " rrum.w    #1, %[pivot] "
-                    : [pivot] "=r" (rx_pivot)
-                    : "[pivot]" (rx_pivot)
-                );
+            rx_pivot = rx_rt_cal;
+            __asm__ (
+                " rrum.w    #1, %[pivot] "
+                : [pivot] "=r" (rx_pivot)
+                : "[pivot]" (rx_pivot)
+            );
 #endif
-                set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0);
-            } else {
-                goto fail;
-            }
-            break;
-        case RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0:
-            if (interval >= rx_rt_cal) { // TR cal
-                if (NS_TO_CYCLES(RFID_PREAMBLE_TR_CAL_MIN(rx_rt_cal)) <= interval &&
-                    interval < NS_TO_CYCLES(RFID_PREAMBLE_TR_CAL_MAX(rx_rt_cal))) {
-                    // This interval communicates the tag reply rate, we ignore this info
-                    reset_cmd_dec_state();
-                    set_rx_decoder_state(RX_DEC_STATE_DATA);
-                } else {
-                    goto fail;
-                }
-                break;
-            } else { // data bit 0
+            set_rx_decoder_state(RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0);
+        } else {
+            goto fail;
+        }
+        return;
+
+    case_RX_DEC_STATE_PREAMBLE_TR_CAL_OR_DATA_0:
+        if (interval >= rx_rt_cal) { // TR cal
+            if (NS_TO_CYCLES(RFID_PREAMBLE_TR_CAL_MIN(rx_rt_cal)) <= interval &&
+                interval < NS_TO_CYCLES(RFID_PREAMBLE_TR_CAL_MAX(rx_rt_cal))) {
+                // This interval communicates the tag reply rate, we ignore this info
                 reset_cmd_dec_state();
                 set_rx_decoder_state(RX_DEC_STATE_DATA);
-                // fall through to next case
+            } else {
+                goto fail;
             }
-            // no break here: watch the fall through logic above
-        case RX_DEC_STATE_DATA:
-            // This is on very hot path, so skip the check
-            //if (NS_TO_CYCLES(RFID_DATA_MIN(rx_tari)) <= interval &&
-            //    interval < NS_TO_CYCLES(RFID_DATA_MAX(rx_tari))) {
+            return;
+        } else { // data bit 0
+            reset_cmd_dec_state();
+            set_rx_decoder_state(RX_DEC_STATE_DATA);
+            // fall through to next case
+        }
+        // no return here: watch the fall through logic above
 
-                // shift the bit from left to right, because this means fewer
-                // shifts on average because most frequent comands have short codes
-                data_bit = interval > rx_pivot ? 0x80 : 0x00;
-                receive_data_bit(data_bit);
+    case_RX_DEC_STATE_DATA:
+        // This is on very hot path, so skip the check
+        //if (NS_TO_CYCLES(RFID_DATA_MIN(rx_tari)) <= interval &&
+        //    interval < NS_TO_CYCLES(RFID_DATA_MAX(rx_tari))) {
 
-            //} else {
-            //    goto fail;
-            //}
-            break;
-    }
-    return;
+            // shift the bit from left to right, because this means fewer
+            // shifts on average because most frequent comands have short codes
+            data_bit = interval > rx_pivot ? 0x80 : 0x00;
+            receive_data_bit(data_bit);
+
+        //} else {
+        //    goto fail;
+        //}
+        return;
 
     // TODO: record specific failure event in event buf; although, maybe not, because
     // in case parsing fails (e.g. bit error, or unimplemented cmd), then we need to
@@ -379,6 +394,50 @@ static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
 fail:
     reset_rx_dec_state();
 }
+
+#ifdef CONFIG_RFID_DECODER_STATE_PINS
+static inline void signal_enter_rx_isr()
+{
+    // Pull all low to signal enterance into ISR
+    GPIO(PORT_RFID_DEC_STATE, OUT) &=
+        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2));
+}
+
+static inline void signal_exit_rx_isr()
+{
+    // Encode state onto pins: shows both ISR exit event and state
+    uint8_t state_pins;
+
+#if C_COMPILER_WERE_NICE_TO_US
+    state_pins = (rx_dec_state >> 1) << PIN_RFID_RX_DEC_STATE_0; // rigth-shift is div by 2
+#else
+    state_pins = rx_dec_state;
+    __asm__ (
+        " clrc \n "
+        " rrc.b     %[pins]\n "
+        : [pins] "=r" (state_pins)
+        : "[pins]" (state_pins), [pin_offset] "n" (PIN_RFID_RX_DEC_STATE_0)
+    );
+#if PIN_RFID_RX_DEC_STATE_0 > 0
+
+#if PIN_RFID_RX_DEC_STATE_0 <= 4
+    __asm__ (
+        " rlam.b    %[pin_offset], %[pins]\n "
+        : [pins] "=r" (state_pins)
+        : "[pins]" (state_pins), [pin_offset] "n" (PIN_RFID_RX_DEC_STATE_0)
+    );
+#else // PIN_RFID_RX_DEC_STATE_0 > 4
+#error Pin assignment for PIN_RFID_RX_DEC_STATE out of range: supported range 0-4
+#endif // PIN_RFID_RX_DEC_STATE_0 > 4
+
+#endif // PIN_RFID_RX_DEC_STATE_0 > 0
+#endif // !C_COMPILER_WERE_NICE_TO_US
+
+    GPIO(PORT_RFID_DEC_STATE, OUT) = (GPIO(PORT_RFID_DEC_STATE, OUT) &
+        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2))) |
+        state_pins;
+}
+#endif // CONFIG_RFID_DECODER_STATE_PINS
 
 /** @brief RX capture compare timer ISR */
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -398,9 +457,7 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
     // at 24.576 MHz, which is about 50 instructions. Not much at all!
 
 #ifdef CONFIG_RFID_DECODER_STATE_PINS
-    // Pull all low to signal enterance into ISR
-    GPIO(PORT_RFID_DEC_STATE, OUT) &=
-        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2));
+    signal_enter_rx_isr();
 #endif
 
     // Clear the interrupt flag. Even if we are not out of this ISR before the
@@ -419,10 +476,7 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
     }
 
 #ifdef CONFIG_RFID_DECODER_STATE_PINS
-    // Encode state onto pins: shows both ISR exit event and state
-    GPIO(PORT_RFID_DEC_STATE, OUT) = (GPIO(PORT_RFID_DEC_STATE, OUT) &
-        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2))) |
-        rx_dec_state;
+    signal_exit_rx_isr();
 #endif
 }
 
