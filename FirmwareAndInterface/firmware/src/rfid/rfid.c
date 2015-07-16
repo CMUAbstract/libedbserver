@@ -28,7 +28,7 @@
  */
 
 #define NUM_BUFFERS                                  2 // double-buffer pair
-#define NUM_EVENTS_BUFFERED                         32 
+#define NUM_EVENTS_BUFFERED                         48
 
 #define STREAM_DATA_MSG_HEADER_LEN (sizeof(uint8_t) + 1) // 'streams bitmask' field (units of bytes)
                                                          // + padding (must be aligned to 2)
