@@ -118,6 +118,7 @@ static interrupt_context_t interrupt_context;
 
 static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
 
+static uartPkt_t usbRxPkt = { .processed = 1 };
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
 static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
@@ -833,7 +834,6 @@ static inline void pin_setup()
 
 int main(void)
 {
-    uartPkt_t usbRxPkt = { .processed = 1 };
     uint32_t count = 0;
     uint8_t values_len;
 
