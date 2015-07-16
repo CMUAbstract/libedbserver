@@ -27,7 +27,7 @@
 
 // Buffer and len available to all modules that may send over UART
 uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
-uint8_t host_msg_len;
+uint16_t host_msg_len;
 
 static uartBuf_t usbRx = { .head = 0, .tail = 0 };
 static uartBuf_t usbTx = { .head = 0, .tail = 0 };

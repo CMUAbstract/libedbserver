@@ -78,7 +78,7 @@ typedef struct {
  * @brief Buffer and len available to all modules that may send messages to host
  */
 extern uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
-extern uint8_t host_msg_len;
+extern uint16_t host_msg_len;
 
 /**
  * @brief       Set up UART
