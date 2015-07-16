@@ -509,7 +509,6 @@ class WispMonitor:
         if not silent:
             print "Logging... Ctrl-C to stop"
 
-        start_time_sec = None
         timestamp_sec = 0
         num_samples = 0
         last_progress_report = time.time()
@@ -551,11 +550,7 @@ class WispMonitor:
 
                 for data_point in pkt["data_points"]:
 
-                    if start_time_sec is None: # first time data - store it for reference
-                        start_time_sec = data_point.timestamp_sec
-                    timestamp_sec = data_point.timestamp_sec - start_time_sec
-
-                    line = "%f" % timestamp_sec
+                    line = "%f" % data_point.timestamp_sec
                     for stream in streams:
                         # a column per requested stream, so may have blanks on some rows
                         line += ","
