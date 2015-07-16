@@ -76,7 +76,7 @@ static rf_event_t * const rf_events_bufs[NUM_BUFFERS] = {
 static uint8_t rf_events_buf_idx;
 static rf_event_t *rf_events_buf;
 /** @brief Number of events in the current buffer so far */
-static uint8_t rf_events_count = 0;
+static uint8_t rf_events_count[NUM_BUFFERS];
 
 
 static void append_event(rf_event_type_t id)
@@ -84,18 +84,28 @@ static void append_event(rf_event_type_t id)
     rf_event_t *rf_event;
 
 #ifdef CONFIG_ABORT_ON_RFID_EVENT_OVERFLOW
-    ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count < NUM_EVENTS_BUFFERED);
+    ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count[rf_events_buf_idx] < NUM_EVENTS_BUFFERED);
 #else
     if (rf_events_count < NUM_EVENTS_BUFFERED)
         return;
 #endif
 
-    rf_event = &rf_events_buf[rf_events_count++];
+    rf_event = &rf_events_buf[rf_events_count[rf_events_buf_idx]];
 
     // We could take the timestamp a few cycles earlier (in the ISR/callbacks),
     // but it's hardly worth the sacrifice in code conciseness.
     rf_event->timestamp = TIMELOG_CURRENT_TIME();
     rf_event->id = id;
+
+    rf_events_count[rf_events_buf_idx]++;
+
+    // If full, then swap buffers
+    if (rf_events_count[rf_events_buf_idx] == NUM_EVENTS_BUFFERED) {
+        rf_events_buf_idx = rf_events_buf_idx ^ rf_events_buf_idx;
+        rf_events_buf = rf_events_bufs[rf_events_buf_idx];
+
+        ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count[rf_events_buf_idx] == 0);
+    }
 
     main_loop_flags |= FLAG_RF_DATA;
 }
@@ -109,38 +119,6 @@ static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
 {
     // TODO: don't do anything yet
     //append_event(RF_EVENT_TYPE_RSP | rsp_code);
-}
-
-void RFID_setup()
-{
-    uint8_t i;
-    uint8_t offset;
-    uint8_t *header;
-
-    // Start filling up the first of the two buffers
-    rf_events_buf_idx = 0;
-    rf_events_buf = rf_events_bufs[rf_events_buf_idx];
-
-    // Initialize message header
-    for (i = 0; i < NUM_BUFFERS; ++i) {
-        header = (uint8_t *)&rf_events_msg_bufs[i][0] + RF_EVENT_BUF_HEADER_OFFSET;
-        offset = 0;
-        header[offset++] = 0; // padding
-        header[offset++] = STREAM_RF_EVENTS;
-        ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset <= STREAM_DATA_MSG_HEADER_LEN);
-    }
-
-    rfid_decoder_init(&handle_rfid_cmd, &handle_rfid_rsp);
-}
-
-void RFID_start_event_stream()
-{
-    rfid_decoder_start();
-}
-
-void RFID_stop_event_stream()
-{
-    rfid_decoder_stop();
 }
 
 /**
@@ -159,32 +137,62 @@ void RFID_stop_event_stream()
  *          The disadvantage of the former approach is that we will end up
  *          doing a lot of buffer switches.
  */
-void RFID_send_rf_events_to_host()
+static inline void send_rf_events_buf_host(uint8_t ready_events_buf_idx)
 {
-    uint8_t ready_events_buf_idx, next_rf_events_buf_idx;
+    uint8_t next_rf_events_buf_idx;
     uint8_t ready_events_count;
     rf_event_t *next_rf_events_buf;
 
-    // Swap double-buffers
-
-    // Nobody but this method can change the current index, so safe to compute
-    // the next index outside of critical section.
-    ready_events_buf_idx = rf_events_buf_idx;
-    next_rf_events_buf_idx = rf_events_buf_idx == 0 ? 1 : 0;
-    next_rf_events_buf = rf_events_bufs[rf_events_buf_idx];
-
-    // Updates saving current count and updates to buf and to count must be
-    // atomic: appends (from ISRs) must be disallowed
-    __disable_interrupt();
-    ready_events_count = rf_events_count;
-
-    rf_events_count = 0;
-    rf_events_buf_idx = next_rf_events_buf_idx;
-    rf_events_buf = next_rf_events_buf;
-    __enable_interrupt();
+    ready_events_count = rf_events_count[ready_events_buf_idx];
 
 	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
                  (uint8_t *)&rf_events_msg_bufs[ready_events_buf_idx][0] + RF_EVENT_BUF_HEADER_OFFSET,
                  STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
                  UART_TX_DROP);
+    rf_events_count[ready_events_buf_idx] = 0; // mark buffer as free
 }
+
+static inline void RFID_flush_rf_events_buf()
+{
+    send_rf_events_buf_host(rf_events_buf_idx);
+}
+
+void RFID_send_ready_rf_events_buf()
+{
+    send_rf_events_buf_host(rf_events_buf_idx ^ rf_events_buf_idx);
+}
+
+void RFID_setup()
+{
+    uint8_t i;
+    uint8_t offset;
+    uint8_t *header;
+
+    // Initialize message header
+    for (i = 0; i < NUM_BUFFERS; ++i) {
+        header = (uint8_t *)&rf_events_msg_bufs[i][0] + RF_EVENT_BUF_HEADER_OFFSET;
+        offset = 0;
+        header[offset++] = 0; // padding
+        header[offset++] = STREAM_RF_EVENTS;
+        ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset <= STREAM_DATA_MSG_HEADER_LEN);
+    }
+
+    rfid_decoder_init(&handle_rfid_cmd, &handle_rfid_rsp);
+}
+
+void RFID_start_event_stream()
+{
+    // Start filling up the first of the two buffers
+    rf_events_buf_idx = 0;
+    rf_events_buf = rf_events_bufs[rf_events_buf_idx];
+    rf_events_count[0] = rf_events_count[1] = 0;
+
+    rfid_decoder_start();
+}
+
+void RFID_stop_event_stream()
+{
+    rfid_decoder_stop();
+    RFID_flush_rf_events_buf();
+}
+

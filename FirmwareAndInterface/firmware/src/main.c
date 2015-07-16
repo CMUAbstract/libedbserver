@@ -959,7 +959,7 @@ int main(void)
 
         if(main_loop_flags & FLAG_RF_DATA) {
         	main_loop_flags &= ~FLAG_RF_DATA;
-            RFID_send_rf_events_to_host();
+            RFID_send_ready_rf_events_buf();
         }
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.

@@ -14,6 +14,6 @@
 void RFID_setup();
 void RFID_start_event_stream();
 void RFID_stop_event_stream();
-void RFID_send_rf_events_to_host();
+void RFID_send_ready_rf_events_buf();
 
 #endif
