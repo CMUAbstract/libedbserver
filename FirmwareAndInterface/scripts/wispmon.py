@@ -358,8 +358,8 @@ class WispMonitor:
 
     def decode_adc_value(self, bytes, offset):
         FIELD_LEN = 2
-        #if offset + FIELD_LEN > len(bytes):
-        #    raise StreamDecodeException()
+        if offset + FIELD_LEN > len(bytes):
+            raise StreamDecodeException()
         adc_value = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         length = 2
         voltage = self.adc_to_voltage(adc_value)
