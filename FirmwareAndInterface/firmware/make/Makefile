@@ -49,7 +49,6 @@ CFLAGS = \
 	--include_path="$(SRC_ROOT)/timers" \
 	--include_path="$(SRC_ROOT)/uart" \
 	--include_path="$(SRC_ROOT)/i2c" \
-	--include_path="$(SRC_ROOT)/ucs" \
 
 ASFLAGS = $(CFLAGS)
 
@@ -77,7 +76,6 @@ VPATH += $(SRC_ROOT)
 C_SRCS = \
 	main.c \
 	error.c \
-	ucs/ucs.c \
 	uart/uart.c \
 	i2c/i2c.c \
 	timers/pwm.c \

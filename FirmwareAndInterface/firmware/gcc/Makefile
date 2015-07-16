@@ -23,7 +23,6 @@ CFLAGS = \
 	-I $(SRC_DIR)/timers \
 	-I $(SRC_DIR)/uart \
 	-I $(SRC_DIR)/i2c \
-	-I $(SRC_DIR)/ucs \
 
 LFLAGS = -L $(TOOLCHAIN_ROOT)/include
 
@@ -34,7 +33,6 @@ EXEC = monitor
 OBJECTS = \
 	main.o \
 	error.o \
-	ucs/ucs.o \
 	uart/uart.o \
 	i2c/i2c.o \
 	timers/pwm.o \
