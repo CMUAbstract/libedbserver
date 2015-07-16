@@ -151,7 +151,11 @@ def cmd_pc(mon):
 
 def cmd_secho(mon, value):
     value = int(value, 16)
-    print mon.serial_echo(value)
+    print "0x%02x" % mon.serial_echo(value)
+
+def cmd_decho(mon, value):
+    value = int(value, 16)
+    print "0x%02x" % mon.dma_echo(value)
 
 def compose_prompt(active_mode):
     if active_mode:

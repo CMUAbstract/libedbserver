@@ -370,9 +370,9 @@ static void send_vcap(uint16_t vcap)
                  (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
 }
 
-static void send_serial_echo(uint8_t value)
+static void send_echo(uint8_t value)
 {
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_SERIAL_ECHO,
+    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_ECHO,
                  &value, sizeof(uint8_t), UART_TX_FORCE);
 }
 
@@ -397,6 +397,24 @@ static void send_interrupt_context(interrupt_context_t *int_context)
 
     UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
                  host_msg_buf, host_msg_len, UART_TX_FORCE);
+}
+
+static void send_echo_dma(uint8_t *buf, uint8_t len)
+{
+    DMA0CTL &= ~DMAEN;
+
+    DMACTL0 = DMA0TSEL_17; /* USCA0 tx */
+    DMACTL4 = DMARMWDIS;
+    DMA0CTL = DMADT_0 /* single */ |
+              DMADSTINCR_0 /* dest no inc */ | DMASRCINCR_3 /* src inc */ |
+              DMADSTBYTE | DMASRCBYTE |
+              DMALEVEL | DMAIE;
+
+    DMA0SA = (uint16_t)buf;
+    DMA0DA = (uint16_t)&UCA0TXBUF;
+    DMA0SZ = len;
+
+    DMA0CTL |= DMAEN;
 }
 
 static void enter_debug_mode(interrupt_type_t int_type)
@@ -1299,8 +1317,23 @@ static void executeUSBCmd(uartPkt_t *pkt)
                 (wispRxPkt.descriptor != WISP_RSP_SERIAL_ECHO)); // wait for response
         wispRxPkt.processed = 1;
 
-        send_serial_echo(sig_serial_echo_value);
+        send_echo(sig_serial_echo_value);
+        break;
     }
+
+    case USB_CMD_DMA_ECHO: {
+        uint8_t value = pkt->data[0];
+
+        host_msg_len = 0;
+        host_msg_buf[host_msg_len++] = UART_IDENTIFIER_USB;
+        host_msg_buf[host_msg_len++] = USB_RSP_ECHO;
+        host_msg_buf[host_msg_len++] = 1;
+        host_msg_buf[host_msg_len++] = value;
+
+        send_echo_dma(host_msg_buf, host_msg_len);
+        break;
+    }
+
     default:
         break;
     }
@@ -1560,6 +1593,26 @@ void __attribute__ ((interrupt(TIMER2_A0_VECTOR))) TIMER2_A0_ISR (void)
 #endif
     TA2CCTL0 &= ~CCIFG;
 }
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=DMA_VECTOR
+__interrupt void DMA_ISR(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    switch (__even_in_range(DMAIV, 16)) {
+        case DMAIV_DMA0IFG:
+            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+            break;
+        case DMAIV_DMA1IFG:
+        case DMAIV_DMA2IFG:
+            break;
+    }
+}
+
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=UNMI_VECTOR

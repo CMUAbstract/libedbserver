@@ -62,6 +62,7 @@ typedef enum {
     USB_CMD_DISCHARGE_CMP                   = 0x38, //!< discharge Vcap to given level using comparator
     USB_CMD_GET_INTERRUPT_CONTEXT           = 0x39, //!< ask why target interrupted execution
     USB_CMD_SERIAL_ECHO                     = 0x40, //!< test communication with WISP via serial encoding over the signal line
+    USB_CMD_DMA_ECHO                        = 0x41, //!< send message to USB UART using DMA
 } usb_cmd_t;
 
 /**
@@ -83,7 +84,7 @@ typedef enum {
     USB_RSP_VINJ                            = 0x0E, //!< message containing Vinj ADC12 reading
     USB_RSP_RETURN_CODE                     = 0x0F, //!< message containing a return code indicating success or failure
     USB_RSP_INTERRUPTED                     = 0x10, //!< message sent upon entering debug mode (includes saved Vcap level)
-    USB_RSP_SERIAL_ECHO                     = 0x11, //!< response to serial communication test
+    USB_RSP_ECHO                            = 0x11, //!< response to test commands
 } usb_rsp_t;
 
 

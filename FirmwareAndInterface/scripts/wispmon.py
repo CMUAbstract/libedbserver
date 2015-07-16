@@ -232,7 +232,7 @@ class WispMonitor:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
 
-            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['SERIAL_ECHO']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_DATA']:
@@ -494,8 +494,14 @@ class WispMonitor:
 
     def serial_echo(self, value):
         cmd_data = [value]
-        self.sendCmd(host_comm_header.enums['USB_CMD']['SERIAL_ECHO'], data=cmd_data)
-        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['SERIAL_ECHO'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['ECHO'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
+        return reply["value"]
+
+    def dma_echo(self, value):
+        cmd_data = [value]
+        self.sendCmd(host_comm_header.enums['USB_CMD']['DMA_ECHO'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
         return reply["value"]
 
     def stream(self, streams, duration_sec=None, out_file=None, silent=True):
