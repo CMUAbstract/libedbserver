@@ -199,6 +199,7 @@ uint8_t UART_RxBufEmpty(uint8_t interface)
 static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len)
 {
     while(len--) {
+        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_TAIL, bufInto->tail < UART_BUF_MAX_LEN_WITH_TAIL);
         bufInto->buf[bufInto->tail] = *bufFrom++; // copy byte
         bufInto->tail = (bufInto->tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;   // set tail of circular buffer
     }
@@ -207,6 +208,7 @@ static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len)
 static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, uint8_t len)
 {
     while(len--) {
+        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_HEAD, bufFrom->head < UART_BUF_MAX_LEN_WITH_TAIL);
         *bufInto++ = bufFrom->buf[bufFrom->head]; // copy byte
         bufFrom->head = (bufFrom->head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;   // set head of circular buffer
     }
@@ -280,6 +282,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
         case CONSTRUCT_STATE_DATA:
             if(minUartBufLen >= pkt->length) {
                 // copy the data
+                ASSERT(ASSERT_UART_ERROR_RX_PKT_LEN, pkt->length < UART_PKT_MAX_DATA_LEN);
                 uartBuf_copyFrom(uartBuf, (uint8_t *)(&(pkt->data)), pkt->length);
                 // no need to update the minUartBufLen, since packet construction is complete
                 // mark this packet as unprocessed
