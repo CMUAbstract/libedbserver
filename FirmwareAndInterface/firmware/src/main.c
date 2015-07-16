@@ -845,7 +845,6 @@ int main(void)
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
 
     clock_setup(); // set up unified clock system
-    __delay_cycles(DCO_SETTLING_TIME_MORE_MAGIC); // it has to be here! no good if in UCS_setup()! wtf
 
 #ifdef CONFIG_CLOCK_TEST_MODE
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
