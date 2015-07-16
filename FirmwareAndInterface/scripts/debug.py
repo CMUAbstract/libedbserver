@@ -113,7 +113,7 @@ def cmd_ebreak(mon, target_voltage, impl="adc"):
 def cmd_break(mon, type, idx, op, energy_level=None):
     idx = int(idx)
     enable = "enable".startswith(op)
-    type = match_keyword(type.upper(), wispmon.BREAKPOINT_TYPE.keys())
+    type = match_keyword(type.upper(), wispmon.host_comm_header.enums['BREAKPOINT_TYPE'].keys())
     energy_level = float(energy_level) if energy_level is not None else None
     mon.breakpoint(type, idx, enable, energy_level)
 
@@ -128,7 +128,7 @@ def cmd_wait(mon):
         pass
 
 def cmd_intctx(mon, source="debugger"):
-    source = match_keyword(source.upper(), wispmon.INTERRUPT_SOURCE)
+    source = match_keyword(source.upper(), wispmon.host_comm_header.enums['INTERRUPT_SOURCE'])
     int_context = mon.get_interrupt_context(source)
     print_interrupt_context(int_context)
 
