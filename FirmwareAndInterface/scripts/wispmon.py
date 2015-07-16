@@ -149,7 +149,7 @@ class WispMonitor:
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
                     print >>sys.stderr, "packet construction failed: unknown identifier: ", \
                             self.rxPkt.identifier, " (exp ", \
-                            str(host_comm_header.macros['UART_IDENTIFIER_USB']), ")"
+                            "0x%02x" % host_comm_header.macros['UART_IDENTIFIER_USB'], ")"
                     continue
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
@@ -307,12 +307,12 @@ class WispMonitor:
                 reply = self.receive()
             if reply["descriptor"] != descriptor:
                 print >>sys.stderr, "unexpected reply: ", \
-                        reply["descriptor"], "(exp ", str(descriptor), ")"
+                        "0x%02x" % reply["descriptor"], "(exp ", "0x%02x" % descriptor, ")"
                 reply = None
                 continue
         if descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
             if reply["code"] != 0:
-                raise Exception("Command failed: return code " + str(reply["code"]))
+                raise Exception("Command failed: return code " + ("0x%02x" % reply["code"]))
         return reply
 
     def flush(self):
