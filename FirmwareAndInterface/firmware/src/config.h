@@ -236,6 +236,7 @@
 #define DCO_SETTLING_TIME \
     (1ull * CONFIG_DCO_REF_CLOCK_DIV * 32ull * 32ull * \
      (CONFIG_DCOCLKDIV_FREQ / CONFIG_DCO_REF_CLOCK_FREQ + 1ull))
+#define DCO_SETTLING_TIME_MORE_MAGIC 32768 // the above is wrongly calculated or not enough
 
 #if CONFIG_DCOCLKDIV_FREQ != ((CONFIG_DCO_FREQ_N + 1) * CONFIG_DCO_REF_FREQ)
 #error Inconsistent DCO freq config
