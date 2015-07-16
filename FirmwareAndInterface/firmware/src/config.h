@@ -12,13 +12,13 @@
 #define MCU_BOOT_LATENCY_MS 3ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
-// #define CONFIG_DCO_REF_CLOCK_DIV 1
+// #define CONFIG_DCO_REF_CLOCK_DIV 1ull
 
 #define CONFIG_DCO_REF_SOURCE_XT1
 #define CONFIG_DCO_REF_CLOCK_DIV 1ull
 
 // #define CONFIG_DCO_REF_SOURCE_XT2
-// #define CONFIG_DCO_REF_CLOCK_DIV 4
+// #define CONFIG_DCO_REF_CLOCK_DIV 4ull
 
 #define CONFIG_CLOCK_SOURCE_DCO
 // #define CONFIG_CLOCK_SOURCE_XT2
@@ -234,8 +234,8 @@
 // See MSP430x5xx Family User Manual (p. 165). The last fraction term is
 // converting from FLL ref clock cycles to core clock cycles.
 #define DCO_SETTLING_TIME \
-    (1LU * CONFIG_DCO_REF_CLOCK_DIV * 32 * 32 * \
-     (CONFIG_DCOCLKDIV_FREQ / CONFIG_DCO_REF_CLOCK_FREQ + 1))
+    (1ull * CONFIG_DCO_REF_CLOCK_DIV * 32ull * 32ull * \
+     (CONFIG_DCOCLKDIV_FREQ / CONFIG_DCO_REF_CLOCK_FREQ + 1ull))
 
 #if CONFIG_DCOCLKDIV_FREQ != ((CONFIG_DCO_FREQ_N + 1) * CONFIG_DCO_REF_FREQ)
 #error Inconsistent DCO freq config
