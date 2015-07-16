@@ -391,17 +391,17 @@ static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
 
     case_RX_DEC_STATE_DATA:
         // This is on very hot path, so skip the check
-        //if (NS_TO_CYCLES(RFID_DATA_MIN(rx_tari)) <= interval &&
-        //    interval < NS_TO_CYCLES(RFID_DATA_MAX(rx_tari))) {
+        if (NS_TO_CYCLES(RFID_DATA_MIN(rx_tari)) <= interval &&
+            interval < NS_TO_CYCLES(RFID_DATA_MAX(rx_tari))) {
 
             // shift the bit from left to right, because this means fewer
             // shifts on average because most frequent comands have short codes
             data_bit = interval > rx_pivot ? 0x80 : 0x00;
             receive_data_bit(data_bit);
 
-        //} else {
-        //    goto fail;
-        //}
+        } else {
+            goto fail;
+        }
         return;
 
     // TODO: record specific failure event in event buf; although, maybe not, because
