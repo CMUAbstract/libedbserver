@@ -64,13 +64,13 @@ void ADC12_arm(adc12_t *adc12);
  * @brief   Add an ADC channel to the adc12 configuration structure
  * @param   chan_index Permanent index assigned to the ADC channel
  */
-void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index);
+void ADC12_addChannel(adc12_t *adc12, unsigned chan_index);
 
 /**
  * @brief   Remove an ADC channel from the adc12 configuration structure
  * @param  chan_index   Permanent index assigned to the ADC channel
  */
-void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index);
+void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index);
 
 /**
  * @brief       Start an ADC conversion in the mode configured previously
@@ -89,7 +89,7 @@ void ADC12_stop();
  * @details This function reconfigures the ADC to read only the channel
  *          requested, and returns the result.
  */
-uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index);
+uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index);
 
 /**
  * @brief   Retrieve a recorded sample from memory

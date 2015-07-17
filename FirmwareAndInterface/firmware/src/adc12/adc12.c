@@ -39,12 +39,12 @@ void ADC12_arm(adc12_t *adc12)
                                                  &ADC12MCTL2,
                                                  &ADC12MCTL3,
                                                  &ADC12MCTL4 };
-    uint8_t i;
+    unsigned i;
     for(i = 0; i < _pAdc12->config.num_channels; i++) {
         uint16_t chan_index = adc12->config.channels[i];
         *(adc12mctl_registers[i]) = adc12->config.channel_masks[chan_index];
     }
-    uint8_t last_channel_index = _pAdc12->config.num_channels - 1;
+    unsigned last_channel_index = _pAdc12->config.num_channels - 1;
     *(adc12mctl_registers[last_channel_index]) |= ADC12EOS;
 
     ADC12IFG = 0; // clear int flags
@@ -53,7 +53,7 @@ void ADC12_arm(adc12_t *adc12)
     ADC12CTL0 |= ADC12ENC; // enable ADC
 }
 
-uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index)
+uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index)
 {
     ADC12CTL0 &= ~ADC12ENC; // disable ADC
 
@@ -69,7 +69,7 @@ uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index)
     return ADC12MEM0;
 }
 
-void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index)
+void ADC12_addChannel(adc12_t *adc12, unsigned chan_index)
 {
     // the results index corresponds to the index in the channels array
 
@@ -77,7 +77,7 @@ void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index)
     adc12->indexes[chan_index] = adc12->config.num_channels++;
 }
 
-void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index)
+void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index)
 {
     // note that chan_index is also the corresponding
     // index in the channels array
@@ -89,7 +89,7 @@ void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index)
         // We're removing this channel, but it wasn't the last channel
         // configured.  We need to move the other channels in the channels
         // array so there are no missing channels in the array.
-        uint8_t i;
+        unsigned i;
         for(i = adc12->indexes[chan_index] + 1; i < adc12->config.num_channels + 1; i++) {
             adc12->config.channels[i - 1] = adc12->config.channels[i];
         }

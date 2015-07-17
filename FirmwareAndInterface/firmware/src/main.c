@@ -99,7 +99,7 @@ typedef enum {
 
 typedef struct {
     interrupt_type_t type;
-    uint8_t id;
+    unsigned id;
     uint16_t saved_vcap;
 } interrupt_context_t;
 
@@ -108,9 +108,9 @@ uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the m
 static state_t state = STATE_IDLE;
 static comparator_op_t comparator_op = CMP_OP_NONE;
 static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
-static int8_t sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
+static int sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
 
-static uint8_t sig_serial_echo_value = 0;
+static unsigned sig_serial_echo_value = 0;
 static state_t saved_sig_serial_echo_state;
 
 static uint16_t adc12Target; // target ADC reading
@@ -554,7 +554,7 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
     wispRxPkt.processed = 1;
 }
 
-static void set_external_breakpoint_pin_state(uint8_t bitmask, bool state)
+static void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
 {
 #ifdef WORKAROUND_FLIP_CODEPOINT_PINS
     if (bitmask == 0x1)
@@ -569,12 +569,12 @@ static void set_external_breakpoint_pin_state(uint8_t bitmask, bool state)
         GPIO(PORT_CODEPOINT, OUT) &= ~(bitmask << PIN_CODEPOINT_0);
 }
 
-static void toggle_breakpoint(breakpoint_type_t type, uint8_t index,
+static void toggle_breakpoint(breakpoint_type_t type, unsigned index,
                               uint16_t energy_level, comparator_ref_t cmp_ref,
                               bool enable)
 {
-    uint8_t rc = RETURN_CODE_SUCCESS;
-    uint8_t cmd_len;
+    unsigned rc = RETURN_CODE_SUCCESS;
+    unsigned payload_len;
     uint16_t prev_breakpoints_mask;
     bool breakpoint_active;
 
@@ -999,9 +999,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
     uint16_t adc12Result;
     uint16_t target_vcap, actual_vcap;
     uint32_t address;
-    uint8_t len;
-    uint8_t cmd_len;
-    uint8_t i;
+    unsigned len;
+    unsigned payload_len;
+    unsigned i;
 
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     trigger_scope();
@@ -1051,7 +1051,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	break;
 
     case USB_CMD_STREAM_BEGIN: {
-        uint8_t streams = pkt->data[0];
+        uint16_t streams = pkt->data[0];
 
         TimeLog_request(1); // start the time-keeping clock
 
@@ -1080,7 +1080,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     }
 
     case USB_CMD_STREAM_END: {
-        uint8_t streams = pkt->data[0];
+        unsigned streams = pkt->data[0];
 
         TimeLog_request(0);
 
@@ -1262,7 +1262,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_BREAKPOINT:
     {
         breakpoint_type_t type = (breakpoint_type_t)pkt->data[0];
-        uint8_t index = (uint8_t)pkt->data[1];
+        unsigned index = (uint8_t)pkt->data[1];
         uint16_t energy_level = *(uint16_t *)(&pkt->data[2]);
         comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[4];
         bool enable = (bool)pkt->data[5];
@@ -1290,7 +1290,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     }
 
     case USB_CMD_SERIAL_ECHO: {
-        uint8_t value = pkt->data[0];
+        unsigned value = pkt->data[0];
 
         saved_sig_serial_echo_state = state;
         set_state(STATE_SERIAL_ECHO);
@@ -1407,11 +1407,11 @@ static void discharge_cmp(uint16_t target, comparator_ref_t ref)
     // expect comparator interrupt
 }
 
-static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
+static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
 {
 	uint16_t result;
-	int8_t compare;
-	uint8_t threshold = 1;
+    int compare;
+	unsigned threshold = 1;
 
 	// Here, we want to choose a starting PWM duty cycle close to, but not above,
 	// what the correct one will be.  We want it to be close because we will test
@@ -1428,7 +1428,7 @@ static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target)
 	PWM_start();
 
 	// 70ms wait time
-	uint8_t i;
+	unsigned i;
 	for(i = 0; i < 40; i++) {
 		__delay_cycles(21922); // delay for 1ms
 	}
@@ -1471,7 +1471,7 @@ static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
     // expect comparator interrupt
 }
 
-static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
+static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
 	if(n1 < n2 - threshold && n2 >= threshold) {
 		return -1;
 	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
@@ -1490,7 +1490,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #error Compiler not supported!
 #endif
 {
-    uint8_t pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
+    unsigned pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
 
 	switch(__even_in_range(P1IV, 16))
 	{
@@ -1517,7 +1517,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 
         // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
         // -1 to convert from one-based to zero-based index
-        uint8_t index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0) - 1;
+        unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0) - 1;
         if (passive_breakpoints & (1 << index)) {
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
