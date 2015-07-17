@@ -195,6 +195,8 @@ class WispMonitor:
         if self.buildRxPkt(self.rcv_buf):
             pkt = { "descriptor" : self.rxPkt.descriptor }
 
+            # TODO: add error handling for all descriptors
+
             if self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']:
                 pkt["code"] = self.rxPkt.data[0]
 
@@ -359,7 +361,7 @@ class WispMonitor:
     def decode_adc_value(self, bytes, offset):
         FIELD_LEN = 2
         if offset + FIELD_LEN > len(bytes):
-            raise StreamDecodeException()
+            raise StreamDecodeException("buf (offset = " + str(offset) + "): " + str(hexlify(bytes)))
         adc_value = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         length = 2
         voltage = self.adc_to_voltage(adc_value)
