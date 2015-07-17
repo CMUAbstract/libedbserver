@@ -65,8 +65,8 @@ typedef struct {
  */
 typedef struct {
     uint8_t buf[UART_BUF_MAX_LEN_WITH_TAIL];  //!< Circular buffer to be used for UART interfaces
-    uint8_t head;                   //!< Relative buffer head
-    uint8_t tail;                   //!< Relative buffer tail
+    unsigned head;                   //!< Relative buffer head
+    unsigned tail;                   //!< Relative buffer tail
     // the tail should never point to byte that contains data
 } uartBuf_t;
 
