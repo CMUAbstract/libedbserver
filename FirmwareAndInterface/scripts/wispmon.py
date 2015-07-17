@@ -192,7 +192,7 @@ class WispMonitor:
         self.serial.write(serialMsg)
 
     def receive(self):
-        if self.buildRxPkt(self.rcv_buf):
+        if not self.rcv_no_parse and self.buildRxPkt(self.rcv_buf):
             pkt = { "descriptor" : self.rxPkt.descriptor }
 
             # TODO: add error handling for all descriptors
@@ -293,6 +293,11 @@ class WispMonitor:
             return pkt
 
         newData = self.serial.read()
+
+        if self.rcv_no_parse: # debugging gimmick
+            self.rcv_no_parse_total_bytes += len(newData)
+            print "\r%d" % self.rcv_no_parse_total_bytes,
+            return None
 
         if len(newData) > 0:
             newBytes = bytearray(newData)
@@ -506,7 +511,10 @@ class WispMonitor:
         reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
         return reply["value"]
 
-    def stream(self, streams, duration_sec=None, out_file=None, silent=True):
+    def stream(self, streams, duration_sec=None, out_file=None, silent=True, no_parse=False):
+        self.rcv_no_parse = no_parse
+        self.rcv_no_parse_total_bytes = 0
+
         streams_bitmask = 0x0
         for stream in streams:
             streams_bitmask |= host_comm_header.enums['STREAM'][stream]

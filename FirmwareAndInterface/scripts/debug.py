@@ -48,7 +48,7 @@ def cmd_power(mon, state):
 def cmd_sense(mon, channel):
     print mon.sense(wispmon.ADC_CHAN_INDEX[channel.upper()])
 
-def cmd_stream(mon, out_file, duration_sec, *streams):
+def do_stream(mon, out_file, duration_sec, streams, no_parse):
     if duration_sec == "-":
         duration_sec = None # stream indefinitely
     else:
@@ -64,9 +64,16 @@ def cmd_stream(mon, out_file, duration_sec, *streams):
         silent = False
 
     try:
-        mon.stream(streams, duration_sec=duration_sec, out_file=fp, silent=silent)
+        mon.stream(streams, duration_sec=duration_sec, out_file=fp,
+                   silent=silent, no_parse=no_parse)
     except KeyboardInterrupt:
         pass # this is a clean termination
+
+def cmd_stream(mon, out_file, duration_sec, *streams):
+    do_stream(mon, out_file, duration_sec, streams=streams, no_parse=False)
+
+def cmd_streamnp(mon, out_file, duration_sec, *streams):
+    do_stream(mon, out_file, duration_sec, streams=streams, no_parse=True)
 
 def cmd_charge(mon, target_voltage, method="adc"):
     target_voltage = float(target_voltage)
