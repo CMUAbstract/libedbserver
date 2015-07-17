@@ -51,7 +51,7 @@ static void discharge_cmp(uint16_t target, comparator_ref_t cmp_ref);
  * @param	adc_chan_index  Permanent index statically assigned to the ADC channel
  * @param	target			Target ADC reading when the voltage is set, from 0 to 4095
  */
-static void setWispVoltage_block(uint8_t adc_chan_index, uint16_t target);
+static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target);
 
 /**
  * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
@@ -77,6 +77,6 @@ static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t cmp_ref);
  * @retval	0	n1 and n2 are within threshold of one another
  * @retval	-1	n1 < n2 - threshold
  */
-static int8_t uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold);
+static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold);
 
 #endif // MAIN_H

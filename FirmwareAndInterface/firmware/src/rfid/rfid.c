@@ -73,10 +73,10 @@ static rf_event_t * const rf_events_bufs[NUM_BUFFERS] = {
  *           pointer to the current buffer in order to avoid recomputing it
  *           from the buffer index in every ISR.
  * */
-static uint8_t rf_events_buf_idx;
+static unsigned rf_events_buf_idx;
 static rf_event_t *rf_events_buf;
 /** @brief Number of events in the current buffer so far */
-static uint8_t rf_events_count[NUM_BUFFERS];
+static unsigned rf_events_count[NUM_BUFFERS];
 
 
 static void append_event(rf_event_type_t id)
@@ -137,10 +137,10 @@ static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
  *          The disadvantage of the former approach is that we will end up
  *          doing a lot of buffer switches.
  */
-static inline void send_rf_events_buf_host(uint8_t ready_events_buf_idx)
+static inline void send_rf_events_buf_host(unsigned ready_events_buf_idx)
 {
-    uint8_t next_rf_events_buf_idx;
-    uint8_t ready_events_count;
+    unsigned next_rf_events_buf_idx;
+    unsigned ready_events_count;
     rf_event_t *next_rf_events_buf;
 
     ready_events_count = rf_events_count[ready_events_buf_idx];
@@ -164,8 +164,8 @@ void RFID_send_ready_rf_events_buf()
 
 void RFID_setup()
 {
-    uint8_t i;
-    uint8_t offset;
+    unsigned i;
+    unsigned offset;
     uint8_t *header;
 
     // Initialize message header

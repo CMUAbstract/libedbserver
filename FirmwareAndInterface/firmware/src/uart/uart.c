@@ -41,16 +41,16 @@ static uint8_t msg[UART_BUF_MAX_LEN];
  * @param       buf        Pointer to the circular buffer
  * @return      Length of the buffer
  */
-static inline uint8_t uartBuf_len(uartBuf_t *buf) {
-    int16_t diff = buf->tail - buf->head;
+static inline unsigned uartBuf_len(uartBuf_t *buf) {
+    int diff = buf->tail - buf->head;
     if(diff >= 0) {
-        return (uint8_t) diff;
+        return diff;
     } else {
-        return (uint8_t)(diff + UART_BUF_MAX_LEN_WITH_TAIL);
+        return (diff + UART_BUF_MAX_LEN_WITH_TAIL);
     }
 }
 
-void UART_setup(uint8_t interface)
+void UART_setup(unsigned interface)
 {
     switch(interface)
     {
@@ -102,7 +102,7 @@ void UART_setup(uint8_t interface)
     }
 } // UART_setup
 
-void UART_teardown(uint8_t interface)
+void UART_teardown(unsigned interface)
 {
     // Put pins into High-Z state
     switch(interface)
@@ -183,7 +183,7 @@ void UART_dropBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
 	}
 }
 
-uint8_t UART_RxBufEmpty(uint8_t interface)
+unsigned UART_RxBufEmpty(unsigned interface)
 {
     switch(interface)
     {
@@ -196,7 +196,7 @@ uint8_t UART_RxBufEmpty(uint8_t interface)
     }
 }
 
-static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len)
+static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len)
 {
     while(len--) {
         ASSERT(ASSERT_UART_ERROR_CIRC_BUF_TAIL, bufInto->tail < UART_BUF_MAX_LEN_WITH_TAIL);
@@ -205,7 +205,7 @@ static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len)
     }
 }
 
-static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, uint8_t len)
+static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, unsigned len)
 {
     while(len--) {
         ASSERT(ASSERT_UART_ERROR_CIRC_BUF_HEAD, bufFrom->head < UART_BUF_MAX_LEN_WITH_TAIL);
@@ -214,13 +214,14 @@ static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, uint8_t len)
     }
 }
 
-uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
+unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
 {
     static pktConstructState_t state = CONSTRUCT_STATE_IDENTIFIER;
     uartBuf_t *uartBuf;
-    uint8_t minUartBufLen; // the buffer length may change if bytes are received while
+    unsigned minUartBufLen; // the buffer length may change if bytes are received while
                            // this function is executing, but there are at least this
                            // many bytes
+    uint8_t pkt_byte;
 
     if(!(pkt->processed)) {
         // don't overwrite the existing RX packet
@@ -248,7 +249,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
         {
         case CONSTRUCT_STATE_IDENTIFIER:
             // copy identifier to packet structure
-            uartBuf_copyFrom(uartBuf, &(pkt->identifier), sizeof(uint8_t));
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
+            pkt->identifier = pkt_byte;
             if(pkt->identifier != UART_IDENTIFIER_USB &&
                                     pkt->identifier != UART_IDENTIFIER_WISP) {
                 // unknown identifier
@@ -261,14 +263,16 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             break;
         case CONSTRUCT_STATE_DESCRIPTOR:
             // copy descriptor
-            uartBuf_copyFrom(uartBuf, &(pkt->descriptor), sizeof(uint8_t));
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
+            pkt->descriptor = pkt_byte;
             minUartBufLen -= sizeof(uint8_t);
             state = CONSTRUCT_STATE_DATA_LEN;
             break;
         case CONSTRUCT_STATE_DATA_LEN:
         {
             // copy length
-            uartBuf_copyFrom(uartBuf, &(pkt->length), sizeof(uint8_t));
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
+            pkt->length = pkt_byte;
             minUartBufLen -= sizeof(uint8_t);
             if (pkt->length > 0) {
                 state = CONSTRUCT_STATE_DATA;
@@ -283,7 +287,7 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             if(minUartBufLen >= pkt->length) {
                 // copy the data
                 ASSERT(ASSERT_UART_ERROR_RX_PKT_LEN, pkt->length < UART_PKT_MAX_DATA_LEN);
-                uartBuf_copyFrom(uartBuf, (uint8_t *)(&(pkt->data)), pkt->length);
+                uartBuf_copyFrom(uartBuf, pkt->data, pkt->length);
                 // no need to update the minUartBufLen, since packet construction is complete
                 // mark this packet as unprocessed
 				pkt->processed = 0;

@@ -31,6 +31,6 @@ static inline uint32_t TIMELOG_CURRENT_TIME()
  * @param	request	1 to request timer to be turned on,
  * 			0 to indicate timer is no longer needed for this purpose
  */
-void TimeLog_request(uint8_t request);
+void TimeLog_request(unsigned request);
 
 #endif // TIMELOG_H

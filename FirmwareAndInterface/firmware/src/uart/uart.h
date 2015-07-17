@@ -58,10 +58,10 @@ typedef enum {
  */
 typedef struct {
     uint8_t data[UART_PKT_MAX_DATA_LEN];    //!< Data field of the UART message
-    uint8_t identifier;                     //!< UART message identifier
-    uint8_t descriptor;                     //!< Message descriptor
-    uint8_t length;                         //!< Message data length
-    uint8_t processed;                      //!< Indicates whether the packet structure is free to be overwritten
+    unsigned identifier;                     //!< UART message identifier
+    unsigned descriptor;                     //!< Message descriptor
+    unsigned length;                         //!< Message data length
+    unsigned processed;                      //!< Indicates whether the packet structure is free to be overwritten
 } uartPkt_t;
 
 /**
@@ -88,13 +88,13 @@ extern uint16_t host_msg_len;
  *              on the USCI_A1 UART.  This function sets
  *              registers to configure either interface.
  */
-void UART_setup(uint8_t interface);
+void UART_setup(unsigned interface);
 
 /**
  * @brief       Unsetup UART (put pins into high-z state)
  * @param		interface	UART interface to use.  See @ref UART_INTERFACES
  */
-void UART_teardown(uint8_t interface);
+void UART_teardown(unsigned interface);
 
 /**
  * @brief       Block until all bytes are queued in the UART TX buffer
@@ -102,7 +102,7 @@ void UART_teardown(uint8_t interface);
  * @param       buf         Pointer to a buffer to send
  * @param       len         Number of bytes to send
  */
-void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len);
+void UART_blockBufferBytes(unsigned interface, uint8_t *buf, unsigned len);
 
 /**
  * @brief		Queue bytes in the UART TX buffer, but drop the bytes if there
@@ -111,7 +111,7 @@ void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len);
  * @param		buf			Pointer to a buffer to send
  * @param		len			Number of bytes to send
  */
-void UART_dropBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len);
+void UART_dropBufferBytes(unsigned interface, uint8_t *buf, unsigned len);
 
 /**
  * @brief       Construct a UART packet from the UART buffer
@@ -121,7 +121,7 @@ void UART_dropBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len);
  * @retval      1       Packet construction failure
  * @retval      2       More data is needed to finish constructing the packet
  */
-uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt);
+unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt);
 
 /**
  * @brief       Queue a UART message to be sent over the specified interface
@@ -142,7 +142,7 @@ void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
  * @retval      1           Software buffer is empty
  * @retval      0           Software buffer is not empty or unavailable
  */
-uint8_t UART_RxBufEmpty(uint8_t interface);
+unsigned UART_RxBufEmpty(unsigned interface);
 
 /**
  * @brief       Copy an array of bytes into a uartBuf_t circular buffer
@@ -152,7 +152,7 @@ uint8_t UART_RxBufEmpty(uint8_t interface);
  * @warning     This function does not check if there is enough space to copy the bytes.
  *              It will overwrite anything in its way.
  */
-static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len);
+static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len);
 
 /**
  * @brief       Copy bytes from a uartBuf_t circular buffer into an array of bytes
@@ -162,6 +162,6 @@ static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len);
  * @warning     This function does not check if there is enough space to copy the bytes.
  *              It will overwrite anything in its way.
  */
-static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, uint8_t len);
+static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, unsigned len);
 
 #endif // UART_H

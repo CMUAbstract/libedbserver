@@ -53,7 +53,7 @@ static uint16_t rx_rt_cal;
 static uint16_t rx_pivot;
 
 /** @brief Index of the next bit of the command code to be decode */
-static uint8_t rx_cmd_code_bit_idx;
+static unsigned rx_cmd_code_bit_idx;
 
 /** @brief Code of the RFID command that is being decoded */
 static rfid_cmd_code_t rx_cmd_code;
@@ -192,7 +192,7 @@ static inline void receive_payload_bit(bool data_bit)
 }
 #endif
 
-static inline void receive_data_bit(uint8_t data_bit)
+static inline void receive_data_bit(unsigned data_bit)
 {
     // Command code is a prefix-code encoding, so we just shift bits
     // until a valid value matches.
@@ -208,7 +208,7 @@ static inline void receive_data_bit(uint8_t data_bit)
 #if C_COMPILER_WERE_NICE_TO_US
             rx_cmd_code |= data_bit >> rx_cmd_code_bit_idx++;
 #else
-            uint8_t shifted_bit = data_bit;
+            unsigned shifted_bit = data_bit;
             if (rx_cmd_code_bit_idx == 1) { // can't rpt 0 or 1 times
                 shifted_bit >>= 1;
             } else if (rx_cmd_code_bit_idx > 1) {
@@ -296,7 +296,7 @@ rx_cmd_code_decoded:
 
 static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
 {
-    uint8_t data_bit;
+    unsigned data_bit;
     uint16_t interval;
 
     interval = rx_edge_timestamp - prev_rx_edge_timestamp;
@@ -425,7 +425,7 @@ static inline void signal_enter_rx_isr()
 static inline void signal_exit_rx_isr()
 {
     // Encode state onto pins: shows both ISR exit event and state
-    uint8_t state_pins;
+    unsigned state_pins;
 
 #if C_COMPILER_WERE_NICE_TO_US
     state_pins = (rx_dec_state >> 1) << PIN_RFID_RX_DEC_STATE_0; // rigth-shift is div by 2
