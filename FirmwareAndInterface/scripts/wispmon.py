@@ -64,13 +64,15 @@ target_comm_header = Header(env.TARGET_COMM_HEADER,
 
 config_header = Header(env.CONFIG_HEADER,
     string_macros=[
-        'CONFIG_TIMELOG_TIMER_SOURCE'
+        'CONFIG_TIMELOG_TIMER_SOURCE',
+        'CONFIG_ADC_TIMER_SOURCE',
     ],
     numeric_macros=[
         'CONFIG_USB_UART_BAUDRATE',
         'CONFIG_XT1_FREQ',
         'CONFIG_REFO_FREQ',
-        'CONFIG_DCOCLKDIV_FREQ'
+        'CONFIG_DCOCLKDIV_FREQ',
+        'CONFIG_ADC_SAMPLING_PERIOD',
     ])
 
 class StreamInterrupted(Exception):
@@ -124,16 +126,22 @@ class WispMonitor:
                 "RF_EVENTS": self.decode_rf_event_value,
         }
 
-        # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
-        timelog_source = config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE']
-        if timelog_source == 'TASSEL__ACLK':
-            assert config_header.macros['CONFIG_XT1_FREQ'] == config_header.macros['CONFIG_REFO_FREQ']
-            self.CLK_FREQ = config_header.macros['CONFIG_XT1_FREQ']
-        elif timelog_source == 'TASSEL__SMCLK':
-            self.CLK_FREQ = config_header.macros['CONFIG_DCOCLKDIV_FREQ']
+        def clk_source_freq(source):
+            # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
+            if re.match(r'T.SSEL__ACLK', source):
+                assert config_header.macros['CONFIG_XT1_FREQ'] == config_header.macros['CONFIG_REFO_FREQ']
+                return config_header.macros['CONFIG_XT1_FREQ']
+            elif re.match(r'T.SSEL__SMCLK', source):
+                return config_header.macros['CONFIG_DCOCLKDIV_FREQ']
+
+        self.CLK_FREQ = clk_source_freq(config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE'])
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
 
+        self.ADC_CLK_FREQ_HZ = clk_source_freq(config_header.macros['CONFIG_ADC_TIMER_SOURCE'])
+
         self.params = {
+            'adc_sampling_freq_hz' :
+                1.0 / (config_header.macros['CONFIG_ADC_SAMPLING_PERIOD'] / self.ADC_CLK_FREQ_HZ)
         }
 
         self.replay_log = None
@@ -411,9 +419,14 @@ class WispMonitor:
         return reply["voltage"]
 
     def stream_begin(self, streams_bitmask):
+        adc_sampling_period_cycles = \
+                int((1.0 / float(self.params['adc_sampling_freq_hz'])) * self.ADC_CLK_FREQ_HZ)
+        print "adc_sampling_period_cycles=", adc_sampling_period_cycles
         self.stream_bytes = 0
         self.stream_start = time.time()
-        self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_BEGIN'], data=[streams_bitmask])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_BEGIN'],
+                     data=[streams_bitmask] + \
+                          self.uint16_to_bytes(adc_sampling_period_cycles))
 
     def stream_end(self, streams_bitmask):
         self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_END'], data=[streams_bitmask])

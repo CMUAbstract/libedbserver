@@ -160,6 +160,7 @@ static adc12_t adc12 = {
             ADC_CHAN_VINJ,
         },
         .num_channels = 0, // maintained at runtime
+        .sampling_period = CONFIG_ADC_SAMPLING_PERIOD,
     },
 };
 
@@ -953,8 +954,7 @@ int main(void)
 
             if(main_loop_flags & FLAG_LOGGING) {
                 send_stream_voltages();
-                __delay_cycles(10); // magic: otherwise wild crashes
-                ADC12_trigger();
+                ADC12_arm();
             }
         }
 
@@ -1082,6 +1082,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_BEGIN: {
         uint16_t streams = pkt->data[0];
+        adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[2];
 
         TimeLog_request(1); // start the time-keeping clock
 
@@ -1103,8 +1104,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
         // actions common to all adc streams
         if (adc12.config.num_channels > 0) {
             main_loop_flags |= FLAG_LOGGING; // for main loop
-            ADC12_arm(&adc12);
-            ADC12_trigger();
+            ADC12_setup(&adc12);
+            ADC12_arm();
         }
         break;
     }

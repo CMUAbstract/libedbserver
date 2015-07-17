@@ -32,6 +32,7 @@ typedef struct {
     uint16_t channel_masks[ADC12_MAX_CHANNELS]; //<! maps a permanent software index to a hardware channel (must be filled out by the user statically or before first call to ADC12_addChannel)
     uint16_t channels[ADC12_MAX_CHANNELS];           //!< ADC channels that will be sampled
     uint16_t num_channels;           //!< number of channels in the channels array to sample in order
+    uint16_t sampling_period;        // ACLK cycles
 } adc12Cfg_t;
 
 /**
@@ -58,7 +59,7 @@ void ADC12_init(adc12_t *adc12);
  *              configured channels.  The interrupt sets the flag bit mask
  *              present in the adc12_t data structure.
  */
-void ADC12_arm(adc12_t *adc12);
+void ADC12_setup(adc12_t *adc12);
 
 /**
  * @brief   Add an ADC channel to the adc12 configuration structure
@@ -71,6 +72,11 @@ void ADC12_addChannel(adc12_t *adc12, unsigned chan_index);
  * @param  chan_index   Permanent index assigned to the ADC channel
  */
 void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index);
+
+/**
+ * @brief       Get ready to start sampling/conversion when trigger (timer) fires
+ */
+void ADC12_arm();
 
 /**
  * @brief       Start an ADC conversion in the mode configured previously

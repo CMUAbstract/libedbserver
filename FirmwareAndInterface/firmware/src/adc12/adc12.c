@@ -11,6 +11,7 @@
 #include "timeLog.h"
 #include "pin_assign.h"
 #include "main_loop.h"
+#include "config.h"
 
 static adc12_t *_pAdc12;
 
@@ -23,7 +24,7 @@ void ADC12_init(adc12_t *adc12)
         adc12->indexes[i] = -1;
 }
 
-void ADC12_arm(adc12_t *adc12)
+void ADC12_setup(adc12_t *adc12)
 {
     _pAdc12 = adc12;
 
@@ -31,7 +32,9 @@ void ADC12_arm(adc12_t *adc12)
 
     // sequence of channels, single conversion
     ADC12CTL0 = ADC12SHT0_2 + ADC12ON + ADC12MSC; // sampling time, ADC12 on, multiple sample conversion
-    ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1; // use sampling timer, sequence of channels, single-conversion
+
+    // use sampling timer, sequence of channels, repeat-conversion, trigger from Timer B CCR1
+    ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1 + ADC12SHS_3;
 
     // set ADC memory control registers
     volatile uint8_t *adc12mctl_registers[5] = { &ADC12MCTL0,
@@ -50,7 +53,15 @@ void ADC12_arm(adc12_t *adc12)
     ADC12IFG = 0; // clear int flags
     ADC12IE = (0x0001 << last_channel_index); // enable interupt on last sample
 
-    ADC12CTL0 |= ADC12ENC; // enable ADC
+    TB0CCR0 = adc12->config.sampling_period; // period (unclear why no need to divided by 2)
+    TB0CCTL0 = OUTMOD_4; // toggle output mode
+    TB0CTL = CONFIG_ADC_TIMER_SOURCE | MC__UP | TBCLR;   // ACLK, up mode, clear TBR
+}
+
+void ADC12_arm()
+{
+    ADC12CTL0 &= ~ADC12ENC;
+    ADC12CTL0 |= ADC12ENC;
 }
 
 uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index)
