@@ -22,6 +22,12 @@
 #define UART_INNER(name, reg) UC ## name ## reg
 #define UART(name, reg) UART_INNER(name, reg)
 
+#define DMA_INNER(name, reg) DMA ## name ## reg
+#define DMA(name, reg) DMA_INNER(name, reg)
+
+#define DMA_INTFLAG_INNER(name) DMAIV_DMA ## name ## IFG
+#define DMA_INTFLAG(name) DMA_INTFLAG_INNER(name)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
@@ -150,5 +156,7 @@
 #define COMP_CHAN_VRECT                         4
 #define COMP_CHAN_VINJ                          5
 /** @} End COMP_CHAN */
+
+#define DMA_HOST_UART_TX                        0
 
 #endif // PIN_ASSIGN_H

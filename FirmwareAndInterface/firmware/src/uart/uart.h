@@ -28,20 +28,16 @@
 #define UART_ENABLE_WISP_RX                     UCA1IE |= UCRXIE	//!< Enable RX interrupt for WISP UART
 /** @} End UART_MACROS */
 
-/**
- * @defgroup	UART_TX_FORCING		UART TX blocking
- * @brief		Used to indicate whether to block while sending
- * @{
- */
+#define UART_MSG_HEADER_SIZE                    4 // marker, msg id, size, padding (must be aligned to 2)
 
-#define UART_TX_FORCE							1 //!< Wait until there's space in the TX buffer for these bytes
-#define UART_TX_DROP							0 //!< If there's no space in the TX buffer, drop this packet
+#define UART_BUF_MAX_LEN                        64
+#define UART_BUF_MAX_LEN_WITH_TAIL				(UART_BUF_MAX_LEN + 1) //!< Add a byte because the tail should never point to a full byte
+#define UART_PKT_MAX_DATA_LEN                   (UART_BUF_MAX_LEN - UART_MSG_HEADER_SIZE)
 
-/** @} End UART_TX_FORCING */
-
-#define UART_BUF_MAX_LEN                            64 //!< Maximum length of the UART buffers
-#define UART_BUF_MAX_LEN_WITH_TAIL					(UART_BUF_MAX_LEN + 1) //!< Add a byte because the tail should never point to a full byte
-#define UART_PKT_MAX_DATA_LEN                       (UART_BUF_MAX_LEN - 3) //!< Maximum length of the data field of a UART message
+// Must be aligned because we want pointers *within* the buffer to payload field
+#if UART_MSG_HEADER_SIZE & 0x1 == 0x1
+#error UART message header size must be aligned to 2
+#endif
 
 /**
  * @brief       Enumeration used to place a UART message into a variable of type uartPkt_t.
@@ -73,12 +69,6 @@ typedef struct {
     uint8_t tail;                   //!< Relative buffer tail
     // the tail should never point to byte that contains data
 } uartBuf_t;
-
-/**
- * @brief Buffer and len available to all modules that may send messages to host
- */
-extern uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
-extern uint16_t host_msg_len;
 
 /**
  * @brief       Set up UART
@@ -124,17 +114,32 @@ void UART_dropBufferBytes(unsigned interface, uint8_t *buf, unsigned len);
 unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt);
 
 /**
- * @brief       Queue a UART message to be sent over the specified interface
- * @param       interface   UART interface on which to send the message.  See @ref UART_INTERFACES
- * @param       descriptor  Message descriptor.  See @ref UART_MSG_DESCRIPTORS
+ * @brief       Queue a UART message to be sent to the target
+ * @param       descriptor  Message descriptor.  See @ref target_comm.h
  * @param       data        Pointer to the data to send
  * @param       data_len    Length of the data to send
- * @param		force		Whether to block to buffer or drop packets.  See @ref UART_TX_FORCING
  * @warning     As it is currently implemented, this function will block until
  *              the entire message is written to the software buffer.
  */
-void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
-				  uint8_t data_len, uint8_t force);
+void UART_send_msg_to_target(unsigned descriptor, unsigned data_len, uint8_t *data);
+
+/**
+ * @brief   Send message to host via UART
+ * @param   buf             Complete msg buffer (including space for header
+ * @param   payload_len     Number of bytes in payload data (excludes msg header)
+ * @details This function will fill in the payload length field in the header.
+ *          Waits for UART to become available, and returns after setting up
+ *          the DMA request.
+ */
+void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *buf);
+
+/**
+ * @brief   Wraps transmissions (incl. buffer filling) to serialize them
+ * @details Waits for DMA to complete and therefore "release" the buffer
+ *          in use by the previous transmission.
+ */
+void UART_begin_transmission();
+void UART_end_transmission();
 
 /**
  * @brief       Determine whether a software UART RX buffer is empty

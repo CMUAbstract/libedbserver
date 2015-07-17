@@ -30,8 +30,8 @@
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_EVENTS_BUFFERED                         48
 
-#define STREAM_DATA_MSG_HEADER_LEN (sizeof(uint8_t) + 1) // 'streams bitmask' field (units of bytes)
-                                                         // + padding (must be aligned to 2)
+#define STREAM_DATA_MSG_HEADER_LEN 2 // 'streams bitmask', padding (units of bytes, aligned to 2)
+
 #define RF_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_PAYLOAD_SPACE NUM_EVENTS_BUFFERED // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_SIZE (RF_EVENT_BUF_HEADER_SPACE + RF_EVENT_BUF_PAYLOAD_SPACE) // units of sizeof(rf_event_t)
@@ -40,8 +40,14 @@
 #error Not enough space for header in event buf: add more units of sizeof(struct rf_event_t)
 #endif
 
+// The header must be aligned because we need pointers *within* the buffer to payload field
+#if STREAM_DATA_MSG_HEADER_LEN & 0x1 == 0x1
+#error Stream message header size must be aligned to 2
+#endif
+
 #define RF_EVENT_BUF_HEADER_OFFSET \
-    (RF_EVENT_BUF_HEADER_SPACE * sizeof(rf_event_t) - STREAM_DATA_MSG_HEADER_LEN)
+    (RF_EVENT_BUF_HEADER_SPACE * sizeof(rf_event_t) - \
+        (UART_MSG_HEADER_SIZE + STREAM_DATA_MSG_HEADER_LEN))
 
 #define STARTING_EVENT_BUF_IDX 0
 
@@ -145,10 +151,11 @@ static inline void send_rf_events_buf_host(unsigned ready_events_buf_idx)
 
     ready_events_count = rf_events_count[ready_events_buf_idx];
 
-	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
-                 (uint8_t *)&rf_events_msg_bufs[ready_events_buf_idx][0] + RF_EVENT_BUF_HEADER_OFFSET,
-                 STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
-                 UART_TX_DROP);
+    // Must use a blocking call in order to mark buffer as free once transfer completes
+    UART_send_msg_to_host(USB_RSP_STREAM_DATA, 
+            STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
+            (uint8_t *)&rf_events_msg_bufs[ready_events_buf_idx][0] + RF_EVENT_BUF_HEADER_OFFSET);
+
     rf_events_count[ready_events_buf_idx] = 0; // mark buffer as free
 }
 
@@ -172,9 +179,9 @@ void RFID_setup()
     for (i = 0; i < NUM_BUFFERS; ++i) {
         header = (uint8_t *)&rf_events_msg_bufs[i][0] + RF_EVENT_BUF_HEADER_OFFSET;
         offset = 0;
-        header[offset++] = 0; // padding
         header[offset++] = STREAM_RF_EVENTS;
-        ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset <= STREAM_DATA_MSG_HEADER_LEN);
+        header[offset++] = 0; // padding
+        ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset == STREAM_DATA_MSG_HEADER_LEN);
     }
 
     rfid_decoder_init(&handle_rfid_cmd, &handle_rfid_rsp);

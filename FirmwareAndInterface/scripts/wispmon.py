@@ -34,6 +34,7 @@ CONSTRUCT_STATE_IDENTIFIER          = 0x00
 CONSTRUCT_STATE_DESCRIPTOR          = 0x01
 CONSTRUCT_STATE_DATA_LEN            = 0x02
 CONSTRUCT_STATE_DATA                = 0x03
+CONSTRUCT_STATE_PADDING             = 0x04
 
 def key_lookup(d, value):
     for k in d:
@@ -162,6 +163,11 @@ class WispMonitor:
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA_LEN):
                 self.rxPkt.length = buf.pop(0) # get data length
                 minBufLen -= 1
+                self.rxPkt.constructState = CONSTRUCT_STATE_PADDING
+                continue
+            elif(self.rxPkt.constructState == CONSTRUCT_STATE_PADDING):
+                buf.pop(0) # padding
+                minBufLen -= 1 # padding
                 self.rxPkt.constructState = CONSTRUCT_STATE_DATA
                 continue
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA):
@@ -249,11 +255,11 @@ class WispMonitor:
 
                 if offset + FIELD_LEN_STREAMS <= len(self.rxPkt.data):
 
-                    # padding
-                    offset += 1
-
                     pkt_streams = self.rxPkt.data[offset]
                     #print "pkt_streams=0x%08x" % pkt_streams
+                    offset += 1
+
+                    # padding
                     offset += 1
 
                     while offset < len(self.rxPkt.data):

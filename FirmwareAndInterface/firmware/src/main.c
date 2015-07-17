@@ -50,7 +50,12 @@
 /** @} End LOG_DEFINES */
 
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
-#define USB_REPLY_MAX_LEN 16
+#define HOST_MSG_BUF_SIZE     32 // buffer for UART messages (to host) for main loop
+#define TARGET_MSG_BUF_SIZE   16 // buffer for UART messages (to target) for main loop
+
+#if TARGET_MSG_BUF_SIZE < WISP_CMD_MAX_LEN
+#error Buffer for UART messages to target is too small: TARGET_MSG_BUF_SIZE < WISP_CMD_MAX_LEN
+#endif
 
 // See libdebug/debug.h for description
 #define MAX_PASSIVE_BREAKPOINTS ((1 << NUM_CODEPOINT_PINS) - 1)
@@ -121,7 +126,23 @@ static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
 static uartPkt_t usbRxPkt = { .processed = 1 };
 static uartPkt_t wispRxPkt = { .processed = 1 };
 
-static uint8_t wisp_cmd_buf[WISP_CMD_MAX_LEN];
+/**
+ * @brief Message payload pointer in a buffer for messages to host
+ * @details This buffer is used exclusively by main loop, so it is
+ *          shared only in the sense of being multi-plexed in time, i.e. it is
+ *          never used concurrently but to threads of control.
+ */
+static uint8_t host_msg_buf[HOST_MSG_BUF_SIZE];
+static uint8_t * const host_msg_payload = &host_msg_buf[UART_MSG_HEADER_SIZE];
+
+/**
+ * @brief Message payload pointer in a buffer used exclusively by main loop
+ * @details This buffer is used exclusively by main loop, so it is
+ *          shared only in the sense of being multi-plexed in time, i.e. it is
+ *          never used concurrently but to threads of control.
+ */
+static uint8_t target_msg_buf[TARGET_MSG_BUF_SIZE];
+static uint8_t * const target_msg_payload = &target_msg_buf[UART_MSG_HEADER_SIZE];
 
 // Bitmasks indicate whether a breakpoint (group) of given index is enabled
 static uint16_t passive_breakpoints = 0;
@@ -364,57 +385,88 @@ static inline void stop_serial_decode_timer()
 #endif
 }
 
-static void send_vcap(uint16_t vcap)
+// Uses the main loop host_msg_buf
+static inline void send_msg_to_host(unsigned descriptor, unsigned payload_len)
 {
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
-                 (uint8_t *)(&vcap), sizeof(uint16_t), UART_TX_FORCE);
+    // Out-of-bound writes already happen before we get here, but the payload
+    // len should be in a register and this is not a function call (inline), so
+    // this check should be robust even if memory got a little corrupted.
+    ASSERT(ASSERT_HOST_MSG_BUF_OVERFLOW, payload_len <= HOST_MSG_BUF_SIZE - UART_MSG_HEADER_SIZE);
+
+    UART_send_msg_to_host(descriptor, payload_len, host_msg_buf);
+    UART_end_transmission();
 }
 
-static void send_echo(uint8_t value)
+static void send_voltage(uint16_t voltage)
 {
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_ECHO,
-                 &value, sizeof(uint8_t), UART_TX_FORCE);
+    unsigned payload_len = 0;
+
+    UART_begin_transmission();
+
+    host_msg_payload[payload_len++] = voltage && 0xFF;
+    host_msg_payload[payload_len++] = (voltage >> 8) & 0xFF;
+
+    send_msg_to_host(USB_RSP_VOLTAGE, payload_len);
 }
 
-static void send_return_code(uint8_t code)
+static void send_stream_voltages()
 {
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_RETURN_CODE,
-                 (uint8_t *)(&code), sizeof(uint8_t), UART_TX_FORCE);
+    unsigned payload_len = 0;
+    unsigned i;
+
+    // TODO: eliminate the copy by having the ADC ISR fill the msg buffer directly
+
+    UART_begin_transmission();
+
+    host_msg_payload[payload_len++] = adc_streams_bitmask;
+    host_msg_payload[payload_len++] = 0; // padding
+    host_msg_payload[payload_len++] = (adc12.timeComplete >>  0) & 0xff;
+    host_msg_payload[payload_len++] = (adc12.timeComplete >>  8) & 0xff;
+    host_msg_payload[payload_len++] = (adc12.timeComplete >> 16) & 0xff;
+    host_msg_payload[payload_len++] = (adc12.timeComplete >> 24) & 0xff;
+
+    for (i = 0; i < adc12.config.num_channels ; ++i) {
+        uint16_t adc_value = adc12.results[i];
+        host_msg_payload[payload_len++] = adc_value & 0xff;
+        host_msg_payload[payload_len++] = (adc_value >> 8) & 0xff;
+    }
+
+    UART_send_msg_to_host(USB_RSP_STREAM_DATA, payload_len, host_msg_buf);
+    UART_end_transmission();
+}
+
+static void send_return_code(unsigned code)
+{
+    unsigned payload_len = 0;
+    UART_begin_transmission();
+    host_msg_payload[payload_len++] = code;
+    send_msg_to_host(USB_RSP_RETURN_CODE, payload_len);
 }
 
 static void send_interrupt_context(interrupt_context_t *int_context)
 {
-    uint8_t host_msg_len;
+    unsigned payload_len = 0;
 
-    host_msg_len = 0;
-    host_msg_buf[host_msg_len++] = int_context->type;
-    host_msg_buf[host_msg_len++] = int_context->id;
-    host_msg_buf[host_msg_len++] = (int_context->saved_vcap >> 0) & 0xff;
-    host_msg_buf[host_msg_len++] = (int_context->saved_vcap >> 8) & 0xff;
+    UART_begin_transmission();
 
-    // writes already happened, but better late than never 
-    ASSERT(ASSERT_HOST_MSG_BUF_OVERFLOW, host_msg_len <= USB_REPLY_MAX_LEN);
+    host_msg_payload[payload_len++] = int_context->type;
+    host_msg_payload[payload_len++] = int_context->id;
+    host_msg_payload[payload_len++] = (int_context->saved_vcap >> 0) & 0xff;
+    host_msg_payload[payload_len++] = (int_context->saved_vcap >> 8) & 0xff;
 
-    UART_sendMsg(UART_INTERFACE_USB, USB_RSP_INTERRUPTED,
-                 host_msg_buf, host_msg_len, UART_TX_FORCE);
+    send_msg_to_host(USB_RSP_INTERRUPTED, payload_len);
 }
 
-static void send_echo_dma(uint8_t *buf, uint8_t len)
+static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
 {
-    DMA0CTL &= ~DMAEN;
+    unsigned payload_len = 0;
 
-    DMACTL0 = DMA0TSEL_17; /* USCA0 tx */
-    DMACTL4 = DMARMWDIS;
-    DMA0CTL = DMADT_0 /* single */ |
-              DMADSTINCR_0 /* dest no inc */ | DMASRCINCR_3 /* src inc */ |
-              DMADSTBYTE | DMASRCBYTE |
-              DMALEVEL | DMAIE;
+    UART_begin_transmission();
 
-    DMA0SA = (uint16_t)buf;
-    DMA0DA = (uint16_t)&UCA0TXBUF;
-    DMA0SZ = len;
+    while (len--)
+        host_msg_payload[payload_len] = buf[payload_len++];
 
-    DMA0CTL |= DMAEN;
+    send_msg_to_host(descriptor, payload_len);
 }
 
 static void enter_debug_mode(interrupt_type_t int_type)
@@ -455,7 +507,7 @@ static void exit_debug_mode()
     // interrupt_context cleared after the target acks the exit request
 
     unmask_target_signal();
-    UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0, UART_TX_FORCE);
+    UART_send_msg_to_target(WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0);
 }
 
 static void reset_state()
@@ -545,8 +597,7 @@ static void interrupt_target()
 static void get_target_interrupt_context(interrupt_context_t *int_context)
 {
     // In case target requested the interrupt, ask it for more details
-    UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_INTERRUPT_CONTEXT,
-                 0, 0, UART_TX_FORCE); // send request
+    UART_send_msg_to_target(WISP_CMD_GET_INTERRUPT_CONTEXT, 0, 0);
     while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
             (wispRxPkt.descriptor != WISP_RSP_INTERRUPT_CONTEXT)); // wait for response
     int_context->type = (interrupt_type_t)wispRxPkt.data[0];
@@ -623,12 +674,11 @@ static void toggle_breakpoint(breakpoint_type_t type, unsigned index,
             else
                 internal_breakpoints &= ~(1 << index);
 
-            cmd_len = 0;
-            wisp_cmd_buf[cmd_len++] = index;
-            wisp_cmd_buf[cmd_len++] = enable ? 0x1 : 0x0;
+            payload_len = 0;
+            target_msg_payload[payload_len++] = index;
+            target_msg_payload[payload_len++] = enable ? 0x1 : 0x0;
 
-            UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_BREAKPOINT,
-                         wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+            UART_send_msg_to_target(WISP_CMD_BREAKPOINT, payload_len, target_msg_buf);
             while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                     (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
             wispRxPkt.processed = 1;
@@ -717,7 +767,7 @@ static void finish_exit_debug_mode()
     restored_vcap = discharge_adc(interrupt_context.saved_vcap); // restore energy level
 
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
-        send_vcap(restored_vcap); // TODO: take this out of the critical path
+        send_voltage(restored_vcap); // TODO: take this out of the critical path
 
     interrupt_context.type = INTERRUPT_TYPE_NONE;
     interrupt_context.id = 0;
@@ -902,25 +952,8 @@ int main(void)
             main_loop_flags &= ~FLAG_ADC12_COMPLETE;
 
             if(main_loop_flags & FLAG_LOGGING) {
-
-                // TODO: eliminate the copy by having the ADC ISR fill the msg buffer directly
-                host_msg_len = 0;
-                host_msg_buf[host_msg_len++] = 0; // padding
-                host_msg_buf[host_msg_len++] = adc_streams_bitmask;
-                host_msg_buf[host_msg_len++] = (adc12.timeComplete >>  0) & 0xff;
-                host_msg_buf[host_msg_len++] = (adc12.timeComplete >>  8) & 0xff;
-                host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 16) & 0xff;
-                host_msg_buf[host_msg_len++] = (adc12.timeComplete >> 24) & 0xff;
-
-                for (i = 0; i < adc12.config.num_channels ; ++i) {
-                    adc_value = adc12.results[i];
-                    host_msg_buf[host_msg_len++] = adc_value & 0xff;
-                    host_msg_buf[host_msg_len++] = (adc_value >> 8) & 0xff;
-                }
-
-                UART_sendMsg(UART_INTERFACE_USB, USB_RSP_STREAM_DATA,
-                             host_msg_buf, host_msg_len, UART_TX_DROP);
-
+                send_stream_voltages();
+                __delay_cycles(10); // magic: otherwise wild crashes
                 ADC12_trigger();
             }
         }
@@ -1013,9 +1046,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         {
             adc_chan_index_t chan_idx = (adc_chan_index_t)pkt->data[0];
             adc12Result = ADC12_read(&adc12, chan_idx);
-            UART_sendMsg(UART_INTERFACE_USB, USB_RSP_VOLTAGE,
-                            (uint8_t *)(&adc12Result), sizeof(uint16_t),
-                            UART_TX_FORCE);
+            send_voltage(adc12Result);
             break;
         }
     case USB_CMD_SET_VCAP:
@@ -1042,11 +1073,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
 
     case USB_CMD_GET_WISP_PC:
-    	UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_GET_PC, 0, 0, UART_TX_FORCE); // send request
+    	UART_send_msg_to_target(WISP_CMD_GET_PC, 0, 0);
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
     			(wispRxPkt.descriptor != WISP_RSP_ADDRESS)); // wait for response
-    	UART_sendMsg(UART_INTERFACE_USB, USB_RSP_ADDRESS, &(wispRxPkt.data[0]),
-    					wispRxPkt.length, UART_TX_FORCE); // send PC over USB
+        forward_msg_to_host(USB_RSP_ADDRESS, wispRxPkt.data, wispRxPkt.length / 2);
     	wispRxPkt.processed = 1;
     	break;
 
@@ -1126,13 +1156,13 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_CHARGE:
         target_vcap = *((uint16_t *)(&pkt->data[0]));
         actual_vcap = charge_adc(target_vcap);
-        send_vcap(actual_vcap);
+        send_voltage(actual_vcap);
         break;
 
     case USB_CMD_DISCHARGE:
         target_vcap = *((uint16_t *)(pkt->data));
         actual_vcap = discharge_adc(target_vcap);
-        send_vcap(actual_vcap);
+        send_voltage(actual_vcap);
         break;
 
     case USB_CMD_CHARGE_CMP: {
@@ -1199,19 +1229,17 @@ static void executeUSBCmd(uartPkt_t *pkt)
         address = *((uint32_t *)(&pkt->data[0]));
         len = pkt->data[4];
 
-        cmd_len = 0;
-        wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
-        wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
-        wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
-        wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
-        wisp_cmd_buf[cmd_len++] = len;
+        payload_len = 0;
+        target_msg_payload[payload_len++] = (address >> 0) & 0xff;
+        target_msg_payload[payload_len++] = (address >> 8) & 0xff;
+        target_msg_payload[payload_len++] = (address >> 16) & 0xff;
+        target_msg_payload[payload_len++] = (address >> 24) & 0xff;
+        target_msg_payload[payload_len++] = len;
 
-        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_READ_MEM,
-                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        UART_send_msg_to_target(WISP_CMD_READ_MEM, payload_len, target_msg_buf);
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                 (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
-        UART_sendMsg(UART_INTERFACE_USB, USB_RSP_WISP_MEMORY, &(wispRxPkt.data[0]),
-                     wispRxPkt.length, UART_TX_FORCE); // send PC over USB
+        forward_msg_to_host(USB_RSP_WISP_MEMORY, wispRxPkt.data, wispRxPkt.length / 2);
         wispRxPkt.processed = 1;
         break;
 
@@ -1226,20 +1254,19 @@ static void executeUSBCmd(uartPkt_t *pkt)
             break;
         }
 
-        cmd_len = 0;
-        wisp_cmd_buf[cmd_len++] = (address >> 0) & 0xff;
-        wisp_cmd_buf[cmd_len++] = (address >> 8) & 0xff;
-        wisp_cmd_buf[cmd_len++] = (address >> 16) & 0xff;
-        wisp_cmd_buf[cmd_len++] = (address >> 24) & 0xff;
-        wisp_cmd_buf[cmd_len++] = len;
+        payload_len = 0;
+        target_msg_payload[payload_len++] = (address >> 0) & 0xff;
+        target_msg_payload[payload_len++] = (address >> 8) & 0xff;
+        target_msg_payload[payload_len++] = (address >> 16) & 0xff;
+        target_msg_payload[payload_len++] = (address >> 24) & 0xff;
+        target_msg_payload[payload_len++] = len;
 
         for (i = 0; i < len; ++i) {
-            wisp_cmd_buf[cmd_len++] = *value;
+            target_msg_payload[payload_len++] = *value;
             value++;
         }
 
-        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_WRITE_MEM,
-                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        UART_send_msg_to_target(WISP_CMD_WRITE_MEM, payload_len, target_msg_buf);
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                 (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
         wispRxPkt.processed = 1;
@@ -1301,11 +1328,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
         sig_serial_echo_value = 0;
         unmask_target_signal();
 
-        cmd_len = 0;
-        wisp_cmd_buf[cmd_len++] = value;
-
-        UART_sendMsg(UART_INTERFACE_WISP, WISP_CMD_SERIAL_ECHO,
-                     wisp_cmd_buf, cmd_len, UART_TX_FORCE); // send request
+        payload_len = 0;
+        target_msg_payload[payload_len++] = value;
+        UART_send_msg_to_target(WISP_CMD_SERIAL_ECHO, payload_len, target_msg_buf);
 
         // Wait while the ISRs decode the serial bit stream
         volatile uint16_t timeout = 0xffff;
@@ -1317,20 +1342,17 @@ static void executeUSBCmd(uartPkt_t *pkt)
                 (wispRxPkt.descriptor != WISP_RSP_SERIAL_ECHO)); // wait for response
         wispRxPkt.processed = 1;
 
-        send_echo(sig_serial_echo_value);
+        payload_len = 0;
+        host_msg_payload[payload_len++] = value;
+        send_msg_to_host(USB_RSP_ECHO, payload_len);
         break;
     }
 
     case USB_CMD_DMA_ECHO: {
-        uint8_t value = pkt->data[0];
-
-        host_msg_len = 0;
-        host_msg_buf[host_msg_len++] = UART_IDENTIFIER_USB;
-        host_msg_buf[host_msg_len++] = USB_RSP_ECHO;
-        host_msg_buf[host_msg_len++] = 1;
-        host_msg_buf[host_msg_len++] = value;
-
-        send_echo_dma(host_msg_buf, host_msg_len);
+        unsigned value = pkt->data[0];
+        payload_len = 0;
+        host_msg_payload[payload_len++] = value;
+        send_msg_to_host(USB_RSP_ECHO, payload_len);
         break;
     }
 
@@ -1593,26 +1615,6 @@ void __attribute__ ((interrupt(TIMER2_A0_VECTOR))) TIMER2_A0_ISR (void)
 #endif
     TA2CCTL0 &= ~CCIFG;
 }
-
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=DMA_VECTOR
-__interrupt void DMA_ISR(void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-{
-    switch (__even_in_range(DMAIV, 16)) {
-        case DMAIV_DMA0IFG:
-            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
-            break;
-        case DMAIV_DMA1IFG:
-        case DMAIV_DMA2IFG:
-            break;
-    }
-}
-
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=UNMI_VECTOR
