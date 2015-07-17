@@ -133,10 +133,16 @@ class WispMonitor:
             self.CLK_FREQ = config_header.macros['CONFIG_DCOCLKDIV_FREQ']
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
 
+        self.params = {
+        }
+
         self.replay_log = None
         
     def destroy(self):
         self.serial.close()
+
+    def set_param(self, param, value):
+        self.params[param] = value
     
     def buildRxPkt(self, buf):
         """Parses packet header and returns whether it is ready or not"""

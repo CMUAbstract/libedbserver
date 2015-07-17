@@ -167,6 +167,9 @@ def cmd_decho(mon, value):
 def cmd_replay(mon, file):
     mon.load_replay_log(file)
 
+def cmd_set(mon, parm, value):
+    mon.set_param(parm, value)
+
 def compose_prompt(active_mode):
     if active_mode:
         return "*> "
