@@ -103,7 +103,7 @@ typedef struct {
     uint16_t saved_vcap;
 } interrupt_context_t;
 
-uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
+volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
 static state_t state = STATE_IDLE;
 static comparator_op_t comparator_op = CMP_OP_NONE;

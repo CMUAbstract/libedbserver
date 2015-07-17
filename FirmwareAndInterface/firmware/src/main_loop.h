@@ -17,6 +17,6 @@ typedef enum {
     FLAG_INTERRUPTED     		= 0x0100, //!< target is in active debug mode
 } main_loop_flag_t;
 
-extern uint16_t main_loop_flags; // bit mask containing bit flags to check in the main loop
+extern volatile uint16_t main_loop_flags; // bit mask containing bit flags to check in the main loop
 
 #endif // MAIN_LOOP_H
