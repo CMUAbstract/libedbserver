@@ -164,6 +164,9 @@ def cmd_decho(mon, value):
     value = int(value, 16)
     print "0x%02x" % mon.dma_echo(value)
 
+def cmd_replay(mon, file):
+    mon.load_replay_log(file)
+
 def compose_prompt(active_mode):
     if active_mode:
         return "*> "

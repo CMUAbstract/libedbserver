@@ -131,6 +131,8 @@ class WispMonitor:
         elif timelog_source == 'TASSEL__SMCLK':
             self.CLK_FREQ = config_header.macros['CONFIG_DCOCLKDIV_FREQ']
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
+
+        self.replay_log = None
         
     def destroy(self):
         self.serial.close()
@@ -292,7 +294,11 @@ class WispMonitor:
 
             return pkt
 
-        newData = self.serial.read()
+
+        if self.replay_log is not None:
+            newData = self.replay_log.read(1)
+        else:
+            newData = self.serial.read()
 
         if self.rcv_no_parse: # debugging gimmick
             self.rcv_no_parse_total_bytes += len(newData)
@@ -326,6 +332,9 @@ class WispMonitor:
         while len(self.serial.read()) > 0:
             pass
         self.rcv_buf = []
+
+    def load_replay_log(file):
+        self.replay_log = open(file, "r")
 
     def uint16_to_bytes(self, val):
         return [val & 0xFF, (val>> 8) & 0xFF]
