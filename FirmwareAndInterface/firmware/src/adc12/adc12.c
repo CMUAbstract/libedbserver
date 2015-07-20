@@ -192,3 +192,19 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
     default: return;
     }
 }
+
+#if 0
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=TIMER0_B1_VECTOR
+__interrupt void UNHANDLED_ISR_TIMER0_B1(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(TIMER0_B1_VECTOR))) UNHANDLED_ISR_TIMER0_B1(void)
+#else
+#error Compiler not supported!
+#endif
+{
+    _pAdc12->results[0] = 0xbeef;
+    main_loop_flags |= FLAG_ADC12_COMPLETE;
+    TB0CCTL1 &= ~CCIFG;
+}
+#endif
