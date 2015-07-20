@@ -39,8 +39,12 @@ class Header:
 
     def parse_def(self, name, cast_func):
         for line in open(self.header_file):
-            m = re.match(r'^\s*#define\s+' + name + '\s+(?P<value>\w+)\s*', line)
+            m = re.match(r'^\s*#define\s+' + name + '\s+(?P<value>\w+)?\s*', line)
             if m is None:
                 continue
-            return cast_func(m.group('value'))
-        raise Exception("Macro '" + name + "' not found in '" + self.header_file + "'")
+            val = m.group('value')
+            if val is None:
+                return True # defined macros without value converted to bool
+            else:
+                return cast_func(val)
+        return None
