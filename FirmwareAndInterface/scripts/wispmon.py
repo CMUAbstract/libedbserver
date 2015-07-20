@@ -181,7 +181,7 @@ class WispMonitor:
                     # unknown identifier - reset state
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
                     print >>sys.stderr, "packet construction failed: unknown identifier: ", \
-                            self.rxPkt.identifier, " (exp ", \
+                            "0x%02x" % self.rxPkt.identifier, " (exp ", \
                             "0x%02x" % host_comm_header.macros['UART_IDENTIFIER_USB'], ")"
                     continue
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
@@ -411,7 +411,8 @@ class WispMonitor:
     def decode_adc_value(self, bytes, offset):
         FIELD_LEN = 2
         if offset + FIELD_LEN > len(bytes):
-            raise StreamDecodeException("buf (offset = " + str(offset) + "): " + str(hexlify(bytes)))
+            raise StreamDecodeException("buf (offset = " + str(offset) + "): " + \
+                    str(hexlify(bytearray(bytes))))
         adc_value = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         length = 2
         voltage = self.adc_to_voltage(adc_value)
