@@ -173,6 +173,14 @@ unsigned UART_RxBufEmpty(unsigned interface)
     }
 }
 
+/**
+ * @brief       Copy an array of bytes into a uartBuf_t circular buffer
+ * @param       bufInto     Pointer to a uartBuf_t structure to which bytes will be copied
+ * @param       bufFrom     Pointer to a byte array from which bytes will be copied
+ * @param       len         Number of bytes to copy
+ * @warning     This function does not check if there is enough space to copy the bytes.
+ *              It will overwrite anything in its way.
+ */
 static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len)
 {
     while(len--) {
@@ -182,6 +190,14 @@ static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len)
     }
 }
 
+/**
+ * @brief       Copy bytes from a uartBuf_t circular buffer into an array of bytes
+ * @param       bufFrom     Pointer to a uartBuf_t structure from which bytes will be copied
+ * @param       bufInto     Pointer to a byte array to which bytes will be copied
+ * @param       len         Number of bytes to copy
+ * @warning     This function does not check if there is enough space to copy the bytes.
+ *              It will overwrite anything in its way.
+ */
 static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, unsigned len)
 {
     while(len--) {

@@ -125,7 +125,6 @@ static int sig_serial_bit_index; // debug mode flags are serially encoded on the
 static unsigned sig_serial_echo_value = 0;
 static state_t saved_sig_serial_echo_state;
 
-static uint16_t adc12Target; // target ADC reading
 static interrupt_context_t interrupt_context;
 
 static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
@@ -477,8 +476,10 @@ static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
 
     UART_begin_transmission();
 
-    while (len--)
-        host_msg_payload[payload_len] = buf[payload_len++];
+    while (len--) {
+        host_msg_payload[payload_len] = buf[payload_len];
+        payload_len++;
+    }
 
     send_msg_to_host(descriptor, payload_len);
 }
@@ -506,6 +507,8 @@ static void enter_debug_mode(interrupt_type_t int_type)
         case INTERRUPT_TYPE_TARGET_REQ:
             /* debugger mode flags read from signal line (serially encoded) */
             break;
+        default:
+            ASSERT(ASSERT_CORRUPT_STATE, false);
     }
 
     mask_target_signal();
@@ -918,8 +921,6 @@ static inline void pin_setup()
 int main(void)
 {
     uint32_t count = 0;
-    uint16_t i;
-    uint16_t adc_value;
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
@@ -1461,6 +1462,25 @@ static void discharge_cmp(uint16_t target, comparator_ref_t ref)
 }
 
 #ifdef CONFIG_PWM_CHARGING
+
+/**
+ * @brief	Compare two unsigned 16-bit numbers.
+ * @param	n1	One number
+ * @param	n2	Another number
+ * @param	threshold	minimum difference between n1 and n2 to consider them different.
+ * @retval	1	n1 > n2 + threshold
+ * @retval	0	n1 and n2 are within threshold of one another
+ * @retval	-1	n1 < n2 - threshold
+ */
+static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
+	if(n1 < n2 - threshold && n2 >= threshold) {
+		return -1;
+	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
+		return 1;
+	}
+	return 0;
+}
+
 static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
 {
 	uint16_t result;
@@ -1524,15 +1544,6 @@ static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
 {
     arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
     // expect comparator interrupt
-}
-
-static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
-	if(n1 < n2 - threshold && n2 >= threshold) {
-		return -1;
-	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
-		return 1;
-	}
-	return 0;
 }
 
 // Port 1 ISR

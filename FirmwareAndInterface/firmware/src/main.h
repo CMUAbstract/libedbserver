@@ -70,15 +70,4 @@ static void break_at_vcap_level_adc(uint16_t level);
  */
 static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t cmp_ref);
 
-/**
- * @brief	Compare two unsigned 16-bit numbers.
- * @param	n1	One number
- * @param	n2	Another number
- * @param	threshold	minimum difference between n1 and n2 to consider them different.
- * @retval	1	n1 > n2 + threshold
- * @retval	0	n1 and n2 are within threshold of one another
- * @retval	-1	n1 < n2 - threshold
- */
-static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold);
-
 #endif // MAIN_H
