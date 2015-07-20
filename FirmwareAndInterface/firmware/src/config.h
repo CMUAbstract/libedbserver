@@ -126,6 +126,14 @@
  */
 // #define CONFIG_SCOPE_TRIGGER_SIGNAL
 
+/**
+ * @brief Capacitor charge implemented by a PWM with a control loop around the duty-cycle
+ * @detail The alternative is an "valve" method of raising a GPIO high and watching
+ *         the voltage level with ADC or comparator and pulling the GPIO low once
+ *         the target threshold is crossed.
+ */
+// #define CONFIG_PWM_CHARGING
+
 // The rest essentially defines the register settings that carry out the above
 
 #define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)
