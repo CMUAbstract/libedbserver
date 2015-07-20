@@ -162,7 +162,7 @@
  *         TODO: setup RF pins only upon cmd to monitor RF because otherwise we
  *         get spurious interrupts on RX pin
  */
-#define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+// #define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
 /**
  * @brief Enable code to decode RFID transmissions from the target
