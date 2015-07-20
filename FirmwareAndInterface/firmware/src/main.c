@@ -219,6 +219,7 @@ static inline void clock_setup()
     // already initialized on reset
     UCSCTL3 |= SELREF__REFOCLK;                  // Set DCO FLL reference = REFO
     UCSCTL4 |= SELA__REFOCLK;                   // Set ACLK = REFO
+    UCSCTL7 &= ~(XT1LFOFFG | XT2OFFG | DCOFFG); // Errata #UCS11
 #endif // CONFIG_DCO_REF_CLOCK_REFO
 
     // Oscillator: XT1 crystal
@@ -233,6 +234,7 @@ static inline void clock_setup()
     // The following are already the default, but include for clarity
     UCSCTL3 |= SELREF__XT1CLK; // select XT1 as the DCO reference
     UCSCTL4 |= SELA__XT1CLK;  // select ST1 as the source for ACLK
+    UCSCTL7 &= ~(XT1LFOFFG | XT2OFFG | DCOFFG); // Errata #UCS11
 
     // wait for XT1 to init and clear the fault flags
     while (UCSCTL7 & XT1LFOFFG)
@@ -257,6 +259,7 @@ static inline void clock_setup()
 #if defined(CONFIG_CLOCK_SOURCE_XT2)
     // switch master clock (CPU) to XT2 (25 MHz) and clear fault flags
     UCSCTL4 |= SELM__XT2CLK | SELS__XT2CLK | SELA__XT2CLK;
+    UCSCTL7 &= ~(XT1LFOFFG | XT2OFFG | DCOFFG); // Errata #UCS11
 
     // Can't drive the UART with a 25 MHz clock (hang/reset), divide it
     //UCSCTL5 |= DIVS0 | DIVA0; // SMCLK, ACLK = 25 MHz / 2 = 12.5 MHz
@@ -279,6 +282,8 @@ static inline void clock_setup()
     UCSCTL0 = 0x0000;                           // Set lowest possible DCOx, MODx
     UCSCTL1 = DCO_FREQ_RANGE_BITS(CONFIG_DCO_FREQ_R);    // Select DCO freq range
     UCSCTL2 = FLL_D_BITS(CONFIG_DCO_FREQ_D) | CONFIG_DCO_FREQ_N;
+    UCSCTL7 &= ~(XT1LFOFFG | XT2OFFG | DCOFFG); // Errata #UCS11
+
     __bic_SR_register(SCG0);                    // Enable the FLL control loop
 
     __delay_cycles(DCO_SETTLING_TIME);
