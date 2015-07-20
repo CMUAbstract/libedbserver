@@ -839,6 +839,7 @@ static void handle_target_signal()
             break;
     }
 }
+
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
  */
@@ -932,7 +933,6 @@ int main(void)
 
     // TODO: enable the RFID decoding only when the stream is requested
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-    // use the same flag for Rx and Tx so we only have to check one flag
     RFID_setup();
 #endif
 
