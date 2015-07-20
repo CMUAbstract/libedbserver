@@ -5,6 +5,8 @@
  * @brief       Functions for WISP power monitoring.
  ******************************************************************************/
 
+#ifdef CONFIG_PWM_CHARGING
+
 #include <msp430.h>
 #include <stdint.h>
 #include "pwm.h"
@@ -32,3 +34,5 @@ void PWM_stop()
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);				// output low
     GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE);              // GPIO option select
 }
+
+#endif

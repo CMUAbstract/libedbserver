@@ -924,7 +924,10 @@ int main(void)
     BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
 #endif
 
+#ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
+#endif
+
     UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
 
     // TODO: enable the RFID decoding only when the stream is requested
@@ -1054,6 +1057,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
             send_voltage(adc12Result);
             break;
         }
+#ifdef CONFIG_PWM_CHARGING
     case USB_CMD_SET_VCAP:
         adc12Target = *((uint16_t *)(pkt->data));
         setWispVoltage_block(ADC_CHAN_INDEX_VCAP, adc12Target);
@@ -1063,6 +1067,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         adc12Target = *((uint16_t *)(pkt->data));
         setWispVoltage_block(ADC_CHAN_INDEX_VBOOST, adc12Target);
         break;
+#endif
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
@@ -1159,9 +1164,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	// not implemented
     	break;
 
+#ifdef CONFIG_PWM_CHARGING
     case USB_CMD_PWM_ON:
     	PWM_start();
     	break;
+#endif
 
     case USB_CMD_CHARGE:
         target_vcap = *((uint16_t *)(&pkt->data[0]));
@@ -1193,11 +1200,13 @@ static void executeUSBCmd(uartPkt_t *pkt)
         reset_state();
         break;
 
+#ifdef CONFIG_PWM_CHARGING
     case USB_CMD_RELEASE_POWER:
     case USB_CMD_PWM_OFF:
     case USB_CMD_PWM_LOW:
     	PWM_stop();
     	break;
+#endif
 
     case USB_CMD_SET_PWM_FREQUENCY:
     	TB0CCR0 = (*((uint16_t *)(pkt->data))) - 1;
@@ -1207,10 +1216,12 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	TB0CCR1 = *((uint16_t *)(pkt->data));
     	break;
 
+#ifdef CONFIG_PWM_CHARGING
     case USB_CMD_PWM_HIGH:
     	PWM_stop();
         GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // output high
     	break;
+#endif
 
     // USB_CMD_PWM_LOW and USB_CMD_PWM_OFF do the same thing
 
@@ -1439,6 +1450,7 @@ static void discharge_cmp(uint16_t target, comparator_ref_t ref)
     // expect comparator interrupt
 }
 
+#ifdef CONFIG_PWM_CHARGING
 static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
 {
 	uint16_t result;
@@ -1482,6 +1494,7 @@ static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
 		}
 	} while(compare != 0);
 }
+#endif
 
 static void break_at_vcap_level_adc(uint16_t level)
 {

@@ -46,12 +46,14 @@ static void charge_cmp(uint16_t target, comparator_ref_t cmp_ref);
  */
 static void discharge_cmp(uint16_t target, comparator_ref_t cmp_ref);
 
+#ifdef CONFIG_PWM_CHARGING
 /**
  * @brief	Block until setting the voltage read at channel to the ADC reading target.
  * @param	adc_chan_index  Permanent index statically assigned to the ADC channel
  * @param	target			Target ADC reading when the voltage is set, from 0 to 4095
  */
 static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target);
+#endif
 
 /**
  * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
