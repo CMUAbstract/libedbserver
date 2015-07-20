@@ -23,6 +23,7 @@ CFLAGS = \
 	-I $(SRC_DIR)/timers \
 	-I $(SRC_DIR)/uart \
 	-I $(SRC_DIR)/i2c \
+	-I $(SRC_DIR)/mspware \
 
 LFLAGS = -L $(TOOLCHAIN_ROOT)/include
 
@@ -41,6 +42,7 @@ OBJECTS = \
 	rfid/rfid.o \
 	rfid/rfid_decoder.o \
 	adc12/adc12.o \
+	mspware/pmm.o \
 
 all: $(EXEC)
 

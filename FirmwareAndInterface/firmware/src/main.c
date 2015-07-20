@@ -21,6 +21,7 @@
 
 #include <libdebug/target_comm.h>
 
+#include "pmm.h" // must be before pin_assign.h since the latter undefs
 #include "pin_assign.h"
 #include "host_comm.h"
 #include "adc12.h"
@@ -170,36 +171,33 @@ static adc12_t adc12 = {
     },
 };
 
-static inline void set_core_voltage(unsigned int level)
-{
-    // Open PMM registers for write
-    PMMCTL0_H = PMMPW_H;
-    // Set SVS/SVM high side new level
-    SVSMHCTL = SVSHE + SVSHRVL0 * level + SVMHE + SVSMHRRL0 * level;
-    // Set SVM low side to new level
-    SVSMLCTL = SVSLE + SVMLE + SVSMLRRL0 * level;
-    // Wait till SVM is settled
-    while ((PMMIFG & SVSMLDLYIFG) == 0);
-    // Clear already set flags
-    PMMIFG &= ~(SVMLVLRIFG + SVMLIFG);
-    // Set VCore to new level
-    PMMCTL0_L = PMMCOREV0 * level;
-    // Wait till new level reached
-    if((PMMIFG & SVMLIFG))
-        while((PMMIFG & SVMLVLRIFG) == 0);
-    // Set SVS/SVM low side to new level
-    SVSMLCTL = SVSLE + SVSLRVL0 * level + SVMLE + SVSMLRRL0 * level;
-    // Lock PMM registers for write access
-    PMMCTL0_H = 0x00;
-}
-
 static inline void clock_setup()
 {
-    // Increase Vcore setting to level3 to support fsystem=25MHz
-    // NOTE: Change core voltage one level at a time.
-    set_core_voltage(0x01);
-    set_core_voltage(0x02);
-    set_core_voltage(0x03);
+    unsigned rc;
+
+    // Increase Vcore setting to level3 to support high frequency
+    rc = PMM_setVCore(0x03);
+    ASSERT(ASSERT_SET_CORE_VOLTAGE_FAILED, rc == STATUS_SUCCESS);
+
+#if defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM)
+    PMMCTL0_H = PMMPW_H;
+    SVSMHCTL &= ~(SVSHE | SVMHE);
+    SVSMLCTL &= ~(SVSLE | SVMLE);
+    PMMRIE &= ~(SVMHVLRPE | SVSHPE | SVMLVLRPE | SVSLPE);
+    PMMCTL0_H = 0x00;
+#elif defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY)
+    __delay_cycles(65535);
+    __delay_cycles(65535);
+    __delay_cycles(65535);
+    __delay_cycles(65535);
+
+    __delay_cycles(65535);
+    __delay_cycles(65535);
+    __delay_cycles(65535);
+    __delay_cycles(65535);
+#else
+#error No workaround for startup voltage problem: see CONFIG_STARTUP_VOLTAGE_WORKAROUND_*
+#endif
 
     // NOTE: The MCU starts in a fault condition, because ACLK is set to XT1 LF but
     // XT1 LF takes time to initialize. Its init begins when XT1 pin function

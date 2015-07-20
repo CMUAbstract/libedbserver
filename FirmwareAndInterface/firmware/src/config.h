@@ -68,6 +68,40 @@
  */
 #define CONFIG_ABORT_ON_RFID_EVENT_OVERFLOW
 
+/**
+ * @brief Two alternative workarounds for the crashes due to voltage ramp on startup
+ * @detials The problem these work around is crashes that occur at arbitrary times
+ *          after startup. The crash is either a wild jump or an oscillator
+ *          fault.
+ *
+ *          At first glance crashes are somewhat consistent and seem
+ *          correlated to peripheral activity. For example, not doing anything
+ *          with the UART might seem to get rid of the crash, or, even
+ *          stranger, re-arranging C-code, like removing code that's in an
+ *          if-branch that is never taken, or replacing a function call with an
+ *          inline invocation, all appear to consistently influence whether a
+ *          crash happens or not.
+ *
+ *          However, the underlying issue is traced to some kind of
+ *          non-fail-stop failure during startup that corrupts subsequent
+ *          execution. Furthermore, the problem has to do with the Power
+ *          Management Module -- it either generates false events (like
+ *          overvoltage), or does not generate correct events in time. In
+ *          particular, there are multiple errata about it, including a false
+ *          overvoltage even if voltage ramps up too quickly.
+ *
+ *          The delay workaround is recommended over disabling PMM, since PMM
+ *          is nice to have to detect brownout -- we do want it if it works
+ *          correctly. It is plausible that there is a true fix that involves
+ *          configuration of PMM.
+ *
+ *          NOTE: Unfortunately, these workarounds do not get rid of the same kind
+ *                of crash that happens with debugger attached (either CCSv6 or
+ *                mspdebug).
+ */
+// #define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM
+#define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY
+
 // #define CONFIG_CLOCK_TEST_MODE // enter a blinker loop after configuring clocks
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
 

@@ -12,7 +12,7 @@ typedef enum {
 } error_t;
 
 typedef enum {
-    ASSERT_INVALID_STREAM_DATA_LEN                = 0,
+    ASSERT_SET_CORE_VOLTAGE_FAILED                = 0, // won't show up as 1 Hz (freq not yet set)
     ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 1,
     ASSERT_HOST_MSG_BUF_OVERFLOW                  = 2,
     ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 3,
