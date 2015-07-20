@@ -23,6 +23,7 @@ CFLAGS = \
 	-I $(SRC_DIR)/timers \
 	-I $(SRC_DIR)/uart \
 	-I $(SRC_DIR)/i2c \
+	-I $(SRC_DIR)/rfid \
 	-I $(SRC_DIR)/mspware \
 
 LFLAGS = -L $(TOOLCHAIN_ROOT)/include
