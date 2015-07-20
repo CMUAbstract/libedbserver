@@ -1092,7 +1092,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_BEGIN: {
         uint16_t streams = pkt->data[0];
-        adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[2];
+        adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 
         TimeLog_request(1); // start the time-keeping clock
 
