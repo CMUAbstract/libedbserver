@@ -39,8 +39,8 @@ void ADC12_setup(adc12_t *adc12)
     // sequence of channels, single conversion
     ADC12CTL0 = ADC12SHT0_2 + ADC12ON + ADC12MSC; // sampling time, ADC12 on, multiple sample conversion
 
-    // use sampling timer, sequence of channels, repeat-conversion, trigger from Timer B CCR1
-    ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1 + ADC12SHS_3;
+    // use sampling timer, sequence of channels, repeat-conversion, trigger from Timer B CCR0
+    ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1 + ADC12SHS_2;
 
     // set ADC memory control registers
     volatile uint8_t *adc12mctl_registers[5] = { &ADC12MCTL0,
@@ -59,10 +59,8 @@ void ADC12_setup(adc12_t *adc12)
     ADC12IFG = 0; // clear int flags
     ADC12IE = (0x0001 << last_channel_index); // enable interupt on last sample
 
-    uint16_t period = adc12->config.sampling_period;
-    TB0CCR0 = period; // period (toggle mode doubles the period)
-    TB0CCR1 = period - 2; // period (toggle mode doubles the period)
-    TB0CCTL1 = OUTMOD_3; // set/reset output mode
+    TB0CCR0 = adc12->config.sampling_period;
+    TB0CCTL0 = OUTMOD_3; // set/reset output mode
     TB0CTL = TIMER_B_CLK_SOURCE_BITS(CONFIG_ADC_TIMER_SOURCE_NAME) |
              TIMER_DIV_BITS(CONFIG_ADC_TIMER_DIV) |
              MC__UP | TBCLR;
