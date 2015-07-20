@@ -42,9 +42,13 @@ OBJECTS = \
 	rfid/rfid_decoder.o \
 	adc12/adc12.o \
 
+all: $(EXEC)
+
+-include $(OBJECTS:.o=.d)
+
 %.o: %.c
 	mkdir -p "./$(shell dirname $@)"
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c -MD $(CFLAGS) $< -o $@
 
 $(EXEC): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LFLAGS) $^ -o $(EXEC)
