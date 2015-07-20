@@ -25,6 +25,14 @@
 #define BRF_BITS_INNER(brf) UCBRF_ ## brf
 #define BRF_BITS(brf) BRF_BITS_INNER(brf)
 
+#if defined(__TI_COMPILER_VERSION__)
+#define __DMA_ACCESS_REG__      __SFR_FARPTR
+#elif defined(__GNUC__)
+#define __DMA_ACCESS_REG__      uintptr_t
+#else
+#error Compiler not supported!
+#endif
+
 typedef enum {
     UART_STATUS_TX_BUSY = 0x01,
     UART_STATUS_RX_BUSY = 0x02,
@@ -101,7 +109,7 @@ void UART_setup(unsigned interface)
               DMADSTBYTE | DMASRCBYTE | DMALEVEL | DMAIE;
 
         // DMA(DMA_HOST_UART_TX, SA) = set on each transfer
-        DMA(DMA_HOST_UART_TX, DA) = (uint16_t)&UCA0TXBUF;
+        DMA(DMA_HOST_UART_TX, DA) = (__DMA_ACCESS_REG__)(&UCA0TXBUF);
         // DMA(DMA_HOST_UART_TX, SZ) = set on each transfer
 
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
@@ -350,7 +358,7 @@ void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *b
 
     len += payload_len;
 
-    DMA(DMA_HOST_UART_TX, SA) = (uint16_t)buf;
+    DMA(DMA_HOST_UART_TX, SA) = (__DMA_ACCESS_REG__)buf;
     DMA(DMA_HOST_UART_TX, SZ) = len;
 
     DMA(DMA_HOST_UART_TX, CTL) |= DMAEN;
