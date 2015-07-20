@@ -160,6 +160,7 @@ class WispMonitor:
         }
 
         self.replay_log = None
+        self.rcv_no_parse = None
         
     def destroy(self):
         self.serial.close()
