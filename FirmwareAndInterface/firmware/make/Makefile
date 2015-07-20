@@ -43,6 +43,7 @@ CFLAGS = \
 	--include_path="$(PLATFORM_ROOT)/include" \
 	--include_path="$(LIBDEBUG_ROOT)/src/include" \
 	--include_path="$(SRC_ROOT)" \
+	--include_path="$(SRC_ROOT)/mspware" \
 	--include_path="$(SRC_ROOT)/adc12" \
 	--include_path="$(SRC_ROOT)/gpio" \
 	--include_path="$(SRC_ROOT)/rfid" \
@@ -74,6 +75,8 @@ VPATH += $(SRC_ROOT)
 # Specify the source files list explicitly avoiding wildcards, in order to make
 # sure the build (esp. linker) doesn't pick up stray files
 C_SRCS = \
+	catchall.c \
+	mspware/pmm.c \
 	main.c \
 	error.c \
 	uart/uart.c \
