@@ -65,14 +65,18 @@ target_comm_header = Header(env.TARGET_COMM_HEADER,
 config_header = Header(env.CONFIG_HEADER,
     string_macros=[
         'CONFIG_TIMELOG_TIMER_SOURCE',
-        'CONFIG_ADC_TIMER_SOURCE',
+        'CONFIG_ADC_TIMER_SOURCE_ACLK',
+        'CONFIG_ADC_TIMER_SOURCE_SMCLK',
+        'CONFIG_ADC_TIMER_SOURCE_MCLK',
     ],
     numeric_macros=[
         'CONFIG_USB_UART_BAUDRATE',
         'CONFIG_XT1_FREQ',
         'CONFIG_REFO_FREQ',
         'CONFIG_DCOCLKDIV_FREQ',
-        'CONFIG_ADC_SAMPLING_PERIOD',
+        'CONFIG_CLK_DIV_SMCLK',
+        'CONFIG_ADC_SAMPLING_FREQ_HZ',
+        'CONFIG_ADC_TIMER_DIV'
     ])
 
 class StreamInterrupted(Exception):
@@ -128,20 +132,31 @@ class WispMonitor:
 
         def clk_source_freq(source):
             # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
-            if re.match(r'T.SSEL__ACLK', source):
+            if source == 'ACLK' or re.match(r'T.SSEL__ACLK', source):
                 assert config_header.macros['CONFIG_XT1_FREQ'] == config_header.macros['CONFIG_REFO_FREQ']
                 return config_header.macros['CONFIG_XT1_FREQ']
-            elif re.match(r'T.SSEL__SMCLK', source):
-                return config_header.macros['CONFIG_DCOCLKDIV_FREQ']
+            elif source == 'SMCLK' or re.match(r'T.SSEL__SMCLK', source):
+                return config_header.macros['CONFIG_DCOCLKDIV_FREQ'] / \
+                       config_header.macros['CONFIG_CLK_DIV_SMCLK']
+            else:
+                raise Exception("Not implemented")
+
+        def clk_source(source_macro_prefix):
+            for source in ['ACLK', 'SMCLK', 'MCLK']:
+                if config_header.macros[source_macro_prefix + source]:
+                    return source
+            raise Exception("Could not find a defined clk source macro for: " + source_macro_prefix)
 
         self.CLK_FREQ = clk_source_freq(config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE'])
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
 
-        self.ADC_CLK_FREQ_HZ = clk_source_freq(config_header.macros['CONFIG_ADC_TIMER_SOURCE'])
+        adc_trigger_timer_clk_source = clk_source('CONFIG_ADC_TIMER_SOURCE_')
+        self.ADC_TRIGGER_TIMER_CLK_FREQ = \
+                float(clk_source_freq(adc_trigger_timer_clk_source)) / \
+                config_header.macros['CONFIG_ADC_TIMER_DIV']
 
         self.params = {
-            'adc_sampling_freq_hz' :
-                1.0 / (config_header.macros['CONFIG_ADC_SAMPLING_PERIOD'] / self.ADC_CLK_FREQ_HZ)
+            'adc_sampling_freq_hz' : config_header.macros['CONFIG_ADC_SAMPLING_FREQ_HZ']
         }
 
         self.replay_log = None
@@ -420,7 +435,7 @@ class WispMonitor:
 
     def stream_begin(self, streams_bitmask):
         adc_sampling_period_cycles = \
-                int((1.0 / float(self.params['adc_sampling_freq_hz'])) * self.ADC_CLK_FREQ_HZ)
+                int((1.0 / float(self.params['adc_sampling_freq_hz'])) * self.ADC_TRIGGER_TIMER_CLK_FREQ)
         print "adc_sampling_period_cycles=", adc_sampling_period_cycles
         self.stream_bytes = 0
         self.stream_start = time.time()
