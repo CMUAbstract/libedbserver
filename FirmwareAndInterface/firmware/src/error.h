@@ -43,7 +43,7 @@ void error(error_t num);
 #define ASSERT(idx, cond) \
     if (!(cond)) { \
         GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
-        BLINK_LOOP(PIN_LED_GREEN, (CONFIG_DCOCLKDIV_FREQ >> 1) >> (idx)); \
+        BLINK_LOOP(PIN_LED_GREEN, (CONFIG_MCLK_FREQ >> 1) >> (idx)); \
     }
 
 #endif
