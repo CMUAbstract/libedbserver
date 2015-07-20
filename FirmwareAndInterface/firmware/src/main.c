@@ -77,6 +77,9 @@
 #define FLL_REF_DIV_BITS_INNER(div) FLLREFDIV__ ## div
 #define FLL_REF_DIV_BITS(div) FLL_REF_DIV_BITS_INNER(div)
 
+#define CLK_DIV_BITS_INNER(clk, div) DIV ## clk ## __ ## div
+#define CLK_DIV_BITS(clk, div) CLK_DIV_BITS_INNER(clk, div)
+
 /**
  * Debugger state machine states
  */
@@ -289,6 +292,10 @@ static inline void clock_setup()
 
     SFRIFG1 &= ~OFIFG; // clear wildcard fault flag
     SFRIE1 |= OFIE; // watch for oscillator faults
+
+    UCSCTL5 |= CLK_DIV_BITS(A, CONFIG_CLK_DIV_ACLK) |
+               CLK_DIV_BITS(S, CONFIG_CLK_DIV_SMCLK) |
+               CLK_DIV_BITS(M, CONFIG_CLK_DIV_MCLK);
 }
 
 

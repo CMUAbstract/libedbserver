@@ -30,6 +30,10 @@
 // #define CONFIG_DCOCLKDIV_FREQ 12288000ull
 // #define CONFIG_DCOCLKDIV_FREQ 8192000ull
 
+#define CONFIG_CLK_DIV_MCLK         1
+#define CONFIG_CLK_DIV_SMCLK        1
+#define CONFIG_CLK_DIV_ACLK         1
+
 #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__ACLK
 // #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__SMCLK
 
@@ -136,8 +140,6 @@
 
 // The rest essentially defines the register settings that carry out the above
 
-#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)
-
 // See MSP430F5340 datasheet p44
 #if CONFIG_XT1_CAP >= 12
 #define CONFIG_XT1_CAP_BITS (XCAP0 | XCAP1)
@@ -236,14 +238,25 @@
 #error Inconsistent DCO freq config
 #endif
 
+// TODO: this is not the case for all possible configs
+#define CONFIG_ACLK_SRC_FREQ    CONFIG_ACLK_XT1_FREQ
+
 // Clock source for MCLK, SMCLK
 #if defined(CONFIG_CLOCK_SOURCE_DCO)
-#define CONFIG_SMCLK_FREQ CONFIG_DCOCLKDIV_FREQ
+#define CONFIG_MCLK_SRC_FREQ CONFIG_DCOCLKDIV_FREQ
+#define CONFIG_SMCLK_SRC_FREQ CONFIG_DCOCLKDIV_FREQ
 #elif defined(CONFIG_CLOCK_SOURCE_XT2)
-#define CONFIG_SMCLK_FREQ CONFIG_XT2_FREQ // for now, SMCLK source is not configurable
+#define CONFIG_MCLK_SRC_FREQ CONFIG_XT2_FREQ // for now, SMCLK source is not configurable
+#define CONFIG_SMCLK_SRC_FREQ CONFIG_XT2_FREQ // for now, SMCLK source is not configurable
 #else // CONFIG_CLOCK_SOURCE_*
 #error Invalid main clock source: see CONFIG_CLOCK_SOURCE_*
 #endif // CONFIG_CLOCK_SOURCE_*
+
+#define CONFIG_ACLK_FREQ (CONFIG_ACLK_SRC_FREQ / CONFIG_CLK_DIV_ACLK)
+#define CONFIG_SMCLK_FREQ (CONFIG_SMCLK_SRC_FREQ / CONFIG_CLK_DIV_SMCLK)
+#define CONFIG_MCLK_FREQ (CONFIG_MCLK_SRC_FREQ / CONFIG_CLK_DIV_MCLK)
+
+#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_MCLK_FREQ / 1000)
 
 #define CONFIG_UART_CLOCK_FREQ CONFIG_SMCLK_FREQ
 
