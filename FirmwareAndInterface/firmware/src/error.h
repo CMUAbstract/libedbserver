@@ -25,6 +25,7 @@ typedef enum {
     ASSERT_UART_ERROR_RX_PKT_LEN                  = 10,
     ASSERT_INVALID_STREAM_BUF_HEADER              = 11,
     ASSERT_INVALID_PAYLOAD                        = 12,
+    ASSERT_UNHANDLED_INTERRUPT                    = 13,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely

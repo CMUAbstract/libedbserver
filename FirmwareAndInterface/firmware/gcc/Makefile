@@ -31,6 +31,7 @@ VPATH = $(SRC_DIR)
 EXEC = monitor
 
 OBJECTS = \
+	catchall.o \
 	main.o \
 	error.o \
 	uart/uart.o \
