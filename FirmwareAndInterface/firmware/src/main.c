@@ -74,6 +74,9 @@
 #define FLL_D_BITS_INNER(d) FLLD_ ## d
 #define FLL_D_BITS(d) FLL_D_BITS_INNER(d)
 
+#define FLL_REF_DIV_BITS_INNER(div) FLLREFDIV__ ## div
+#define FLL_REF_DIV_BITS(div) FLL_REF_DIV_BITS_INNER(div)
+
 /**
  * Debugger state machine states
  */
@@ -269,7 +272,7 @@ static inline void clock_setup()
 
 #if defined(CONFIG_CLOCK_SOURCE_DCO)
     __bis_SR_register(SCG0);                    // Disable the FLL control loop
-    UCSCTL3 |= CONFIG_FLL_REF_DIV;
+    UCSCTL3 |= FLL_REF_DIV_BITS(CONFIG_DCO_REF_CLOCK_DIV);
     UCSCTL0 = 0x0000;                           // Set lowest possible DCOx, MODx
     UCSCTL1 = DCO_FREQ_RANGE_BITS(CONFIG_DCO_FREQ_R);    // Select DCO freq range
     UCSCTL2 = FLL_D_BITS(CONFIG_DCO_FREQ_D) | CONFIG_DCO_FREQ_N;

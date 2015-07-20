@@ -12,13 +12,13 @@
 #define MCU_BOOT_LATENCY_MS 3ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
-// #define CONFIG_DCO_REF_CLOCK_DIV 1ull
+// #define CONFIG_DCO_REF_CLOCK_DIV 1
 
-// #define CONFIG_DCO_REF_SOURCE_XT1
-// #define CONFIG_DCO_REF_CLOCK_DIV 1ull
+//#define CONFIG_DCO_REF_SOURCE_XT1
+//#define CONFIG_DCO_REF_CLOCK_DIV 1
 
 #define CONFIG_DCO_REF_SOURCE_XT2
-#define CONFIG_DCO_REF_CLOCK_DIV 4ull
+#define CONFIG_DCO_REF_CLOCK_DIV 4
 
 #define CONFIG_CLOCK_SOURCE_DCO
 // #define CONFIG_CLOCK_SOURCE_XT2
@@ -216,23 +216,6 @@
 #define CONFIG_DCO_FREQ_D 0
 
 #endif // CONFIG_DCOCLKDIV_FREQ && CONFIG_DCO_REF_FREQ
-
-// See MSP430F5340 datasheet (p. 177)
-#if CONFIG_DCO_REF_CLOCK_DIV == 1
-#define CONFIG_FLL_REF_DIV 0
-#elif CONFIG_DCO_REF_CLOCK_DIV == 2
-#define CONFIG_FLL_REF_DIV (FLLREFDIV0)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 4
-#define CONFIG_FLL_REF_DIV (FLLREFDIV1)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 8
-#define CONFIG_FLL_REF_DIV (FLLREFDIV0 | FLLREFDIV1)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 12
-#define CONFIG_FLL_REF_DIV (FLLREFDIV2)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 16
-#define CONFIG_FLL_REF_DIV (FLLREFDIV2 | FLLREFDIV0)
-#else
-#error Invalid DCO REF clock divider: see CONFIG_DCO_REF_CLOCK_DIV
-#endif
 
 // Worst-case settling time for the DCO when the DCO range bits have been changed:
 // See MSP430x5xx Family User Manual (p. 165). The last fraction term is
