@@ -35,4 +35,6 @@ void PWM_stop()
     GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE);              // GPIO option select
 }
 
-#endif
+#else
+unsigned __dummy_pwm_c; // silence 'empty translation unit' warning
+#endif // CONFIG_PWM_CHARGING
