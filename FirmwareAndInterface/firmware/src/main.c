@@ -1011,10 +1011,12 @@ int main(void)
         }
 */
 
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if(main_loop_flags & FLAG_RF_DATA) {
         	main_loop_flags &= ~FLAG_RF_DATA;
             RFID_send_ready_rf_events_buf();
         }
+#endif
 
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
@@ -1101,8 +1103,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
             ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VRECT);
         if (streams & STREAM_VINJ)
             ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VINJ);
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
             RFID_start_event_stream();
+#endif
 
         // actions common to all adc streams
         if (adc12.config.num_channels > 0) {
@@ -1130,8 +1134,10 @@ static void executeUSBCmd(uartPkt_t *pkt)
             ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VRECT);
         if (streams & STREAM_VINJ)
             ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VINJ);
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
             RFID_stop_event_stream();
+#endif
 
         // actions common to all adc streams
         if (adc12.config.num_channels == 0) {
@@ -1521,8 +1527,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	switch(__even_in_range(P1IV, 16))
 	{
 	case INTFLAG(PORT_RF, PIN_RF_TX):
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         rfid_decoder_tx_pin_isr();
 		GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
+#endif
 		break;
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();
