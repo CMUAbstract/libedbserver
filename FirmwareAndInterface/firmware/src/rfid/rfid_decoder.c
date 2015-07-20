@@ -1,3 +1,5 @@
+#if CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -536,3 +538,6 @@ void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
 	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
 }
 
+#else
+unsigned __dummy_rfid_decoder_c; // silence 'empty translation unit' warning
+#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING

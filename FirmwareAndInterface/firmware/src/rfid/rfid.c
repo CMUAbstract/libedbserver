@@ -1,3 +1,5 @@
+#if CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+
 /*******************************************************************************
  * @file
  * @brief           Monitoring of WISP RFID communication and reporting to host
@@ -203,3 +205,6 @@ void RFID_stop_event_stream()
     RFID_flush_rf_events_buf();
 }
 
+#else
+unsigned __dummy_rfid_c; // silence 'empty translation unit' warning
+#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
