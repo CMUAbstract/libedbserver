@@ -14,6 +14,7 @@ CFLAGS = \
 	-g \
 	-std=c99 \
 	-pedantic \
+	-Wall \
 	-I $(TOOLCHAIN_ROOT)/include \
 	-I $(LIBDEBUG_ROOT)/src/include \
 	-I $(SRC_DIR) \
