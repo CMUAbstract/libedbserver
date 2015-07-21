@@ -90,8 +90,8 @@ class InterruptContext:
         self.saved_vcap = saved_vcap
 
 class StreamDataPoint:
-    def __init__(self, timestamp_sec, value_set):
-        self.timestamp_sec = timestamp_sec
+    def __init__(self, timestamp_cycles, value_set):
+        self.timestamp_cycles = timestamp_cycles
         self.value_set = value_set 
 
 class StreamDecodeException(Exception):
@@ -309,8 +309,6 @@ class WispMonitor:
                                            (self.rxPkt.data[offset + 0] <<  0)
                         offset += FIELD_LEN_TIMESTAMP
 
-                        timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
-
                         try:
                             # Decode the pkt into a dictionary: stream->value.
                             # Order is implied by the bit index of each stream as defined by the enum
@@ -321,7 +319,7 @@ class WispMonitor:
                                     offset += length
                                     value_set[stream] = value
 
-                            data_points.append(StreamDataPoint(timestamp_sec, value_set))
+                            data_points.append(StreamDataPoint(timestamp_cycles, value_set))
                         except StreamDecodeException as e:
                             # invalid pkt, best we can do here is not fail
                             print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: value field: " + \
@@ -372,8 +370,6 @@ class WispMonitor:
                                            (self.rxPkt.data[timestamp_offset + 0] << 0);
                         timestamp_offset += FIELD_LEN_TIMESTAMP
 
-                        timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
-
                         # Decode the pkt into a dictionary: stream->value.
                         # Order is implied by the bit index of each stream as defined by the enum
                         value_set = {}
@@ -384,7 +380,7 @@ class WispMonitor:
                                 voltage_offset += length
                                 value_set[stream] = value
 
-                        data_points.append(StreamDataPoint(timestamp_sec, value_set))
+                        data_points.append(StreamDataPoint(timestamp_cycles, value_set))
 
                 except StreamDecodeException as e:
                     # invalid pkt, best we can do here is not fail
@@ -649,7 +645,16 @@ class WispMonitor:
         if not silent:
             print "Logging... Ctrl-C to stop"
 
-        timestamp_sec = 0
+        overflow_timestamp_cycles = {
+            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
+        }
+
+        prev_timestamp_cycles = {
+            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
+        }
+
         num_samples = 0
         last_progress_report = time.time()
 
@@ -693,7 +698,20 @@ class WispMonitor:
 
                 for data_point in pkt["data_points"]:
 
-                    line = "%f" % data_point.timestamp_sec
+                    # Detect overflow by watching for timestamp to decrease
+                    # NOTE: each pkt type has it's own time since the samples
+                    # in two packets of different types, which (the packets)
+                    # are transmitted one after another, may be interleaved.
+                    if data_point.timestamp_cycles < prev_timestamp_cycles[pkt['descriptor']]:
+                        overflow_timestamp_cycles[pkt['descriptor']] += 1 << 16;
+                    prev_timestamp_cycles[pkt['descriptor']] = data_point.timestamp_cycles
+
+                    # Count beyond 16 bits
+                    timestamp_cycles = overflow_timestamp_cycles[pkt['descriptor']] + \
+                                            data_point.timestamp_cycles
+                    timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
+
+                    line = "%f" % timestamp_sec
                     for stream in streams:
                         # a column per requested stream, so may have blanks on some rows
                         line += ","
