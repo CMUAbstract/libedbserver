@@ -183,13 +183,13 @@ void ADC12_swap_dma_buffers()
     // Neither DMA channels should be running, since we're in completion ISR for
     // the lowest priority channel of the two, and both share the same trigger. 
     DMA(DMA_ADC_TIMESTAMPS, CTL) &= ~DMAEN;
-    //DMA(DMA_ADC_VOLTAGES, CTL) &= ~DMAEN;
+    DMA(DMA_ADC_VOLTAGES, CTL) &= ~DMAEN;
 
     DMA(DMA_ADC_TIMESTAMPS, DA) = (__DMA_ACCESS_REG__)sample_timestamps_bufs[sample_buf_idx];
-    //DMA(DMA_ADC_VOLTAGES, DA) = (__DMA_ACCESS_REG__)sample_voltages_bufs[sample_buf_idx];
+    DMA(DMA_ADC_VOLTAGES, DA) = (__DMA_ACCESS_REG__)sample_voltages_bufs[sample_buf_idx];
 
     DMA(DMA_ADC_TIMESTAMPS, CTL) |= DMAEN;
-    //DMA(DMA_ADC_VOLTAGES, CTL) |= DMAEN;
+    DMA(DMA_ADC_VOLTAGES, CTL) |= DMAEN;
 
     main_loop_flags |= FLAG_ADC12_COMPLETE;
 }
