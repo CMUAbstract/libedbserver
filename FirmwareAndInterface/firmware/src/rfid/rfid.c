@@ -109,7 +109,7 @@ static void append_event(rf_event_type_t id)
 
     // If full, then swap buffers
     if (rf_events_count[rf_events_buf_idx] == NUM_EVENTS_BUFFERED) {
-        rf_events_buf_idx = rf_events_buf_idx ^ rf_events_buf_idx;
+        rf_events_buf_idx ^= 0x1;
         rf_events_buf = rf_events_bufs[rf_events_buf_idx];
 
         ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count[rf_events_buf_idx] == 0);
