@@ -65,7 +65,8 @@ static uint16_t * const sample_voltages_bufs[NUM_BUFFERS] = {
 
 static unsigned num_samples[NUM_BUFFERS];
 static unsigned voltage_sample_offset;
-static unsigned sample_buf_idx;
+// volatile because main uses it to get the index of the ready buffer
+static volatile unsigned sample_buf_idx;
 static uint16_t *sample_timestamps_buf;
 static uint16_t *sample_voltages_buf;
 

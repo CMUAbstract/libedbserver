@@ -73,8 +73,10 @@ static rf_event_t * const rf_events_bufs[NUM_BUFFERS] = {
  *           events buffer when appending events. Also, we do want to store a
  *           pointer to the current buffer in order to avoid recomputing it
  *           from the buffer index in every ISR.
+ *
+ *           NOTE: volatile because accessed by main to determine the ready buffer.
  * */
-static unsigned rf_events_buf_idx;
+static volatile unsigned rf_events_buf_idx;
 static rf_event_t *rf_events_buf;
 /** @brief Number of events in the current buffer so far */
 static unsigned rf_events_count[NUM_BUFFERS];
