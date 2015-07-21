@@ -1681,3 +1681,19 @@ void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
 
     while (1);
 }
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=DMA_VECTOR
+__interrupt void DMA_ISR(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    switch (__even_in_range(DMAIV, 16)) {
+        case DMA_INTFLAG(DMA_HOST_UART_TX):
+               host_uart_status &= ~UART_STATUS_TX_BUSY;
+            break;
+    }
+}

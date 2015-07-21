@@ -33,11 +33,6 @@
 #error Compiler not supported!
 #endif
 
-typedef enum {
-    UART_STATUS_TX_BUSY = 0x01,
-    UART_STATUS_RX_BUSY = 0x02,
-} uart_status_t;
-
 volatile unsigned host_uart_status = 0;
 
 static uartBuf_t usbRx = { .head = 0, .tail = 0 };
@@ -380,22 +375,6 @@ void UART_begin_transmission()
 void UART_end_transmission()
 {
     UART_wait_for_tx_dma();
-}
-
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=DMA_VECTOR
-__interrupt void DMA_ISR(void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-{
-    switch (__even_in_range(DMAIV, 16)) {
-        case DMA_INTFLAG(DMA_HOST_UART_TX):
-            host_uart_status &= ~UART_STATUS_TX_BUSY;
-            break;
-    }
 }
 
 /*

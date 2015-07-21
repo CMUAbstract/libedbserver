@@ -70,6 +70,13 @@ typedef struct {
     // the tail should never point to byte that contains data
 } uartBuf_t;
 
+typedef enum {
+    UART_STATUS_TX_BUSY = 0x01,
+    UART_STATUS_RX_BUSY = 0x02,
+} uart_status_t;
+
+extern volatile unsigned host_uart_status;
+
 /**
  * @brief       Set up UART
  * @param       interface       UART interface to set up.  See @ref UART_INTERFACES
