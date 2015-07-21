@@ -282,7 +282,7 @@ class WispMonitor:
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']:
                 FIELD_LEN_STREAMS = 1
-                FIELD_LEN_TIMESTAMP = 4
+                FIELD_LEN_TIMESTAMP = 2
 
                 offset = 0
 
@@ -303,9 +303,7 @@ class WispMonitor:
                             print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: timestamp field"
                             break
 
-                        timestamp_cycles = (self.rxPkt.data[offset + 3] << 24) | \
-                                           (self.rxPkt.data[offset + 2] << 16) | \
-                                           (self.rxPkt.data[offset + 1] <<  8) | \
+                        timestamp_cycles = (self.rxPkt.data[offset + 1] <<  8) | \
                                            (self.rxPkt.data[offset + 0] <<  0)
                         offset += FIELD_LEN_TIMESTAMP
 

@@ -33,7 +33,7 @@
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_EVENTS_BUFFERED                         16
 
-#define RF_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(rf_event_t)
+#define RF_EVENT_BUF_HEADER_SPACE 2 // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_PAYLOAD_SPACE NUM_EVENTS_BUFFERED // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_SIZE (RF_EVENT_BUF_HEADER_SPACE + RF_EVENT_BUF_PAYLOAD_SPACE) // units of sizeof(rf_event_t)
 
@@ -48,7 +48,7 @@
 #define STARTING_EVENT_BUF_IDX 0
 
 typedef struct {
-    uint32_t timestamp;
+    uint16_t timestamp;
     rf_event_type_t id;
 } rf_event_t;
 
@@ -98,7 +98,7 @@ static void append_event(rf_event_type_t id)
 
     // We could take the timestamp a few cycles earlier (in the ISR/callbacks),
     // but it's hardly worth the sacrifice in code conciseness.
-    rf_event->timestamp = TIMELOG_CURRENT_TIME();
+    rf_event->timestamp = TIMELOG_CURRENT_TIME;
     rf_event->id = id;
 
     rf_events_count[rf_events_buf_idx]++;

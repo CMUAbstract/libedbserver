@@ -236,7 +236,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    uint16_t timestamp = TIMELOG_CURRENT_TIME();
+    uint16_t timestamp = TIMELOG_CURRENT_TIME;
     unsigned current_num_samples = num_samples[sample_buf_idx];
 
     ASSERT(ASSERT_ADC_BUFFER_OVERFLOW, current_num_samples < NUM_BUFFERED_SAMPLES);
