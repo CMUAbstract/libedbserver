@@ -416,7 +416,7 @@ static void send_voltage(uint16_t voltage)
 
     UART_begin_transmission();
 
-    host_msg_payload[payload_len++] = voltage && 0xFF;
+    host_msg_payload[payload_len++] = voltage & 0xFF;
     host_msg_payload[payload_len++] = (voltage >> 8) & 0xFF;
 
     send_msg_to_host(USB_RSP_VOLTAGE, payload_len);
