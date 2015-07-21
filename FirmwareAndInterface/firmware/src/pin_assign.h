@@ -158,8 +158,5 @@
 /** @} End COMP_CHAN */
 
 #define DMA_HOST_UART_TX                        0
-#define DMA_ADC_VOLTAGES                        1 // has to be higher priority than timestamps
-                                                  // because we swap buffers on timestamp DMA completed
-#define DMA_ADC_TIMESTAMPS                      2
 
 #endif // PIN_ASSIGN_H

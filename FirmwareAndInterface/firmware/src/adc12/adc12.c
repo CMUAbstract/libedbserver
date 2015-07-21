@@ -16,7 +16,6 @@
 #include "uart.h"
 #include "config.h"
 #include "error.h"
-#include "dma.h"
 
 #define TIMER_DIV_BITS_INNER(div) ID__ ## div
 #define TIMER_DIV_BITS(div) TIMER_DIV_BITS_INNER(div)
@@ -64,8 +63,12 @@ static uint16_t * const sample_voltages_bufs[NUM_BUFFERS] = {
     (uint16_t *)&sample_msg_bufs[1][SAMPLE_VOLTAGES_OFFSET],
 };
 
+static unsigned num_samples[NUM_BUFFERS];
+static unsigned voltage_sample_offset;
 // volatile because main uses it to get the index of the ready buffer
 static volatile unsigned sample_buf_idx;
+static uint16_t *sample_timestamps_buf;
+static uint16_t *sample_voltages_buf;
 
 void ADC12_init(adc12_t *adc12)
 {
@@ -118,85 +121,24 @@ void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
         header = &sample_msg_bufs[i][UART_MSG_HEADER_SIZE];
         offset = 0;
         header[offset++] = streams_bitmask;
-        header[offset++] = NUM_BUFFERED_SAMPLES; // TODO: flushing last buffer, prob just throw it away
+        header[offset++] = 0; // filled in num events once buffer is ready
+
+        num_samples[i] = 0;
     }
+    voltage_sample_offset = 0;
     sample_buf_idx = 0;
-
-    // Common DMA config
-    DMACTL4 = DMARMWDIS; // TODO: move somewhere up the stack?
-
-    // DMA for ADC sample timestamps
-
-    DMA(DMA_ADC_TIMESTAMPS, CTL) &= ~DMAEN;
-
-#if 0
-#if DMA_ADC_TIMESTAMPS == 0
-    DMACTL0 = DMA0TSEL_24; /* ADC12IFG */
-#elif DMA_ADC_TIMESTAMPS == 1
-    DMACTL0 = DMA1TSEL_24;
-#elif DMA_ADC_TIMESTAMPS == 2
-    DMACTL1 = DMA2TSEL_24;
-#endif
-#endif
-
-    DMA(DMA_ADC_TIMESTAMPS, CTL) =
-          DMADT_4 /* repeated-single transfer */ |
-          DMADSTINCR_3 /* dest inc */ | DMASRCINCR_0 /* src no inc */ |
-          DMAIE; /* swap buffers on this interrupt */
-
-    DMA(DMA_ADC_TIMESTAMPS, SA) = (__DMA_ACCESS_REG__)&TA2R;
-    DMA(DMA_ADC_TIMESTAMPS, DA) = (__DMA_ACCESS_REG__)sample_timestamps_bufs[sample_buf_idx];
-    DMA(DMA_ADC_TIMESTAMPS, SZ) = NUM_BUFFERED_SAMPLES;
-
-    // DMA for ADC voltage samples
-
-    DMA(DMA_ADC_VOLTAGES, CTL) &= ~DMAEN;
-
-#if 0
-#if DMA_ADC_VOLTAGES == 0
-    DMACTL0 = DMA0TSEL_24; /* ADC12IFG */
-#elif DMA_ADC_VOLTAGES == 1
-    DMACTL0 = DMA1TSEL_24;
-#elif DMA_ADC_VOLTAGES == 2
-    DMACTL1 = DMA2TSEL_24;
-#endif
-#endif
-
-    DMA(DMA_ADC_VOLTAGES, CTL) =
-          DMADT_5 /* repeated-block transfer */ |
-          DMADSTINCR_3 /* dest inc */ | DMASRCINCR_3; /* src inc */
-
-    DMA(DMA_ADC_VOLTAGES, SA) = (__DMA_ACCESS_REG__)&ADC12MEM0;
-    DMA(DMA_ADC_VOLTAGES, DA) = (__DMA_ACCESS_REG__)sample_voltages_bufs[sample_buf_idx];
-    DMA(DMA_ADC_VOLTAGES, SZ) = adc12->config.num_channels; // size of the block
-
-    DMA(DMA_ADC_TIMESTAMPS, CTL) |= DMAEN;
-    DMA(DMA_ADC_VOLTAGES, CTL) |= DMAEN;
+    sample_timestamps_buf = sample_timestamps_bufs[sample_buf_idx];
+    sample_voltages_buf = sample_voltages_bufs[sample_buf_idx];
 
     ADC12CTL0 |= ADC12ENC; // launch: wait for trigger
-}
-
-void ADC12_swap_dma_buffers()
-{
-    sample_buf_idx ^= 1;
-
-    // Neither DMA channels should be running, since we're in completion ISR for
-    // the lowest priority channel of the two, and both share the same trigger. 
-    DMA(DMA_ADC_TIMESTAMPS, CTL) &= ~DMAEN;
-    //DMA(DMA_ADC_VOLTAGES, CTL) &= ~DMAEN;
-
-    DMA(DMA_ADC_TIMESTAMPS, DA) = (__DMA_ACCESS_REG__)sample_timestamps_bufs[sample_buf_idx];
-    //DMA(DMA_ADC_VOLTAGES, DA) = (__DMA_ACCESS_REG__)sample_voltages_bufs[sample_buf_idx];
-
-    DMA(DMA_ADC_TIMESTAMPS, CTL) |= DMAEN;
-    //DMA(DMA_ADC_VOLTAGES, CTL) |= DMAEN;
-
-    main_loop_flags |= FLAG_ADC12_COMPLETE;
 }
 
 void ADC12_send_samples_to_host(adc12_t *adc12)
 {
     unsigned ready_buf_idx = sample_buf_idx ^ 1; // the other one in the double-buffer pair
+
+    sample_msg_bufs[ready_buf_idx][UART_MSG_HEADER_SIZE + STREAM_DATA_STREAMS_BITMASK_LEN] =
+        num_samples[ready_buf_idx];
 
     UART_begin_transmission();
 
@@ -209,10 +151,12 @@ void ADC12_send_samples_to_host(adc12_t *adc12)
              * size of the timestamp section (i.e. timestamps section is fixed-width,
              * and only the (trailing) voltage section is variable-length). */
             SAMPLE_TIMESTAMPS_SIZE +
-            NUM_BUFFERED_SAMPLES * sizeof(uint16_t) * adc12->config.num_channels,
+            num_samples[ready_buf_idx] * sizeof(uint16_t) * adc12->config.num_channels,
             (uint8_t *)&sample_msg_bufs[ready_buf_idx][0]);
 
     UART_end_transmission();
+
+    num_samples[ready_buf_idx] = 0; // mark buffer as free
 }
 
 uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index)
@@ -292,6 +236,13 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 #error Compiler not supported!
 #endif
 {
+    uint16_t timestamp = TIMELOG_CURRENT_TIME();
+    unsigned current_num_samples = num_samples[sample_buf_idx];
+
+    ASSERT(ASSERT_ADC_BUFFER_OVERFLOW, current_num_samples < NUM_BUFFERED_SAMPLES);
+
+    sample_timestamps_buf[current_num_samples] = timestamp;
+
     switch(__even_in_range(ADC12IV,34))
     {
         case ADC12IV_NONE:                         // Vector  0:  No interrupt
@@ -300,26 +251,30 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
             ASSERT(ASSERT_ADC_FAULT, false);
 
         case ADC12IV_ADC12IFG0:                           // Vector  6:  ADC12IFG0
-        case ADC12IV_ADC12IFG1:                           // Vector  8:  ADC12IFG1
-        case ADC12IV_ADC12IFG2:                           // Vector 10:  ADC12IFG2
-        case ADC12IV_ADC12IFG3:                           // Vector 12:  ADC12IFG3
-        case ADC12IV_ADC12IFG4:                           // Vector 14:  ADC12IFG4
-            ADC12IFG = 0; // clear interrupt flags // TODO: DMA should do this
-
-            // TODO: why can't this trigger?
-            DMA(DMA_ADC_TIMESTAMPS, CTL) |= DMAREQ;
-            DMA(DMA_ADC_VOLTAGES, CTL) |= DMAREQ;
-
-            // This whole ISR only exists because the ADC does not seem to support
-            // a truly 'repeated' mode as opposed to 'continuous' mode. In the
-            // truly 'repeated' mode, it would take the one sequence of back-to-back
-            // samples per one trigger event. All we can do without the ISR is
-            // a 'continuous' mode where the first trigger just lets the ADC loose
-            // to take back-to-back samples forever.
-            // See here: https://e2e.ti.com/support/microcontrollers/msp430/f/166/t/439609
-            ADC12CTL0 |= ADC12ENC;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM0;
             break;
-
+        case ADC12IV_ADC12IFG1:                           // Vector  8:  ADC12IFG1
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM0;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM1;
+            break;
+        case ADC12IV_ADC12IFG2:                           // Vector 10:  ADC12IFG2
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM0;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM1;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM2;
+            break;
+        case ADC12IV_ADC12IFG3:                           // Vector 12:  ADC12IFG3
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM0;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM1;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM2;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM3;
+            break;
+        case ADC12IV_ADC12IFG4:                           // Vector 14:  ADC12IFG4
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM0;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM1;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM2;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM3;
+            sample_voltages_buf[voltage_sample_offset++] = ADC12MEM4;
+            break;
         case ADC12IV_ADC12IFG5:
         case ADC12IV_ADC12IFG6:
         case ADC12IV_ADC12IFG7:
@@ -333,6 +288,20 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
         default:
             ASSERT(ASSERT_UNEXPECTED_INTERRUPT, false);
     }
+
+    // If buffer is full, then swap to the other buffer in the double-buffer pair
+    if (++(num_samples[sample_buf_idx]) == NUM_BUFFERED_SAMPLES) {
+
+        sample_buf_idx ^= 1;
+        sample_timestamps_buf = sample_timestamps_bufs[sample_buf_idx];
+        sample_voltages_buf = sample_voltages_bufs[sample_buf_idx];
+
+        voltage_sample_offset = 0;
+
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
+    }
+
+    ADC12CTL0 |= ADC12ENC;
 }
 
 #if 0
