@@ -16,6 +16,7 @@
 #include "config.h"
 #include "error.h"
 #include "main_loop.h"
+#include "dma.h"
 
 #include "uart.h"
 
@@ -24,14 +25,6 @@
 
 #define BRF_BITS_INNER(brf) UCBRF_ ## brf
 #define BRF_BITS(brf) BRF_BITS_INNER(brf)
-
-#if defined(__TI_COMPILER_VERSION__)
-#define __DMA_ACCESS_REG__      __SFR_FARPTR
-#elif defined(__GNUC__)
-#define __DMA_ACCESS_REG__      uintptr_t
-#else
-#error Compiler not supported!
-#endif
 
 volatile unsigned host_uart_status = 0;
 
