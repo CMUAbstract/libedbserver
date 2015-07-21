@@ -58,7 +58,7 @@ $(EXEC): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LFLAGS) $^ -o $(EXEC)
 
 clean:
-	rm -f $(OBJECTS) $(EXEC)
+	rm -f $(OBJECTS) $(OBJECTS:.o=.d) $(EXEC)
 
 flash: $(EXEC)
 	mspdebug tilib "prog $(EXEC)"
