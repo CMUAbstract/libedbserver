@@ -100,7 +100,15 @@ uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index);
  */
 uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index);
 
+/**
+ * @brief Send the buffer with timestamps and voltage samples to the host via UART
+ */
 void ADC12_send_samples_to_host(adc12_t *adc12);
+
+/**
+ * @brief Exchange the buffer into which timestamp and voltage samples are DMAed
+ */
+void ADC12_swap_dma_buffers();
 
 /** @} end ADC12 */
 

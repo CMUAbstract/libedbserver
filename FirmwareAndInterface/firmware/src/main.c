@@ -1663,7 +1663,10 @@ void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
 {
     switch (__even_in_range(DMAIV, 16)) {
         case DMA_INTFLAG(DMA_HOST_UART_TX):
-               host_uart_status &= ~UART_STATUS_TX_BUSY;
+            host_uart_status &= ~UART_STATUS_TX_BUSY;
+            break;
+        case DMA_INTFLAG(DMA_ADC_TIMESTAMPS):
+            ADC12_swap_dma_buffers();
             break;
     }
 }
