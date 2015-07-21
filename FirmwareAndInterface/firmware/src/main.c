@@ -916,9 +916,8 @@ int main(void)
 
     UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
 
-    // TODO: enable the RFID decoding only when the stream is requested
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-    RFID_setup();
+    RFID_init();
 #endif
 
     ADC12_init(&adc12);
@@ -999,7 +998,7 @@ int main(void)
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if(main_loop_flags & FLAG_RF_DATA) {
         	main_loop_flags &= ~FLAG_RF_DATA;
-            RFID_send_ready_rf_events_buf();
+            RFID_send_rf_events_to_host();
         }
 #endif
 

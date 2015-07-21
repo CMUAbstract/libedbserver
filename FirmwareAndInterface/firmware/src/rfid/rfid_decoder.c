@@ -72,7 +72,10 @@ void rfid_decoder_init(rfid_cmd_handler_t *rfid_cmd_handler_cb,
     rfid_rsp_handler = rfid_rsp_handler_cb;
 
     ASSERT(ASSERT_INVALID_RFID_CMD_HANDLER, rfid_cmd_handler);
+}
 
+void rfid_decoder_start()
+{
     GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_TX); // tx pin in GPIO function
     GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_TX); // input direction
 
@@ -96,10 +99,7 @@ void rfid_decoder_init(rfid_cmd_handler_t *rfid_cmd_handler_cb,
     GPIO(PORT_RFID_DEC_STATE, DIR) |=
         BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2);
 #endif
-}
 
-void rfid_decoder_start()
-{
     set_rx_decoder_state(RX_DEC_STATE_IDLE);
     prev_rx_edge_timestamp = 0;
 
@@ -107,7 +107,6 @@ void rfid_decoder_start()
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) &= ~CCIFG;
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) |= CCIE;
     TIMER(TIMER_RF_RX_DECODE, CTL) |= TASSEL__SMCLK | MC__CONTINUOUS | TACLR;
-
 
 #ifdef CONFIG_ENABLE_RF_TX_DECODING
 	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear Tx interrupt flag
@@ -124,6 +123,16 @@ void rfid_decoder_stop()
 
 	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
 	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear interrupt flag
+
+    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_RX); // back to GPIO input
+
+    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_TX); // tx pin in GPIO function
+    GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_TX); // input direction
+
+#ifdef CONFIG_RFID_DECODER_STATE_PINS
+    GPIO(PORT_RFID_DEC_STATE, DIR) &=
+        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2));
+#endif
 }
 
 static inline void reset_cmd_dec_state()
@@ -232,6 +241,8 @@ static inline void receive_data_bit(unsigned data_bit)
                         case RFID_CMD_QUERYREP:
                         case RFID_CMD_ACK:
                             goto rx_cmd_code_decoded;
+                        default:
+                            break;
                     }
                     break;
                 case 4:
@@ -240,6 +251,8 @@ static inline void receive_data_bit(unsigned data_bit)
                         case RFID_CMD_QUERYADJUST:
                         case RFID_CMD_SELECT:
                             goto rx_cmd_code_decoded;
+                        default:
+                            break;
                     }
                     break;
                 case 8:
@@ -273,6 +286,8 @@ static inline void receive_data_bit(unsigned data_bit)
         case RX_CMD_STATE_PAYLOAD:
             receive_payload_bit(data_bit);
 #endif
+        default:
+            ASSERT(ASSERT_CORRUPT_STATE, false);
     }
     return;
 

@@ -30,7 +30,7 @@
  */
 
 #define NUM_BUFFERS                                  2 // double-buffer pair
-#define NUM_EVENTS_BUFFERED                         48
+#define NUM_EVENTS_BUFFERED                         16
 
 #define RF_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_PAYLOAD_SPACE NUM_EVENTS_BUFFERED // units of sizeof(rf_event_t)
@@ -107,10 +107,9 @@ static void append_event(rf_event_type_t id)
         rf_events_buf_idx ^= 0x1;
         rf_events_buf = rf_events_bufs[rf_events_buf_idx];
 
-        ASSERT(ASSERT_RF_EVENTS_BUF_OVERFLOW, rf_events_count[rf_events_buf_idx] == 0);
+        main_loop_flags |= FLAG_RF_DATA;
     }
 
-    main_loop_flags |= FLAG_RF_DATA;
 }
 
 static inline void handle_rfid_cmd(rfid_cmd_code_t cmd_code)
@@ -140,11 +139,10 @@ static inline void handle_rfid_rsp(rfid_rsp_code_t rsp_code)
  *          The disadvantage of the former approach is that we will end up
  *          doing a lot of buffer switches.
  */
-static inline void send_rf_events_buf_host(unsigned ready_events_buf_idx)
+void RFID_send_rf_events_to_host()
 {
-    unsigned next_rf_events_buf_idx;
     unsigned ready_events_count;
-    rf_event_t *next_rf_events_buf;
+    unsigned ready_events_buf_idx = rf_events_buf_idx ^ 1; // the other one in the pair
 
     ready_events_count = rf_events_count[ready_events_buf_idx];
 
@@ -161,17 +159,7 @@ static inline void send_rf_events_buf_host(unsigned ready_events_buf_idx)
     rf_events_count[ready_events_buf_idx] = 0; // mark buffer as free
 }
 
-static inline void RFID_flush_rf_events_buf()
-{
-    send_rf_events_buf_host(rf_events_buf_idx);
-}
-
-void RFID_send_ready_rf_events_buf()
-{
-    send_rf_events_buf_host(rf_events_buf_idx ^ rf_events_buf_idx);
-}
-
-void RFID_setup()
+void RFID_init()
 {
     unsigned i;
     unsigned offset;
@@ -179,7 +167,8 @@ void RFID_setup()
 
     // Initialize message header
     for (i = 0; i < NUM_BUFFERS; ++i) {
-        header = (uint8_t *)&rf_events_msg_bufs[i][0] + RF_EVENT_BUF_HEADER_OFFSET;
+        header = (uint8_t *)&rf_events_msg_bufs[i][0] +
+                    UART_MSG_HEADER_SIZE + RF_EVENT_BUF_HEADER_OFFSET;
         offset = 0;
         header[offset++] = STREAM_RF_EVENTS;
         header[offset++] = 0; // padding
@@ -202,7 +191,6 @@ void RFID_start_event_stream()
 void RFID_stop_event_stream()
 {
     rfid_decoder_stop();
-    RFID_flush_rf_events_buf();
 }
 
 #else
