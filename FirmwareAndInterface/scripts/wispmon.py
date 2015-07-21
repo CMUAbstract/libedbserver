@@ -349,17 +349,22 @@ class WispMonitor:
             self.stream_bytes += len(newData)
         return None
 
-    def receive_reply(self, descriptor):
+    def receive_reply(self, descriptors):
+        # Be compatible with legacy code
+        if not hasattr(descriptors, "__iter__"):
+            descriptors = [descriptors]
         reply = None
         while reply is None:
             while reply is None:
                 reply = self.receive()
-            if reply["descriptor"] != descriptor:
+            reply_descriptor = reply["descriptor"]
+            if reply_descriptor not in descriptors:
                 print >>sys.stderr, "unexpected reply: ", \
-                        "0x%02x" % reply["descriptor"], "(exp ", "0x%02x" % descriptor, ")"
+                        "0x%02x" % reply["descriptor"], \
+                        "(exp [", ",".join(map(lambda d: "0x%02x" % d, descriptors)), "])"
                 reply = None
                 continue
-        if descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
+        if reply_descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
             if reply["code"] != 0:
                 raise Exception("Command failed: return code " + ("0x%02x" % reply["code"]))
         return reply
