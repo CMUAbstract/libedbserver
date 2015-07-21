@@ -5,12 +5,14 @@
  * @brief       Functions for WISP power monitoring.
  ******************************************************************************/
 
-#ifdef CONFIG_PWM_CHARGING
-
 #include <msp430.h>
 #include <stdint.h>
-#include "pwm.h"
 #include "pin_assign.h"
+#include "config.h"
+
+#include "pwm.h"
+
+#ifdef CONFIG_PWM_CHARGING
 
 void PWM_setup(uint16_t period, uint16_t duty_cycle)
 {

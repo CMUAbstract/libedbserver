@@ -1,14 +1,15 @@
-#if CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "config.h"
 #include "pin_assign.h"
 #include "error.h"
 #include "rfid_protocol.h"
 
 #include "rfid_decoder.h"
+
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
 #define NS_TO_CYCLES(t) (t * CONFIG_DCOCLKDIV_FREQ / 1000000000UL)
 

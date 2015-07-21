@@ -1,5 +1,3 @@
-#if CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-
 /*******************************************************************************
  * @file
  * @brief           Monitoring of WISP RFID communication and reporting to host
@@ -8,6 +6,7 @@
 #include <msp430.h>
 #include <stdint.h>
 
+#include "config.h"
 #include "pin_assign.h"
 #include "timeLog.h"
 #include "uart.h"
@@ -17,6 +16,8 @@
 #include "main_loop.h"
 
 #include "rfid.h"
+
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
 /*Buffer structure:
  *  [ empty_space | header | rf_event_t #1 | rf_event_t #2 | ... | rf_event_t #n ]
