@@ -50,7 +50,8 @@ plot_grid = (6, 1)
 voltage_axes = plt.subplot2grid(plot_grid, (0, 0), rowspan=plot_grid[0] - 1)
 rf_axes = plt.subplot2grid(plot_grid, (plot_grid[0] - 1, 0))
 
-for voltage_column in filter(lambda c: c.startswith('V'), d.columns):
+voltage_columns = filter(lambda c: c.startswith('V'), d.columns)
+for voltage_column in voltage_columns:
 	voltage_axes.plot(d[TIME_COLUMN], d[voltage_column], '-', label=voltage_column)
 
 voltage_axes.grid(True)
@@ -65,7 +66,8 @@ rf_axes.set_yticklabels(ordered_events)
 for tick in rf_axes.yaxis.get_major_ticks():
 	tick.label.set_fontsize(8)
 
-rf_axes.set_xlim(voltage_axes.get_xlim())
+if len(voltage_columns) > 0:
+	rf_axes.set_xlim(voltage_axes.get_xlim())
 rf_axes.set_ylim([0, len(ordered_events) + EVENT_LABELS_MARGIN])
 
 rf_axes.set_xlabel('Time (sec)')
