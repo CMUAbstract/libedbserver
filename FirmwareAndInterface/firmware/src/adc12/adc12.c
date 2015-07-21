@@ -10,6 +10,14 @@
 #include "adc12.h"
 #include "timeLog.h"
 #include "pin_assign.h"
+#include "main_loop.h"
+#include "config.h"
+
+#define TIMER_DIV_BITS_INNER(div) ID__ ## div
+#define TIMER_DIV_BITS(div) TIMER_DIV_BITS_INNER(div)
+
+#define TIMER_B_CLK_SOURCE_BITS_INNER(name) TBSSEL__ ## name
+#define TIMER_B_CLK_SOURCE_BITS(name) TIMER_B_CLK_SOURCE_BITS_INNER(name)
 
 static adc12_t *_pAdc12;
 
@@ -22,7 +30,7 @@ void ADC12_init(adc12_t *adc12)
         adc12->indexes[i] = -1;
 }
 
-void ADC12_arm(adc12_t *adc12)
+void ADC12_setup(adc12_t *adc12)
 {
     _pAdc12 = adc12;
 
@@ -30,7 +38,9 @@ void ADC12_arm(adc12_t *adc12)
 
     // sequence of channels, single conversion
     ADC12CTL0 = ADC12SHT0_2 + ADC12ON + ADC12MSC; // sampling time, ADC12 on, multiple sample conversion
-    ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1; // use sampling timer, sequence of channels, single-conversion
+
+    // use sampling timer, sequence of channels, repeat-conversion, trigger from Timer B CCR1
+    ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1 + ADC12SHS_3;
 
     // set ADC memory control registers
     volatile uint8_t *adc12mctl_registers[5] = { &ADC12MCTL0,
@@ -38,20 +48,33 @@ void ADC12_arm(adc12_t *adc12)
                                                  &ADC12MCTL2,
                                                  &ADC12MCTL3,
                                                  &ADC12MCTL4 };
-    uint8_t i;
+    unsigned i;
     for(i = 0; i < _pAdc12->config.num_channels; i++) {
         uint16_t chan_index = adc12->config.channels[i];
         *(adc12mctl_registers[i]) = adc12->config.channel_masks[chan_index];
     }
-    uint8_t last_channel_index = _pAdc12->config.num_channels - 1;
+    unsigned last_channel_index = _pAdc12->config.num_channels - 1;
     *(adc12mctl_registers[last_channel_index]) |= ADC12EOS;
 
+    ADC12IFG = 0; // clear int flags
     ADC12IE = (0x0001 << last_channel_index); // enable interupt on last sample
 
-    ADC12CTL0 |= ADC12ENC; // enable ADC
+    uint16_t period = adc12->config.sampling_period;
+    TB0CCR0 = period; // period (toggle mode doubles the period)
+    TB0CCR1 = period - 2; // period (toggle mode doubles the period)
+    TB0CCTL1 = OUTMOD_3; // set/reset output mode
+    TB0CTL = TIMER_B_CLK_SOURCE_BITS(CONFIG_ADC_TIMER_SOURCE_NAME) |
+             TIMER_DIV_BITS(CONFIG_ADC_TIMER_DIV) |
+             MC__UP | TBCLR;
 }
 
-uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index)
+void ADC12_arm()
+{
+    //ADC12CTL0 &= ~ADC12ENC;
+    ADC12CTL0 |= ADC12ENC;
+}
+
+uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index)
 {
     ADC12CTL0 &= ~ADC12ENC; // disable ADC
 
@@ -67,7 +90,7 @@ uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index)
     return ADC12MEM0;
 }
 
-void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index)
+void ADC12_addChannel(adc12_t *adc12, unsigned chan_index)
 {
     // the results index corresponds to the index in the channels array
 
@@ -75,7 +98,7 @@ void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index)
     adc12->indexes[chan_index] = adc12->config.num_channels++;
 }
 
-void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index)
+void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index)
 {
     // note that chan_index is also the corresponding
     // index in the channels array
@@ -87,7 +110,7 @@ void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index)
         // We're removing this channel, but it wasn't the last channel
         // configured.  We need to move the other channels in the channels
         // array so there are no missing channels in the array.
-        uint8_t i;
+        unsigned i;
         for(i = adc12->indexes[chan_index] + 1; i < adc12->config.num_channels + 1; i++) {
             adc12->config.channels[i - 1] = adc12->config.channels[i];
         }
@@ -119,7 +142,6 @@ uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index)
     return adc12->results[adc12->indexes[chan_index]];
 }
 
-
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector = ADC12_VECTOR
 __interrupt void ADC12_ISR(void)
@@ -129,7 +151,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 #error Compiler not supported!
 #endif
 {
-	_pAdc12->timeComplete = TIMELOG_CURRENT_TIME;
+	_pAdc12->timeComplete = TIMELOG_CURRENT_TIME();
 
     switch(__even_in_range(ADC12IV,34))
     {
@@ -137,29 +159,29 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
     case ADC12IV_ADC12OVIFG: return;                  // Vector  2:  ADC overflow
     case ADC12IV_ADC12TOVIFG: return;                 // Vector  4:  ADC timing overflow
     case ADC12IV_ADC12IFG0:                           // Vector  6:  ADC12IFG0
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         return;
     case ADC12IV_ADC12IFG1:                           // Vector  8:  ADC12IFG1
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         return;
     case ADC12IV_ADC12IFG2:                           // Vector 10:  ADC12IFG2
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         _pAdc12->results[2] = ADC12MEM2;
         return;
     case ADC12IV_ADC12IFG3:                           // Vector 12:  ADC12IFG3
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         _pAdc12->results[2] = ADC12MEM2;
         _pAdc12->results[3] = ADC12MEM3;
         return;
     case ADC12IV_ADC12IFG4:                           // Vector 14:  ADC12IFG4
-        *(_pAdc12->pFlags) |= _pAdc12->flag_adc12Complete; // alert main loop
+        main_loop_flags |= FLAG_ADC12_COMPLETE;
         _pAdc12->results[0] = ADC12MEM0;
         _pAdc12->results[1] = ADC12MEM1;
         _pAdc12->results[2] = ADC12MEM2;
@@ -179,3 +201,19 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
     default: return;
     }
 }
+
+#if 0
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=TIMER0_B1_VECTOR
+__interrupt void UNHANDLED_ISR_TIMER0_B1(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(TIMER0_B1_VECTOR))) UNHANDLED_ISR_TIMER0_B1(void)
+#else
+#error Compiler not supported!
+#endif
+{
+    _pAdc12->results[0] = 0xbeef;
+    main_loop_flags |= FLAG_ADC12_COMPLETE;
+    TB0CCTL1 &= ~CCIFG;
+}
+#endif

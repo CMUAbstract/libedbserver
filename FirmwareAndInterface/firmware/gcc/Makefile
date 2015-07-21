@@ -14,6 +14,7 @@ CFLAGS = \
 	-g \
 	-std=c99 \
 	-pedantic \
+	-Wall \
 	-I $(TOOLCHAIN_ROOT)/include \
 	-I $(LIBDEBUG_ROOT)/src/include \
 	-I $(SRC_DIR) \
@@ -23,7 +24,8 @@ CFLAGS = \
 	-I $(SRC_DIR)/timers \
 	-I $(SRC_DIR)/uart \
 	-I $(SRC_DIR)/i2c \
-	-I $(SRC_DIR)/ucs \
+	-I $(SRC_DIR)/rfid \
+	-I $(SRC_DIR)/mspware \
 
 LFLAGS = -L $(TOOLCHAIN_ROOT)/include
 
@@ -32,9 +34,9 @@ VPATH = $(SRC_DIR)
 EXEC = monitor
 
 OBJECTS = \
+	catchall.o \
 	main.o \
 	error.o \
-	ucs/ucs.o \
 	uart/uart.o \
 	i2c/i2c.o \
 	timers/pwm.o \
@@ -42,10 +44,15 @@ OBJECTS = \
 	rfid/rfid.o \
 	rfid/rfid_decoder.o \
 	adc12/adc12.o \
+	mspware/pmm.o \
+
+all: $(EXEC)
+
+-include $(OBJECTS:.o=.d)
 
 %.o: %.c
 	mkdir -p "./$(shell dirname $@)"
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c -MD $(CFLAGS) $< -o $@
 
 $(EXEC): $(OBJECTS)
 	$(CC) $(CFLAGS) $(LFLAGS) $^ -o $(EXEC)

@@ -19,6 +19,15 @@
 #define TIMERA_INTFLAG_INNER(id, ccridx) T ## id ## IV_ ## TACCR ## ccridx
 #define TIMERA_INTFLAG(id, ccridx) TIMERA_INTFLAG_INNER(id, ccridx)
 
+#define UART_INNER(name, reg) UC ## name ## reg
+#define UART(name, reg) UART_INNER(name, reg)
+
+#define DMA_INNER(name, reg) DMA ## name ## reg
+#define DMA(name, reg) DMA_INNER(name, reg)
+
+#define DMA_INTFLAG_INNER(name) DMAIV_DMA ## name ## IFG
+#define DMA_INTFLAG(name) DMA_INTFLAG_INNER(name)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
@@ -112,6 +121,9 @@
 #define PIN_I2C_TARGET_SDA                      1 //!< target I2C SDA line
 #define PIN_I2C_TARGET_SCL                      2 //!< target I2C SCL line
 
+#define UART_HOST                               A0
+#define UART_TARGET                             A1
+
 // TODO: warning: timer shared with voltage logging code
 // NOTE: if changed, the ISR in main.c must also be changed
 #define TIMER_SIG_SERIAL_DECODE                 A2
@@ -144,5 +156,7 @@
 #define COMP_CHAN_VRECT                         4
 #define COMP_CHAN_VINJ                          5
 /** @} End COMP_CHAN */
+
+#define DMA_HOST_UART_TX                        0
 
 #endif // PIN_ASSIGN_H

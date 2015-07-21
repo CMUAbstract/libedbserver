@@ -1,3 +1,5 @@
+#if CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -53,7 +55,7 @@ static uint16_t rx_rt_cal;
 static uint16_t rx_pivot;
 
 /** @brief Index of the next bit of the command code to be decode */
-static uint8_t rx_cmd_code_bit_idx;
+static unsigned rx_cmd_code_bit_idx;
 
 /** @brief Code of the RFID command that is being decoded */
 static rfid_cmd_code_t rx_cmd_code;
@@ -154,15 +156,16 @@ static inline void reset_rx_dec_state()
 }
 
 
-static inline void receive_cmd_bit(bool data_bit)
+#if CONFIG_DECODE_RFID_CMD_PAYLOAD
+static inline void receive_payload_bit(bool data_bit)
 {
-// TODO: there's absolutely no way this can happen on the debugger board,
-// the most we can do is collect bytes and ship them out. Even parsing
-// the command is optional, but seems to be efficient, because if we
-// don't parse the command code on the debuger then we wouldn't be able
-// to enqueue a packet to the host until way later (next command?)
-// since there's no delimiter for end-of-command. With parsing on-board,
-// we are able to report the command as soon as it is ready.
+    // TODO: there's absolutely no way fields can be decoded on the debugger board,
+    // the most we can do is packetize the raw bitstream and relay it to the host.
+    // Even parsing the command is optional, but seems to be efficient, because
+    // if we don't parse the command code on the debuger then we wouldn't be
+    // able to enqueue a packet to the host until way later (next command?)
+    // since there's no delimiter for end-of-command. With parsing on-board, we
+    // are able to report the command as soon as it is ready.
 
 #if 0 // TODO: field decoding code would go something like this:
     cmd_desc = &rx_cmd_desc_query_rep;
@@ -187,12 +190,11 @@ static inline void receive_cmd_bit(bool data_bit)
         rfid_cmd_handler(rx_cmd); // TODO: might involve copying the data into event buf,
                             // but could be done copy-free if alloced in event buf
     }
-#else // TODO: as a first cut, decode only command codes
-    rfid_cmd_handler(rx_cmd_code);
 #endif
 }
+#endif
 
-static inline void receive_data_bit(uint8_t data_bit)
+static inline void receive_data_bit(unsigned data_bit)
 {
     // Command code is a prefix-code encoding, so we just shift bits
     // until a valid value matches.
@@ -208,7 +210,7 @@ static inline void receive_data_bit(uint8_t data_bit)
 #if C_COMPILER_WERE_NICE_TO_US
             rx_cmd_code |= data_bit >> rx_cmd_code_bit_idx++;
 #else
-            uint8_t shifted_bit = data_bit;
+            unsigned shifted_bit = data_bit;
             if (rx_cmd_code_bit_idx == 1) { // can't rpt 0 or 1 times
                 shifted_bit >>= 1;
             } else if (rx_cmd_code_bit_idx > 1) {
@@ -229,8 +231,7 @@ static inline void receive_data_bit(uint8_t data_bit)
                     switch (rx_cmd_code) {
                         case RFID_CMD_QUERYREP:
                         case RFID_CMD_ACK:
-                            rx_cmd_state = RX_CMD_STATE_PAYLOAD;
-                            break;
+                            goto rx_cmd_code_decoded;
                     }
                     break;
                 case 4:
@@ -238,8 +239,7 @@ static inline void receive_data_bit(uint8_t data_bit)
                         case RFID_CMD_QUERY:
                         case RFID_CMD_QUERYADJUST:
                         case RFID_CMD_SELECT:
-                            rx_cmd_state = RX_CMD_STATE_PAYLOAD;
-                            break;
+                            goto rx_cmd_code_decoded;
                     }
                     break;
                 case 8:
@@ -260,8 +260,7 @@ static inline void receive_data_bit(uint8_t data_bit)
                         case RFID_CMD_AUTHENTICATE:
                         case RFID_CMD_SECURECOMM:
                         case RFID_CMD_AUTHCOMM:
-                            rx_cmd_state = RX_CMD_STATE_PAYLOAD;
-                            break;
+                            goto rx_cmd_code_decoded;
                         default: // we don't support commands of >8 bits
                             reset_cmd_dec_state();
                             break;
@@ -270,14 +269,36 @@ static inline void receive_data_bit(uint8_t data_bit)
             }
             break;
         }
+#if CONFIG_DECODE_RFID_CMD_PAYLOAD
         case RX_CMD_STATE_PAYLOAD:
-            receive_cmd_bit(data_bit);
+            receive_payload_bit(data_bit);
+#endif
     }
+    return;
+
+rx_cmd_code_decoded:
+#if CONFIG_DECODE_RFID_CMD_PAYLOAD
+    rx_cmd_state = RX_CMD_STATE_PAYLOAD;
+#else
+
+    // For now, we only decode the cmd code and declare message decoding
+    // to be over. The rest of the edges will go by causing harmless
+    // failed attempts to decode the preamble out of them. Eventually,
+    // the plan is to decode all bits in a message (fixed messages are
+    // straightforward but variable-length messages need at least the
+    // length field decoded on the host. An alternative is to packetize
+    // the raw bitstream and relay it to host -- the problem is that
+    // the end of the message is only known by a decoder failure, instead
+    // of being a clean length comparison.
+
+    rfid_cmd_handler(rx_cmd_code);
+    reset_rx_dec_state();
+#endif
 }
 
 static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
 {
-    uint8_t data_bit;
+    unsigned data_bit;
     uint16_t interval;
 
     interval = rx_edge_timestamp - prev_rx_edge_timestamp;
@@ -372,17 +393,17 @@ static inline void handle_rf_rx_edge(uint16_t rx_edge_timestamp)
 
     case_RX_DEC_STATE_DATA:
         // This is on very hot path, so skip the check
-        //if (NS_TO_CYCLES(RFID_DATA_MIN(rx_tari)) <= interval &&
-        //    interval < NS_TO_CYCLES(RFID_DATA_MAX(rx_tari))) {
+        if (NS_TO_CYCLES(RFID_DATA_MIN(rx_tari)) <= interval &&
+            interval < NS_TO_CYCLES(RFID_DATA_MAX(rx_tari))) {
 
             // shift the bit from left to right, because this means fewer
             // shifts on average because most frequent comands have short codes
             data_bit = interval > rx_pivot ? 0x80 : 0x00;
             receive_data_bit(data_bit);
 
-        //} else {
-        //    goto fail;
-        //}
+        } else {
+            goto fail;
+        }
         return;
 
     // TODO: record specific failure event in event buf; although, maybe not, because
@@ -406,7 +427,7 @@ static inline void signal_enter_rx_isr()
 static inline void signal_exit_rx_isr()
 {
     // Encode state onto pins: shows both ISR exit event and state
-    uint8_t state_pins;
+    unsigned state_pins;
 
 #if C_COMPILER_WERE_NICE_TO_US
     state_pins = (rx_dec_state >> 1) << PIN_RFID_RX_DEC_STATE_0; // rigth-shift is div by 2
@@ -517,3 +538,6 @@ void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
 	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
 }
 
+#else
+unsigned __dummy_rfid_decoder_c; // silence 'empty translation unit' warning
+#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING

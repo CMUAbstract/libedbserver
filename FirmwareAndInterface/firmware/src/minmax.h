@@ -8,14 +8,11 @@
 #ifndef MINMAX_H
 #define MINMAX_H
 
-// type safe MIN, MAX from http://stackoverflow.com/questions/3437404/min-and-max-in-c
-#define MIN(a, b) \
-    ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-       _a < _b ? _a : _b; })
-#define MAX(a, b) \
-    ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-       _a > _b ? _a : _b; })
+static inline uint16_t MIN(uint16_t a, uint16_t b) {
+    return a < b ? a : b;
+}
+static inline uint16_t MAX(uint16_t a, uint16_t b) {
+    return a > b ? a : b;
+}
 
 #endif // MINMAX_H

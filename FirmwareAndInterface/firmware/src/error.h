@@ -12,12 +12,21 @@ typedef enum {
 } error_t;
 
 typedef enum {
-    ASSERT_INVALID_STREAM_DATA_LEN                = 1,
-    ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 2,
-    ASSERT_HOST_MSG_BUF_OVERFLOW                  = 3,
-    ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 4,
-    ASSERT_INVALID_RFID_DECODER_STATE             = 5,
-    ASSERT_INVALID_RFID_CMD_HANDLER               = 6,
+    ASSERT_SET_CORE_VOLTAGE_FAILED                = 0, // won't show up as 1 Hz (freq not yet set)
+    ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 1,
+    ASSERT_HOST_MSG_BUF_OVERFLOW                  = 2,
+    ASSERT_RF_RX_DECODE_TIMER_CAPTURE_OVERFLOW    = 3,
+    ASSERT_INVALID_RFID_DECODER_STATE             = 4,
+    ASSERT_INVALID_RFID_CMD_HANDLER               = 5,
+    ASSERT_UART_ERROR_GENERIC                     = 6,
+    ASSERT_UART_ERROR_OVERFLOW                    = 7,
+    ASSERT_UART_ERROR_CIRC_BUF_HEAD               = 8,
+    ASSERT_UART_ERROR_CIRC_BUF_TAIL               = 9,
+    ASSERT_UART_ERROR_RX_PKT_LEN                  = 10,
+    ASSERT_INVALID_STREAM_BUF_HEADER              = 11,
+    ASSERT_INVALID_PAYLOAD                        = 12,
+    ASSERT_UNHANDLED_INTERRUPT                    = 13,
+    ASSERT_CORRUPT_STATE                          = 14,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely
@@ -32,6 +41,10 @@ typedef enum {
 /* @brief Report and handle error */
 void error(error_t num);
 
-#define ASSERT(idx, cond) if (!(cond)) BLINK_LOOP(PIN_LED_RED, 400000 * (idx));
+#define ASSERT(idx, cond) \
+    if (!(cond)) { \
+        GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
+        BLINK_LOOP(PIN_LED_GREEN, (CONFIG_MCLK_FREQ >> 1) >> (idx)); \
+    }
 
 #endif

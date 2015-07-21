@@ -15,25 +15,35 @@
 #include "pin_assign.h"
 #include "config.h"
 #include "error.h"
+#include "main_loop.h"
 
 #include "uart.h"
 
 #define BRS_BITS_INNER(brs) UCBRS_ ## brs
 #define BRS_BITS(brs) BRS_BITS_INNER(brs)
 
-// Buffer and len available to all modules that may send over UART
-uint8_t host_msg_buf[UART_PKT_MAX_DATA_LEN];
-uint8_t host_msg_len;
+#define BRF_BITS_INNER(brf) UCBRF_ ## brf
+#define BRF_BITS(brf) BRF_BITS_INNER(brf)
 
-static uint16_t *pUSBFlags;
-static uint16_t *pWISPFlags;
-static uint16_t USBRxFlag, USBTxFlag;
-static uint16_t WISPRxFlag, WISPTxFlag;
+#if defined(__TI_COMPILER_VERSION__)
+#define __DMA_ACCESS_REG__      __SFR_FARPTR
+#elif defined(__GNUC__)
+#define __DMA_ACCESS_REG__      uintptr_t
+#else
+#error Compiler not supported!
+#endif
+
+typedef enum {
+    UART_STATUS_TX_BUSY = 0x01,
+    UART_STATUS_RX_BUSY = 0x02,
+} uart_status_t;
+
+volatile unsigned host_uart_status = 0;
 
 static uartBuf_t usbRx = { .head = 0, .tail = 0 };
-static uartBuf_t usbTx = { .head = 0, .tail = 0 };
 static uartBuf_t wispRx = { .head = 0, .tail = 0 };
 static uartBuf_t wispTx = { .head = 0, .tail = 0 };
+
 
 static uint8_t msg[UART_BUF_MAX_LEN];
 
@@ -42,24 +52,20 @@ static uint8_t msg[UART_BUF_MAX_LEN];
  * @param       buf        Pointer to the circular buffer
  * @return      Length of the buffer
  */
-static inline uint8_t uartBuf_len(uartBuf_t *buf) {
-    int16_t diff = buf->tail - buf->head;
+static inline unsigned uartBuf_len(uartBuf_t *buf) {
+    int diff = buf->tail - buf->head;
     if(diff >= 0) {
-        return (uint8_t) diff;
+        return diff;
     } else {
-        return (uint8_t)(diff + UART_BUF_MAX_LEN_WITH_TAIL);
+        return (diff + UART_BUF_MAX_LEN_WITH_TAIL);
     }
 }
 
-void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint16_t txFlag)
+void UART_setup(unsigned interface)
 {
     switch(interface)
     {
     case UART_INTERFACE_USB:
-        pUSBFlags = flag_bitmask;
-        USBRxFlag = rxFlag;
-        USBTxFlag = txFlag;
-
         // USCI_A0 option select
         GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
 
@@ -71,17 +77,46 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
 
         UCA0BR0 = CONFIG_USB_UART_BAUDRATE_BR0;
         UCA0BR1 = CONFIG_USB_UART_BAUDRATE_BR1;
-        UCA0MCTL |= BRS_BITS(CONFIG_USB_UART_BAUDRATE_BRS);
+        UCA0MCTL |= 0
+#ifdef CONFIG_USB_UART_BAUDRATE_UCOS16
+            | UCOS16
+#endif
+#ifdef CONFIG_USB_UART_BAUDRATE_BRS
+            | BRS_BITS(CONFIG_USB_UART_BAUDRATE_BRS)
+#endif
+#ifdef CONFIG_USB_UART_BAUDRATE_BRF
+            | BRF_BITS(CONFIG_USB_UART_BAUDRATE_BRF)
+#endif
+       ;
+
+        // TX DMA
+
+        DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN;
+
+#if DMA_HOST_UART_TX == 0
+        DMACTL0 = DMA0TSEL_17; /* USCA0 tx */
+#elif DMA_HOST_UART_TX == 1
+        DMACTL0 = DMA1TSEL_17; /* USCA0 tx */
+#elif DMA_HOST_UART_TX == 2
+        DMACTL1 = DMA2TSEL_17; /* USCA0 tx */
+#endif
+
+        DMACTL4 = DMARMWDIS;
+
+        DMA(DMA_HOST_UART_TX, CTL) =
+              DMADT_0 /* single */ |
+              DMADSTINCR_0 /* dest no inc */ | DMASRCINCR_3 /* src inc */ |
+              DMADSTBYTE | DMASRCBYTE | DMALEVEL | DMAIE;
+
+        // DMA(DMA_HOST_UART_TX, SA) = set on each transfer
+        DMA(DMA_HOST_UART_TX, DA) = (__DMA_ACCESS_REG__)(&UCA0TXBUF);
+        // DMA(DMA_HOST_UART_TX, SZ) = set on each transfer
 
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
         break;
 
     case UART_INTERFACE_WISP:
-        pWISPFlags = flag_bitmask;
-        WISPRxFlag = rxFlag;
-        WISPTxFlag = txFlag;
-
         // USCI_A1 option select
         GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
 
@@ -101,7 +136,7 @@ void UART_setup(uint8_t interface, uint16_t *flag_bitmask, uint16_t rxFlag, uint
     }
 } // UART_setup
 
-void UART_teardown(uint8_t interface)
+void UART_teardown(unsigned interface)
 {
     // Put pins into High-Z state
     switch(interface)
@@ -133,56 +168,7 @@ void UART_teardown(uint8_t interface)
     }
 }
 
-void UART_blockBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
-{
-	volatile uint8_t *pUCAXIE;
-	uartBuf_t *uartBuf;
-    uint8_t uartBufLen, copyLen;
-
-    if(interface == UART_INTERFACE_USB) {
-    	uartBuf = &usbTx;
-    	pUCAXIE = &UCA0IE;
-    } else if(interface == UART_INTERFACE_WISP) {
-    	uartBuf = &wispTx;
-    	pUCAXIE = &UCA1IE;
-    }
-
-	// loop until we have copied all of buf into the UART TX buffer
-	while(len > 0) {
-		uartBufLen = uartBuf_len(uartBuf);
-		copyLen = MIN(UART_BUF_MAX_LEN - uartBufLen, len);
-		uartBuf_copyTo(uartBuf, buf, copyLen);
-		buf += copyLen;
-		len -= copyLen;
-	}
-
-    // enable the correct interrupt to start sending data
-    *pUCAXIE |= UCTXIE;
-}
-
-void UART_dropBufferBytes(uint8_t interface, uint8_t *buf, uint8_t len)
-{
-	volatile uint8_t *pUCAXIE;
-	uartBuf_t *uartBuf;
-
-	if(interface == UART_INTERFACE_USB) {
-		uartBuf = &usbTx;
-		pUCAXIE = &UCA0IE;
-	} else if(interface == UART_INTERFACE_WISP) {
-		uartBuf = &wispTx;
-		pUCAXIE = &UCA1IE;
-	}
-
-	// if there isn't enough space in the software UART buffer, drop these bytes
-	if(len <= (UART_BUF_MAX_LEN - uartBuf_len(uartBuf))) {
-		// we have enough space in the software UART buffer
-		uartBuf_copyTo(uartBuf, buf, len);
-
-		*pUCAXIE |= UCTXIE;
-	}
-}
-
-uint8_t UART_RxBufEmpty(uint8_t interface)
+unsigned UART_RxBufEmpty(unsigned interface)
 {
     switch(interface)
     {
@@ -195,29 +181,48 @@ uint8_t UART_RxBufEmpty(uint8_t interface)
     }
 }
 
-static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, uint8_t len)
+/**
+ * @brief       Copy an array of bytes into a uartBuf_t circular buffer
+ * @param       bufInto     Pointer to a uartBuf_t structure to which bytes will be copied
+ * @param       bufFrom     Pointer to a byte array from which bytes will be copied
+ * @param       len         Number of bytes to copy
+ * @warning     This function does not check if there is enough space to copy the bytes.
+ *              It will overwrite anything in its way.
+ */
+static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len)
 {
     while(len--) {
+        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_TAIL, bufInto->tail < UART_BUF_MAX_LEN_WITH_TAIL);
         bufInto->buf[bufInto->tail] = *bufFrom++; // copy byte
         bufInto->tail = (bufInto->tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;   // set tail of circular buffer
     }
 }
 
-static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, uint8_t len)
+/**
+ * @brief       Copy bytes from a uartBuf_t circular buffer into an array of bytes
+ * @param       bufFrom     Pointer to a uartBuf_t structure from which bytes will be copied
+ * @param       bufInto     Pointer to a byte array to which bytes will be copied
+ * @param       len         Number of bytes to copy
+ * @warning     This function does not check if there is enough space to copy the bytes.
+ *              It will overwrite anything in its way.
+ */
+static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, unsigned len)
 {
     while(len--) {
+        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_HEAD, bufFrom->head < UART_BUF_MAX_LEN_WITH_TAIL);
         *bufInto++ = bufFrom->buf[bufFrom->head]; // copy byte
         bufFrom->head = (bufFrom->head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;   // set head of circular buffer
     }
 }
 
-uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
+unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
 {
     static pktConstructState_t state = CONSTRUCT_STATE_IDENTIFIER;
     uartBuf_t *uartBuf;
-    uint8_t minUartBufLen; // the buffer length may change if bytes are received while
+    unsigned minUartBufLen; // the buffer length may change if bytes are received while
                            // this function is executing, but there are at least this
                            // many bytes
+    uint8_t pkt_byte;
 
     if(!(pkt->processed)) {
         // don't overwrite the existing RX packet
@@ -245,7 +250,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
         {
         case CONSTRUCT_STATE_IDENTIFIER:
             // copy identifier to packet structure
-            uartBuf_copyFrom(uartBuf, &(pkt->identifier), sizeof(uint8_t));
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
+            pkt->identifier = pkt_byte;
             if(pkt->identifier != UART_IDENTIFIER_USB &&
                                     pkt->identifier != UART_IDENTIFIER_WISP) {
                 // unknown identifier
@@ -258,14 +264,16 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
             break;
         case CONSTRUCT_STATE_DESCRIPTOR:
             // copy descriptor
-            uartBuf_copyFrom(uartBuf, &(pkt->descriptor), sizeof(uint8_t));
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
+            pkt->descriptor = pkt_byte;
             minUartBufLen -= sizeof(uint8_t);
             state = CONSTRUCT_STATE_DATA_LEN;
             break;
         case CONSTRUCT_STATE_DATA_LEN:
         {
             // copy length
-            uartBuf_copyFrom(uartBuf, &(pkt->length), sizeof(uint8_t));
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
+            pkt->length = pkt_byte;
             minUartBufLen -= sizeof(uint8_t);
             if (pkt->length > 0) {
                 state = CONSTRUCT_STATE_DATA;
@@ -279,7 +287,8 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
         case CONSTRUCT_STATE_DATA:
             if(minUartBufLen >= pkt->length) {
                 // copy the data
-                uartBuf_copyFrom(uartBuf, (uint8_t *)(&(pkt->data)), pkt->length);
+                ASSERT(ASSERT_UART_ERROR_RX_PKT_LEN, pkt->length < UART_PKT_MAX_DATA_LEN);
+                uartBuf_copyFrom(uartBuf, pkt->data, pkt->length);
                 // no need to update the minUartBufLen, since packet construction is complete
                 // mark this packet as unprocessed
 				pkt->processed = 0;
@@ -301,40 +310,91 @@ uint8_t UART_buildRxPkt(uint8_t interface, uartPkt_t *pkt)
     return 2;   // packet construction will resume the next time this function is called
 }
 
-void UART_sendMsg(uint8_t interface, uint8_t descriptor, uint8_t *data,
-				  uint8_t data_len, uint8_t force)
+// TODO: make target version also copy-free
+void UART_send_msg_to_target(unsigned descriptor, unsigned data_len, uint8_t *data)
 {
-    uint8_t msg_len = 0;
+    unsigned msg_len = 0;
+    unsigned uartBufLen, copyLen;
+    uint8_t *buf = msg;
 
-    switch(interface)
-    {
-    case UART_INTERFACE_USB:
-        msg[msg_len++] = UART_IDENTIFIER_USB;
-        break;
-
-    case UART_INTERFACE_WISP:
-        msg[msg_len++] = UART_IDENTIFIER_WISP;
-        break;
-
-    default:
-        break;
-    }
-
+    msg[msg_len++] = UART_IDENTIFIER_WISP;
     msg[msg_len++] = descriptor;
     msg[msg_len++] = data_len;
+    msg[msg_len++] = 0; // padding
 
     while(data_len > 0) {
         msg[msg_len++] = *data++;
         data_len--;
     }
 
-    if(force == UART_TX_FORCE) {
-    	UART_blockBufferBytes(interface, msg, msg_len);
-    } else {
-    	UART_dropBufferBytes(interface, msg, msg_len);
-    }
+	// loop until we have copied all of buf into the UART TX buffer
+    buf = msg;
+	while(msg_len > 0) {
+		uartBufLen = uartBuf_len(&wispTx);
+		copyLen = MIN(UART_BUF_MAX_LEN - uartBufLen, msg_len);
+		uartBuf_copyTo(&wispTx, buf, copyLen);
+		buf += copyLen;
+		msg_len -= copyLen;
+	}
 
-    return;
+    // enable the correct interrupt to start sending data
+    UCA1IE |= UCTXIE;
+}
+
+void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *buf)
+{
+    unsigned len = 0;
+
+    ASSERT(ASSERT_INVALID_PAYLOAD, (host_uart_status & UART_STATUS_TX_BUSY) == 0x0);
+
+    host_uart_status |= UART_STATUS_TX_BUSY;
+
+    DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN; // should already be disabled, but just in case
+
+    buf[len++] = UART_IDENTIFIER_USB;
+    buf[len++] = descriptor;
+    buf[len++] = payload_len;
+    buf[len++] = 0; // padding
+
+    len += payload_len;
+
+    DMA(DMA_HOST_UART_TX, SA) = (__DMA_ACCESS_REG__)buf;
+    DMA(DMA_HOST_UART_TX, SZ) = len;
+
+    DMA(DMA_HOST_UART_TX, CTL) |= DMAEN;
+}
+
+static inline void UART_wait_for_tx_dma()
+{
+    while (host_uart_status & UART_STATUS_TX_BUSY) {
+        __delay_cycles(10);
+    }
+}
+
+void UART_begin_transmission()
+{
+    UART_wait_for_tx_dma();
+}
+
+void UART_end_transmission()
+{
+    UART_wait_for_tx_dma();
+}
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=DMA_VECTOR
+__interrupt void DMA_ISR(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    switch (__even_in_range(DMAIV, 16)) {
+        case DMA_INTFLAG(DMA_HOST_UART_TX):
+            host_uart_status &= ~UART_STATUS_TX_BUSY;
+            break;
+    }
 }
 
 /*
@@ -357,32 +417,13 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     {
 
 #ifdef CONFIG_ABORT_ON_USB_UART_ERROR
-        if (UCA0STAT & UCRXERR) {
-                GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
-                GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
-                while(1) {
-                    if (UCA0STAT & UCOE)
-                        GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-                    __delay_cycles(10000);
-                }
-        }
+        ASSERT(ASSERT_UART_ERROR_OVERFLOW, !(UCA0STAT & UCRXERR & UCOE));
+        ASSERT(ASSERT_UART_ERROR_GENERIC,  !(UCA0STAT & UCRXERR));
 #endif
         usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
         usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
-        *pUSBFlags |= USBRxFlag;        // alert the main loop
-        break;
-    }
 
-    case USCI_UCTXIFG:                      // Vector 4 - TXIFG
-    {
-        UCA0TXBUF = usbTx.buf[usbTx.head]; // place data in the TX register to send
-        usbTx.head = (usbTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer head
-        *pUSBFlags |= USBTxFlag; // alert the main loop
-
-        if(usbTx.head == usbTx.tail) {
-            // the software buffer is empty
-            UCA0IE &= ~UCTXIE; // disable TX interrupt
-        }
+        main_loop_flags |= FLAG_UART_USB_RX;
         break;
     }
 
@@ -410,7 +451,8 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     {
         wispRx.buf[wispRx.tail] = UCA1RXBUF; // copy the new byte
         wispRx.tail = (wispRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
-        *pWISPFlags |= WISPRxFlag; // alert the main loop
+
+        main_loop_flags |= FLAG_UART_WISP_RX;
         break;
     }
 
@@ -418,7 +460,8 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     {
         UCA1TXBUF = wispTx.buf[wispTx.head]; // place data in the Tx register
         wispTx.head = (wispTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer headd
-        *pWISPFlags |= WISPTxFlag; // alert the main loop
+
+        main_loop_flags |= FLAG_UART_WISP_TX;
 
         if(wispTx.head == wispTx.tail) {
             // the software buffer is empty

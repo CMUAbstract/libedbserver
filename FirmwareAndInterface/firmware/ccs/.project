@@ -31,6 +31,11 @@
 			<locationURI>$%7BSRC_LOC%7D/adc12</locationURI>
 		</link>
 		<link>
+			<name>catchall.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/catchall.c</locationURI>
+		</link>
+		<link>
 			<name>error.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/src/error.c</locationURI>
@@ -41,9 +46,9 @@
 			<locationURI>$%7BSRC_LOC%7D/gpio</locationURI>
 		</link>
 		<link>
-			<name>i2c</name>
-			<type>2</type>
-			<locationURI>$%7BSRC_LOC%7D/i2c</locationURI>
+			<name>i2c.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/i2c/i2c.c</locationURI>
 		</link>
 		<link>
 			<name>lnk_msp430f5340.cmd</name>
@@ -61,19 +66,14 @@
 			<locationURI>PARENT-1-PROJECT_LOC/src/main.h</locationURI>
 		</link>
 		<link>
-			<name>marker.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/src/marker.c</locationURI>
-		</link>
-		<link>
 			<name>monitor.h</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/src/monitor.h</locationURI>
 		</link>
 		<link>
-			<name>rfid</name>
-			<type>2</type>
-			<locationURI>$%7BSRC_LOC%7D/rfid</locationURI>
+			<name>pmm.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/mspware/pmm.c</locationURI>
 		</link>
 		<link>
 			<name>timers</name>

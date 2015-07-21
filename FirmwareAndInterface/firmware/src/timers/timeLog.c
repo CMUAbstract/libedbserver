@@ -28,9 +28,9 @@
 
 uint16_t overflowCycles = 0;
 
-void TimeLog_request(uint8_t request)
+void TimeLog_request(unsigned request)
 {
-	static uint8_t time_log_requests = 0;
+	static unsigned time_log_requests = 0;
 
 	if(request) {
 		// request for the time

@@ -48,7 +48,7 @@ def cmd_power(mon, state):
 def cmd_sense(mon, channel):
     print mon.sense(wispmon.ADC_CHAN_INDEX[channel.upper()])
 
-def cmd_stream(mon, out_file, duration_sec, *streams):
+def do_stream(mon, out_file, duration_sec, streams, no_parse):
     if duration_sec == "-":
         duration_sec = None # stream indefinitely
     else:
@@ -61,13 +61,19 @@ def cmd_stream(mon, out_file, duration_sec, *streams):
         silent = True
     else:
         fp = open(out_file, "w")
-        #silent = False
-        silent = True # TODO: temprorary
+        silent = False
 
     try:
-        mon.stream(streams, duration_sec=duration_sec, out_file=fp, silent=silent)
+        mon.stream(streams, duration_sec=duration_sec, out_file=fp,
+                   silent=silent, no_parse=no_parse)
     except KeyboardInterrupt:
         pass # this is a clean termination
+
+def cmd_stream(mon, out_file, duration_sec, *streams):
+    do_stream(mon, out_file, duration_sec, streams=streams, no_parse=False)
+
+def cmd_streamnp(mon, out_file, duration_sec, *streams):
+    do_stream(mon, out_file, duration_sec, streams=streams, no_parse=True)
 
 def cmd_charge(mon, target_voltage, method="adc"):
     target_voltage = float(target_voltage)
@@ -114,7 +120,7 @@ def cmd_ebreak(mon, target_voltage, impl="adc"):
 def cmd_break(mon, type, idx, op, energy_level=None):
     idx = int(idx)
     enable = "enable".startswith(op)
-    type = match_keyword(type.upper(), wispmon.BREAKPOINT_TYPE.keys())
+    type = match_keyword(type.upper(), wispmon.host_comm_header.enums['BREAKPOINT_TYPE'].keys())
     energy_level = float(energy_level) if energy_level is not None else None
     mon.breakpoint(type, idx, enable, energy_level)
 
@@ -129,7 +135,7 @@ def cmd_wait(mon):
         pass
 
 def cmd_intctx(mon, source="debugger"):
-    source = match_keyword(source.upper(), wispmon.INTERRUPT_SOURCE)
+    source = match_keyword(source.upper(), wispmon.host_comm_header.enums['INTERRUPT_SOURCE'])
     int_context = mon.get_interrupt_context(source)
     print_interrupt_context(int_context)
 
@@ -152,7 +158,17 @@ def cmd_pc(mon):
 
 def cmd_secho(mon, value):
     value = int(value, 16)
-    print mon.serial_echo(value)
+    print "0x%02x" % mon.serial_echo(value)
+
+def cmd_decho(mon, value):
+    value = int(value, 16)
+    print "0x%02x" % mon.dma_echo(value)
+
+def cmd_replay(mon, file):
+    mon.load_replay_log(file)
+
+def cmd_set(mon, parm, value):
+    mon.set_param(parm, value)
 
 def compose_prompt(active_mode):
     if active_mode:
