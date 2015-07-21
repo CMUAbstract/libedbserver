@@ -97,6 +97,10 @@ class StreamDecodeException(Exception):
     def __init__(self, msg=""):
         self.message = msg
 
+class PacketParseException(Exception):
+    def __init__(self, msg=""):
+        self.message = msg
+
 class WispMonitor:
     VDD                                 = VDD # V
     CMP_VREF                            = 2.5
@@ -275,7 +279,7 @@ class WispMonitor:
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
-            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_DATA']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']:
                 FIELD_LEN_STREAMS = 1
                 FIELD_LEN_TIMESTAMP = 4
 
@@ -302,7 +306,7 @@ class WispMonitor:
                                            (self.rxPkt.data[offset + 2] << 16) | \
                                            (self.rxPkt.data[offset + 1] <<  8) | \
                                            (self.rxPkt.data[offset + 0] <<  0)
-                        offset += 4
+                        offset += FIELD_LEN_TIMESTAMP
 
                         timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
 
@@ -327,6 +331,69 @@ class WispMonitor:
                     print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: streams field"
 
                 pkt["data_points"] = data_points
+
+            # The voltage stream packet has to be forked because we are forced to layout
+            # the buffer with timestamps grouped together folled by voltage samples
+            # grouped together for efficiency reasons (DMA).
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']:
+                FIELD_LEN_STREAMS = 1
+                FIELD_LEN_SAMPLE_COUNT = 1
+                FIELD_LEN_TIMESTAMP = 2
+                FIELD_LEN_VOLTAGE = 2
+
+                offset = 0
+
+                data_points = []
+
+                try:
+                    if offset + FIELD_LEN_STREAMS + FIELD_LEN_SAMPLE_COUNT > len(self.rxPkt.data):
+                        raise PacketParseException("header")
+
+                    pkt_streams = self.rxPkt.data[offset]
+                    #print "pkt_streams=0x%08x" % pkt_streams
+                    offset += 1
+
+                    num_samples = self.rxPkt.data[offset]
+                    offset += 1
+
+                    timestamp_offset = offset
+                    voltage_offset = offset + num_samples * FIELD_LEN_TIMESTAMP
+
+                    if timestamp_offset + num_samples * FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
+                        raise PacketParseException("timestamps section")
+
+                    if voltage_offset + num_samples * FIELD_LEN_VOLTAGE > len(self.rxPkt.data):
+                        raise PacketParseException("voltages section")
+
+                    for sample_i in range(num_samples):
+
+                        timestamp_cycles = (self.rxPkt.data[timestamp_offset + 1] << 8) | \
+                                           (self.rxPkt.data[timestamp_offset + 0] << 0);
+                        timestamp_offset += FIELD_LEN_TIMESTAMP
+
+                        timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
+
+                        # Decode the pkt into a dictionary: stream->value.
+                        # Order is implied by the bit index of each stream as defined by the enum
+                        value_set = {}
+                        for stream in host_comm_header.enums['STREAM']:
+                            if pkt_streams & host_comm_header.enums['STREAM'][stream]:
+                                value, length = self.stream_decoders[stream](self.rxPkt.data,
+                                                                             voltage_offset)
+                                voltage_offset += length
+                                value_set[stream] = value
+
+                        data_points.append(StreamDataPoint(timestamp_sec, value_set))
+
+                except StreamDecodeException as e:
+                    # invalid pkt, best we can do here is not fail
+                    print >>sys.stderr, "StreamDecodeException: ", e.message
+
+                except PacketParseException:
+                    print >>sys.stderr, "PacketParseException: ", e.message
+
+                pkt["data_points"] = data_points
+
 
             return pkt
 
@@ -618,7 +685,10 @@ class WispMonitor:
         
         try:
             while signal_handler_data['streaming']:
-                pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['STREAM_DATA'])
+                pkt = self.receive_reply([
+                                host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS'],
+                                host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']
+                            ])
 
                 for data_point in pkt["data_points"]:
 

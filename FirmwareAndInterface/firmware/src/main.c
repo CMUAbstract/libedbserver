@@ -422,32 +422,6 @@ static void send_voltage(uint16_t voltage)
     send_msg_to_host(USB_RSP_VOLTAGE, payload_len);
 }
 
-static void send_stream_voltages()
-{
-    unsigned payload_len = 0;
-    unsigned i;
-
-    // TODO: eliminate the copy by having the ADC ISR fill the msg buffer directly
-
-    UART_begin_transmission();
-
-    host_msg_payload[payload_len++] = adc_streams_bitmask;
-    host_msg_payload[payload_len++] = 0; // padding
-    host_msg_payload[payload_len++] = (adc12.timeComplete >>  0) & 0xff;
-    host_msg_payload[payload_len++] = (adc12.timeComplete >>  8) & 0xff;
-    host_msg_payload[payload_len++] = (adc12.timeComplete >> 16) & 0xff;
-    host_msg_payload[payload_len++] = (adc12.timeComplete >> 24) & 0xff;
-
-    for (i = 0; i < adc12.config.num_channels ; ++i) {
-        uint16_t adc_value = adc12.results[i];
-        host_msg_payload[payload_len++] = adc_value & 0xff;
-        host_msg_payload[payload_len++] = (adc_value >> 8) & 0xff;
-    }
-
-    UART_send_msg_to_host(USB_RSP_STREAM_DATA, payload_len, host_msg_buf);
-    UART_end_transmission();
-}
-
 static void send_return_code(unsigned code)
 {
     unsigned payload_len = 0;
@@ -965,14 +939,11 @@ int main(void)
             send_interrupt_context(&interrupt_context);
         }
 
-        if(main_loop_flags & FLAG_ADC12_COMPLETE) {
+        if((main_loop_flags & FLAG_ADC12_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
             // ADC12 has completed conversion on all active channels
-            main_loop_flags &= ~FLAG_ADC12_COMPLETE;
 
-            if(main_loop_flags & FLAG_LOGGING) {
-                send_stream_voltages();
-                ADC12_arm();
-            }
+            ADC12_send_samples_to_host(&adc12);
+            main_loop_flags &= ~FLAG_ADC12_COMPLETE;
         }
 
         if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
@@ -1127,8 +1098,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         // actions common to all adc streams
         if (adc12.config.num_channels > 0) {
             main_loop_flags |= FLAG_LOGGING; // for main loop
-            ADC12_setup(&adc12);
-            ADC12_arm();
+            ADC12_setup(&adc12, adc_streams_bitmask);
         }
         break;
     }

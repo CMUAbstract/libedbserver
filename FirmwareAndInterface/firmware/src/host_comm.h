@@ -76,7 +76,8 @@ typedef enum {
     USB_RSP_RELEASE_POWER_COMPLETE          = 0x05, //!< message signaling that the power state has been released
     USB_RSP_ADDRESS                         = 0x06, //!< message containing the WISP program counter
     USB_RSP_WISP_MEMORY                     = 0x07, //!< message containing a WISP memory address and contents at that address
-    USB_RSP_STREAM_DATA                     = 0x08, //!< message containing data from one or more streams
+    USB_RSP_STREAM_RF_EVENTS                = 0x08, //!< message containing data from one or more streams
+    USB_RSP_STREAM_VOLTAGES                 = 0x09, //!< message containing data a voltage stream
     USB_RSP_UART_WISP_TO_MONITOR            = 0x0A, //!< message containing UART message sent from the WISP to the monitor
     USB_RSP_UART_MONITOR_TO_WISP            = 0x0B, //!< message containing UART message sent from the monitor to the WISP
     USB_RSP_TAG_PWR                         = 0x0C, //!< message signaling that the power trace has been tagged here
@@ -228,5 +229,14 @@ typedef enum {
 #define RF_EVENT_TYPE_RSP               0x0200
 #define RF_EVENT_TYPE_ERROR             0x0E00
 /* @} End RF_EVENT_TYPE */
+
+#define STREAM_DATA_STREAMS_BITMASK_LEN     1
+#define STREAM_DATA_PADDING_LEN             1
+#define STREAM_DATA_MSG_HEADER_LEN  (STREAM_DATA_STREAMS_BITMASK_LEN + STREAM_DATA_PADDING_LEN)
+
+// The header must be aligned because we need pointers *within* the buffer to payload field
+#if STREAM_DATA_MSG_HEADER_LEN & 0x1 == 0x1
+#error Stream message header size must be aligned to 2
+#endif
 
 #endif // HOST_COMM_H

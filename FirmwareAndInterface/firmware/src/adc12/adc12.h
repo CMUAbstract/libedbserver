@@ -59,7 +59,7 @@ void ADC12_init(adc12_t *adc12);
  *              configured channels.  The interrupt sets the flag bit mask
  *              present in the adc12_t data structure.
  */
-void ADC12_setup(adc12_t *adc12);
+void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask);
 
 /**
  * @brief   Add an ADC channel to the adc12 configuration structure
@@ -72,11 +72,6 @@ void ADC12_addChannel(adc12_t *adc12, unsigned chan_index);
  * @param  chan_index   Permanent index assigned to the ADC channel
  */
 void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index);
-
-/**
- * @brief       Get ready to start sampling/conversion when trigger (timer) fires
- */
-void ADC12_arm();
 
 /**
  * @brief       Start an ADC conversion in the mode configured previously
@@ -104,6 +99,8 @@ uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index);
  *          conversion has completed.
  */
 uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index);
+
+void ADC12_send_samples_to_host(adc12_t *adc12);
 
 /** @} end ADC12 */
 

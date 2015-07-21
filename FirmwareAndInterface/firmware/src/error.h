@@ -11,6 +11,11 @@ typedef enum {
     ERROR_INVALID_VALUE,
 } error_t;
 
+/**
+ * @brief IDs for assert statements reported as a power-of-two frequenc on green LED
+ * @details If red led is continuously on, the green LED should be a square wave
+ *          at a frequency 2^(assser_id).
+ */
 typedef enum {
     ASSERT_SET_CORE_VOLTAGE_FAILED                = 0, // won't show up as 1 Hz (freq not yet set)
     ASSERT_RF_EVENTS_BUF_OVERFLOW                 = 1,
@@ -22,7 +27,12 @@ typedef enum {
     ASSERT_INVALID_STREAM_BUF_HEADER              = 7,
     ASSERT_UART_TX_BUSY                           = 8,
     ASSERT_UNHANDLED_INTERRUPT                    = 9,
-    ASSERT_CORRUPT_STATE                          = 10,
+    ASSERT_UNEXPECTED_INTERRUPT                   = 10,
+    ASSERT_CORRUPT_STATE                          = 11,
+    ASSERT_VOLTAGE_SAMPLES_BUF_OVERFLOW           = 12,
+    ASSERT_UNEXPECTED_ADC_DMA_STATE               = 13,
+    ASSERT_ADC_BUFFER_OVERFLOW                    = 14,
+    ASSERT_ADC_FAULT                              = 15,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely

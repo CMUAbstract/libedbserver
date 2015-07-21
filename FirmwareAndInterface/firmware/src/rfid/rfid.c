@@ -32,19 +32,12 @@
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_EVENTS_BUFFERED                         48
 
-#define STREAM_DATA_MSG_HEADER_LEN 2 // 'streams bitmask', padding (units of bytes, aligned to 2)
-
 #define RF_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_PAYLOAD_SPACE NUM_EVENTS_BUFFERED // units of sizeof(rf_event_t)
 #define RF_EVENT_BUF_SIZE (RF_EVENT_BUF_HEADER_SPACE + RF_EVENT_BUF_PAYLOAD_SPACE) // units of sizeof(rf_event_t)
 
 #if STREAM_DATA_MSG_HEADER > RF_EVENT_BUF_HEADER_SPACE
 #error Not enough space for header in event buf: add more units of sizeof(struct rf_event_t)
-#endif
-
-// The header must be aligned because we need pointers *within* the buffer to payload field
-#if STREAM_DATA_MSG_HEADER_LEN & 0x1 == 0x1
-#error Stream message header size must be aligned to 2
 #endif
 
 #define RF_EVENT_BUF_HEADER_OFFSET \
@@ -156,7 +149,7 @@ static inline void send_rf_events_buf_host(unsigned ready_events_buf_idx)
     UART_begin_transmission();
 
     // Must use a blocking call in order to mark buffer as free once transfer completes
-    UART_send_msg_to_host(USB_RSP_STREAM_DATA, 
+    UART_send_msg_to_host(USB_RSP_STREAM_RF_EVENTS,
             // TODO: the event count is == NUM_BUFFERED_EVENTS, except for the flush case
             STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
             (uint8_t *)&rf_events_msg_bufs[ready_events_buf_idx][0] + RF_EVENT_BUF_HEADER_OFFSET);
