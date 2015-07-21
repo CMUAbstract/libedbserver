@@ -20,7 +20,8 @@ UART_LOG_FILE   = open("uart.log", "w")
 
 REPORT_STREAM_PROGRESS_INTERVAL = 0.2 # sec
 
-VDD = 3.3
+#VDD = 3.3
+VDD = 2.985
 
 COMPARATOR_REF_VOLTAGE = {
     "VCC" : VDD,
