@@ -7,8 +7,12 @@
 
 #include <msp430.h>
 #include <stdint.h>
-#include "pwm.h"
 #include "pin_assign.h"
+#include "config.h"
+
+#include "pwm.h"
+
+#ifdef CONFIG_PWM_CHARGING
 
 void PWM_setup(uint16_t period, uint16_t duty_cycle)
 {
@@ -32,3 +36,7 @@ void PWM_stop()
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);				// output low
     GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE);              // GPIO option select
 }
+
+#else
+unsigned __dummy_pwm_c; // silence 'empty translation unit' warning
+#endif // CONFIG_PWM_CHARGING

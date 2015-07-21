@@ -14,21 +14,25 @@
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
 
-#define CONFIG_DCO_REF_SOURCE_XT1
-#define CONFIG_DCO_REF_CLOCK_DIV 1ull
+//#define CONFIG_DCO_REF_SOURCE_XT1
+//#define CONFIG_DCO_REF_CLOCK_DIV 1
 
-// #define CONFIG_DCO_REF_SOURCE_XT2
-// #define CONFIG_DCO_REF_CLOCK_DIV 4
+#define CONFIG_DCO_REF_SOURCE_XT2
+#define CONFIG_DCO_REF_CLOCK_DIV 4
 
 #define CONFIG_CLOCK_SOURCE_DCO
 // #define CONFIG_CLOCK_SOURCE_XT2
 
-#define CONFIG_DCOCLKDIV_FREQ 24576000ull
-// #define CONFIG_DCOCLKDIV_FREQ 24000000ull
+// #define CONFIG_DCOCLKDIV_FREQ 24576000ull
+#define CONFIG_DCOCLKDIV_FREQ 24000000ull
 // #define CONFIG_DCOCLKDIV_FREQ 21921792ull
 // #define CONFIG_DCOCLKDIV_FREQ 16384000ull
 // #define CONFIG_DCOCLKDIV_FREQ 12288000ull
 // #define CONFIG_DCOCLKDIV_FREQ 8192000ull
+
+#define CONFIG_CLK_DIV_MCLK         1
+#define CONFIG_CLK_DIV_SMCLK        1
+#define CONFIG_CLK_DIV_ACLK         1
 
 #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__ACLK
 // #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__SMCLK
@@ -38,17 +42,86 @@
 // #define CONFIG_TIMELOG_TIMER_DIV_BITS (ID0 | ID1)
 // #define CONFIG_TIMELOG_TIMER_DIV_BITS_EX (TAIDEX_2 | TAIDEX_1 | TAIDEX_0)
 
-// #define CONFIG_USB_UART_BAUDRATE 2000000ull
+// #define CONFIG_ADC_TIMER_SOURCE_ACLK
+#define CONFIG_ADC_TIMER_SOURCE_SMCLK
+// #define CONFIG_ADC_TIMER_SOURCE_MCLK
+
+#define CONFIG_ADC_TIMER_DIV 8
+#define CONFIG_ADC_SAMPLING_FREQ_HZ 1000
+
+#if defined(CONFIG_ADC_TIMER_SOURCE_ACLK)
+#define CONFIG_ADC_TIMER_SOURCE_NAME ACLK
+#define CONFIG_ADC_TIMER_CLK_FREQ CONFIG_ACLK_FREQ
+#elif defined(CONFIG_ADC_TIMER_SOURCE_SMCLK)
+#define CONFIG_ADC_TIMER_SOURCE_NAME SMCLK
+#define CONFIG_ADC_TIMER_CLK_FREQ CONFIG_SMCLK_FREQ
+#elif defined(CONFIG_ADC_TIMER_SOURCE_SMCLK)
+#define CONFIG_ADC_TIMER_SOURCE_NAME MCLK
+#define CONFIG_ADC_TIMER_CLK_FREQ CONFIG_MCLK_FREQ
+#elif defined(CONFIG_ADC_TIMER_SOURCE_MCLK)
+#else
+#error No clock source selected for ADC timer: see CONFIG_ADC_TIMER_SOURCE_*
+#endif // CONFIG_ADC_TIMER_SOURCE_*
+
+#define CONFIG_ADC_TIMER_FREQ (CONFIG_ADC_TIMER_CLK_FREQ / CONFIG_ADC_TIMER_DIV)
+#define CONFIG_ADC_SAMPLING_PERIOD (CONFIG_ADC_TIMER_FREQ / CONFIG_ADC_SAMPLING_FREQ_HZ)
+
+#define CONFIG_USB_UART_BAUDRATE 2000000ull
+// #define CONFIG_USB_UART_BAUDRATE 1500000ull
 // #define CONFIG_USB_UART_BAUDRATE 1000000ull
 // #define CONFIG_USB_UART_BAUDRATE 921600ull
+// #define CONFIG_USB_UART_BAUDRATE 576000ull
 // #define CONFIG_USB_UART_BAUDRATE 500000ull
+// #define CONFIG_USB_UART_BAUDRATE 460800ull
 // #define CONFIG_USB_UART_BAUDRATE 171264ull
 // #define CONFIG_USB_UART_BAUDRATE 115200ull
-#define CONFIG_USB_UART_BAUDRATE 38400ull
+// #define CONFIG_USB_UART_BAUDRATE 38400ull
 
 #define CONFIG_TARGET_UART_BAUDRATE 9600ull
 
+// #define CONFIG_USB_UART_UCOS16
+// #define CONFIG_TARGET_UART_UCOS16
+
 #define CONFIG_ABORT_ON_USB_UART_ERROR // red led on, and if error is overflow, green led blinking
+
+/**
+ * @brief Abort if RFID event buffer overflows or drop the events
+ */
+#define CONFIG_ABORT_ON_RFID_EVENT_OVERFLOW
+
+/**
+ * @brief Two alternative workarounds for the crashes due to voltage ramp on startup
+ * @detials The problem these work around is crashes that occur at arbitrary times
+ *          after startup. The crash is either a wild jump or an oscillator
+ *          fault.
+ *
+ *          At first glance crashes are somewhat consistent and seem
+ *          correlated to peripheral activity. For example, not doing anything
+ *          with the UART might seem to get rid of the crash, or, even
+ *          stranger, re-arranging C-code, like removing code that's in an
+ *          if-branch that is never taken, or replacing a function call with an
+ *          inline invocation, all appear to consistently influence whether a
+ *          crash happens or not.
+ *
+ *          However, the underlying issue is traced to some kind of
+ *          non-fail-stop failure during startup that corrupts subsequent
+ *          execution. Furthermore, the problem has to do with the Power
+ *          Management Module -- it either generates false events (like
+ *          overvoltage), or does not generate correct events in time. In
+ *          particular, there are multiple errata about it, including a false
+ *          overvoltage even if voltage ramps up too quickly.
+ *
+ *          The delay workaround is recommended over disabling PMM, since PMM
+ *          is nice to have to detect brownout -- we do want it if it works
+ *          correctly. It is plausible that there is a true fix that involves
+ *          configuration of PMM.
+ *
+ *          NOTE: Unfortunately, these workarounds do not get rid of the same kind
+ *                of crash that happens with debugger attached (either CCSv6 or
+ *                mspdebug).
+ */
+// #define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM
+#define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY
 
 // #define CONFIG_CLOCK_TEST_MODE // enter a blinker loop after configuring clocks
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
@@ -94,8 +167,13 @@
 /**
  * @brief Enable code to decode RFID transmissions from the target
  */
-// #define CONFIG_ENABLE_RF_TX_DECODING
+#define CONFIG_ENABLE_RF_TX_DECODING
 
+/**
+ * @brief Decode the RFID command payload bits (not only the command code)
+ * @details NOT IMPLEMENTED
+ */
+// #define CONFIG_DECODE_RFID_CMD_PAYLOAD
 
 /**
  * @brief Route serial decoder events to external pins
@@ -111,9 +189,15 @@
  */
 // #define CONFIG_SCOPE_TRIGGER_SIGNAL
 
-// The rest essentially defines the register settings that carry out the above
+/**
+ * @brief Capacitor charge implemented by a PWM with a control loop around the duty-cycle
+ * @detail The alternative is an "valve" method of raising a GPIO high and watching
+ *         the voltage level with ADC or comparator and pulling the GPIO low once
+ *         the target threshold is crossed.
+ */
+// #define CONFIG_PWM_CHARGING
 
-#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_DCOCLKDIV_FREQ / 1000)
+// The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44
 #if CONFIG_XT1_CAP >= 12
@@ -202,54 +286,111 @@
 
 #endif // CONFIG_DCOCLKDIV_FREQ && CONFIG_DCO_REF_FREQ
 
-// See MSP430F5340 datasheet (p. 177)
-#if CONFIG_DCO_REF_CLOCK_DIV == 1
-#define CONFIG_FLL_REF_DIV 0
-#elif CONFIG_DCO_REF_CLOCK_DIV == 2
-#define CONFIG_FLL_REF_DIV (FLLREFDIV0)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 4
-#define CONFIG_FLL_REF_DIV (FLLREFDIV1)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 8
-#define CONFIG_FLL_REF_DIV (FLLREFDIV0 | FLLREFDIV1)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 12
-#define CONFIG_FLL_REF_DIV (FLLREFDIV2)
-#elif CONFIG_DCO_REF_CLOCK_DIV == 16
-#define CONFIG_FLL_REF_DIV (FLLREFDIV2 | FLLREFDIV0)
-#else
-#error Invalid DCO REF clock divider: see CONFIG_DCO_REF_CLOCK_DIV
-#endif
-
 // Worst-case settling time for the DCO when the DCO range bits have been changed:
 // See MSP430x5xx Family User Manual (p. 165). The last fraction term is
 // converting from FLL ref clock cycles to core clock cycles.
 #define DCO_SETTLING_TIME \
-    (1LU * CONFIG_DCO_REF_CLOCK_DIV * 32 * 32 * \
-     (CONFIG_DCOCLKDIV_FREQ / CONFIG_DCO_REF_CLOCK_FREQ + 1))
+    (1ull * CONFIG_DCO_REF_CLOCK_DIV * 32ull * 32ull * \
+     (CONFIG_DCOCLKDIV_FREQ / CONFIG_DCO_REF_CLOCK_FREQ + 1ull))
 
 #if CONFIG_DCOCLKDIV_FREQ != ((CONFIG_DCO_FREQ_N + 1) * CONFIG_DCO_REF_FREQ)
 #error Inconsistent DCO freq config
 #endif
 
+// TODO: this is not the case for all possible configs
+#define CONFIG_ACLK_SRC_FREQ    CONFIG_ACLK_XT1_FREQ
+
 // Clock source for MCLK, SMCLK
 #if defined(CONFIG_CLOCK_SOURCE_DCO)
-#define CONFIG_SMCLK_FREQ CONFIG_DCOCLKDIV_FREQ
+#define CONFIG_MCLK_SRC_FREQ CONFIG_DCOCLKDIV_FREQ
+#define CONFIG_SMCLK_SRC_FREQ CONFIG_DCOCLKDIV_FREQ
 #elif defined(CONFIG_CLOCK_SOURCE_XT2)
-#define CONFIG_SMCLK_FREQ CONFIG_XT2_FREQ // for now, SMCLK source is not configurable
+#define CONFIG_MCLK_SRC_FREQ CONFIG_XT2_FREQ // for now, SMCLK source is not configurable
+#define CONFIG_SMCLK_SRC_FREQ CONFIG_XT2_FREQ // for now, SMCLK source is not configurable
 #else // CONFIG_CLOCK_SOURCE_*
 #error Invalid main clock source: see CONFIG_CLOCK_SOURCE_*
 #endif // CONFIG_CLOCK_SOURCE_*
 
+#define CONFIG_ACLK_FREQ (CONFIG_ACLK_SRC_FREQ / CONFIG_CLK_DIV_ACLK)
+#define CONFIG_SMCLK_FREQ (CONFIG_SMCLK_SRC_FREQ / CONFIG_CLK_DIV_SMCLK)
+#define CONFIG_MCLK_FREQ (CONFIG_MCLK_SRC_FREQ / CONFIG_CLK_DIV_MCLK)
+
+#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_MCLK_FREQ / 1000)
+
 #define CONFIG_UART_CLOCK_FREQ CONFIG_SMCLK_FREQ
 
 // UART baudrate specification:
+//
+// Not UCOS16:
+//
 // N = SMCLK / BAUD
 // BR0 = LSB(floor(N))
 // BR1 = MSB(floor(N))
 // BRS = (floor(N) - N) * 8
+//
+// UCOS16:
+//
+// N = SMCLK / BAUD
+// BR0 = LSB(floor(N/16))
+// BR1 = MSB(floor(N/16))
+// BRF = (floor(N/16) - N/16) * 16
+// UCOS16 = 1
 
 #if CONFIG_UART_CLOCK_FREQ == 24576000
 
-#if CONFIG_USB_UART_BAUDRATE == 38400
+#if CONFIG_USB_UART_BAUDRATE == 1000000
+
+#ifdef CONFIG_USB_UART_UCOS16
+
+// N/16 = 24.576
+#define CONFIG_USB_UART_BAUDRATE_BR0 0x01
+#define CONFIG_USB_UART_BAUDRATE_BR1 0x00
+#define CONFIG_USB_UART_BAUDRATE_BRF 9
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+
+#endif // CONFIG_USB_UART_UCOS16
+
+#elif CONFIG_USB_UART_BAUDRATE == 921600
+
+#ifdef CONFIG_USB_UART_UCOS16
+// N/16 = 1.66666...
+#define CONFIG_USB_UART_BAUDRATE_BR0 0x01
+#define CONFIG_USB_UART_BAUDRATE_BR1 0x00
+#define CONFIG_USB_UART_BAUDRATE_BRF 10
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+#endif // CONFIG_USB_UART_UCOS16
+
+#elif CONFIG_USB_UART_BAUDRATE == 576000
+
+#ifdef CONFIG_USB_UART_UCOS16
+// N/16 = 2.66666...
+#define CONFIG_USB_UART_BAUDRATE_BR0 0x02
+#define CONFIG_USB_UART_BAUDRATE_BR1 0x00
+#define CONFIG_USB_UART_BAUDRATE_BRF 10
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+#endif // CONFIG_USB_UART_UCOS16
+
+#elif CONFIG_USB_UART_BAUDRATE == 500000
+
+#ifdef CONFIG_USB_UART_UCOS16
+// N/16 = 3.072
+#define CONFIG_USB_UART_BAUDRATE_BR0 0x03
+#define CONFIG_USB_UART_BAUDRATE_BR1 0x00
+#define CONFIG_USB_UART_BAUDRATE_BRF 1
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+#endif // CONFIG_USB_UART_UCOS16
+
+#elif CONFIG_USB_UART_BAUDRATE == 115200
+
+#ifdef CONFIG_USB_UART_UCOS16
+// N/16 = 13.3333...
+#define CONFIG_USB_UART_BAUDRATE_BR0 0x0d
+#define CONFIG_USB_UART_BAUDRATE_BR1 0x00
+#define CONFIG_USB_UART_BAUDRATE_BRF 5
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+#endif // CONFIG_USB_UART_UCOS16
+
+#elif CONFIG_USB_UART_BAUDRATE == 38400
 // N = 640
 #define CONFIG_USB_UART_BAUDRATE_BR0 0x80
 #define CONFIG_USB_UART_BAUDRATE_BR1 0x02
@@ -341,16 +482,50 @@
 #define CONFIG_USB_UART_BAUDRATE_BRS 0
 
 #elif CONFIG_USB_UART_BAUDRATE == 1000000
+
+#ifdef CONFIG_USB_UART_UCOS16
+#define CONFIG_USB_UART_BAUDRATE_BR0 1
+#define CONFIG_USB_UART_BAUDRATE_BR1 0
+#define CONFIG_USB_UART_BAUDRATE_BRF 8
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+#else // !CONFIG_USB_UART_UCOS16
 // N = 24
 #define CONFIG_USB_UART_BAUDRATE_BR0 24
 #define CONFIG_USB_UART_BAUDRATE_BR1 0
 #define CONFIG_USB_UART_BAUDRATE_BRS 0
+#endif // !CONFIG_USB_UART_UCOS16
+
+#elif CONFIG_USB_UART_BAUDRATE == 1500000
+
+#ifdef CONFIG_USB_UART_UCOS16
+// N = 1
+#define CONFIG_USB_UART_BAUDRATE_BR0 1
+#define CONFIG_USB_UART_BAUDRATE_BR1 0
+#define CONFIG_USB_UART_BAUDRATE_BRF 0
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+#endif // CONFIG_USB_UART_UCOS16
 
 #elif CONFIG_USB_UART_BAUDRATE == 500000
 // N = 48
 #define CONFIG_USB_UART_BAUDRATE_BR0 48
 #define CONFIG_USB_UART_BAUDRATE_BR1 0
 #define CONFIG_USB_UART_BAUDRATE_BRS 0
+
+#elif CONFIG_USB_UART_BAUDRATE == 115200
+
+#ifdef CONFIG_USB_UART_UCOS16
+// N = 13.0208333...
+#define CONFIG_USB_UART_BAUDRATE_BR0 13
+#define CONFIG_USB_UART_BAUDRATE_BR1 0
+#define CONFIG_USB_UART_BAUDRATE_BRF 1
+#define CONFIG_USB_UART_BAUDRATE_UCOS16 1
+
+#else // !CONFIG_USB_UART_UCOS16
+// N = 208.33333..
+#define CONFIG_USB_UART_BAUDRATE_BR0 0xD0
+#define CONFIG_USB_UART_BAUDRATE_BR1 0
+#define CONFIG_USB_UART_BAUDRATE_BRS 3
+#endif // !CONFIG_USB_UART_UCOS16
 
 #endif // CONFIG_USB_UART_BAUDRATE
 
@@ -369,6 +544,19 @@
 #define CONFIG_USB_UART_BAUDRATE_BR0 6
 #define CONFIG_USB_UART_BAUDRATE_BR1 0
 #define CONFIG_USB_UART_BAUDRATE_BRS 0
+
+#elif CONFIG_USB_UART_BAUDRATE == 460800
+// N = 26.041666... 
+#define CONFIG_USB_UART_BAUDRATE_BR0 26
+#define CONFIG_USB_UART_BAUDRATE_BR1 0
+#define CONFIG_USB_UART_BAUDRATE_BRS 0
+
+#elif CONFIG_USB_UART_BAUDRATE == 115200
+
+// N = 104.16666...
+#define CONFIG_USB_UART_BAUDRATE_BR0 104
+#define CONFIG_USB_UART_BAUDRATE_BR1 0
+#define CONFIG_USB_UART_BAUDRATE_BRS 1
 
 #endif // CONFIG_USB_UART_BAUDRATE
 

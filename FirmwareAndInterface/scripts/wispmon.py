@@ -5,6 +5,9 @@ import math
 import time
 import re
 import sys
+import os
+import errno
+import select
 from binascii import hexlify
 
 import env
@@ -15,7 +18,10 @@ SERIAL_PORT                         = '/dev/ttyUSB0'
 
 UART_LOG_FILE   = open("uart.log", "w")
 
-VDD = 3.3
+REPORT_STREAM_PROGRESS_INTERVAL = 0.2 # sec
+
+#VDD = 3.3
+VDD = 2.985
 
 COMPARATOR_REF_VOLTAGE = {
     "VCC" : VDD,
@@ -29,6 +35,7 @@ CONSTRUCT_STATE_IDENTIFIER          = 0x00
 CONSTRUCT_STATE_DESCRIPTOR          = 0x01
 CONSTRUCT_STATE_DATA_LEN            = 0x02
 CONSTRUCT_STATE_DATA                = 0x03
+CONSTRUCT_STATE_PADDING             = 0x04
 
 def key_lookup(d, value):
     for k in d:
@@ -58,13 +65,19 @@ target_comm_header = Header(env.TARGET_COMM_HEADER,
 
 config_header = Header(env.CONFIG_HEADER,
     string_macros=[
-        'CONFIG_TIMELOG_TIMER_SOURCE'
+        'CONFIG_TIMELOG_TIMER_SOURCE',
+        'CONFIG_ADC_TIMER_SOURCE_ACLK',
+        'CONFIG_ADC_TIMER_SOURCE_SMCLK',
+        'CONFIG_ADC_TIMER_SOURCE_MCLK',
     ],
     numeric_macros=[
         'CONFIG_USB_UART_BAUDRATE',
         'CONFIG_XT1_FREQ',
         'CONFIG_REFO_FREQ',
-        'CONFIG_DCOCLKDIV_FREQ'
+        'CONFIG_DCOCLKDIV_FREQ',
+        'CONFIG_CLK_DIV_SMCLK',
+        'CONFIG_ADC_SAMPLING_FREQ_HZ',
+        'CONFIG_ADC_TIMER_DIV'
     ])
 
 class StreamInterrupted(Exception):
@@ -77,12 +90,17 @@ class InterruptContext:
         self.saved_vcap = saved_vcap
 
 class StreamDataPoint:
-    def __init__(self, timestamp_sec, value_set):
-        self.timestamp_sec = timestamp_sec
+    def __init__(self, timestamp_cycles, value_set):
+        self.timestamp_cycles = timestamp_cycles
         self.value_set = value_set 
 
 class StreamDecodeException(Exception):
-    pass
+    def __init__(self, msg=""):
+        self.message = msg
+
+class PacketParseException(Exception):
+    def __init__(self, msg=""):
+        self.message = msg
 
 class WispMonitor:
     VDD                                 = VDD # V
@@ -91,9 +109,17 @@ class WispMonitor:
 
     def __init__(self):
         self.rxPkt = RxPkt()
-        self.serial = serial.Serial(port=SERIAL_PORT,
-                                    baudrate=config_header.macros['CONFIG_USB_UART_BAUDRATE'],
-                                    timeout=1)
+
+        baudrate = config_header.macros['CONFIG_USB_UART_BAUDRATE']
+        self.serial = serial.Serial(port=SERIAL_PORT, baudrate=baudrate, timeout=1)
+        supported_baudrates = zip(*self.serial.getSupportedBaudrates())[1]
+
+        # Technically, serial class is supposed to complain, but it doesn't
+        # probably because it tries to support the baudrate as best it can
+        if baudrate not in supported_baudrates:
+            print >>sys.stderr, "WARNING: baudrate " + str(baudrate) + \
+                " not among supported by hardware: " + ",".join(supported_baudrates)
+
         self.serial.close()
         self.serial.open()
 
@@ -109,17 +135,43 @@ class WispMonitor:
                 "RF_EVENTS": self.decode_rf_event_value,
         }
 
-        # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
-        timelog_source = config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE']
-        if timelog_source == 'TASSEL__ACLK':
-            assert config_header.macros['CONFIG_XT1_FREQ'] == config_header.macros['CONFIG_REFO_FREQ']
-            self.CLK_FREQ = config_header.macros['CONFIG_XT1_FREQ']
-        elif timelog_source == 'TASSEL__SMCLK':
-            self.CLK_FREQ = config_header.macros['CONFIG_DCOCLKDIV_FREQ']
+        def clk_source_freq(source):
+            # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
+            if source == 'ACLK' or re.match(r'T.SSEL__ACLK', source):
+                assert config_header.macros['CONFIG_XT1_FREQ'] == config_header.macros['CONFIG_REFO_FREQ']
+                return config_header.macros['CONFIG_XT1_FREQ']
+            elif source == 'SMCLK' or re.match(r'T.SSEL__SMCLK', source):
+                return config_header.macros['CONFIG_DCOCLKDIV_FREQ'] / \
+                       config_header.macros['CONFIG_CLK_DIV_SMCLK']
+            else:
+                raise Exception("Not implemented")
+
+        def clk_source(source_macro_prefix):
+            for source in ['ACLK', 'SMCLK', 'MCLK']:
+                if config_header.macros[source_macro_prefix + source]:
+                    return source
+            raise Exception("Could not find a defined clk source macro for: " + source_macro_prefix)
+
+        self.CLK_FREQ = clk_source_freq(config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE'])
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
+
+        adc_trigger_timer_clk_source = clk_source('CONFIG_ADC_TIMER_SOURCE_')
+        self.ADC_TRIGGER_TIMER_CLK_FREQ = \
+                float(clk_source_freq(adc_trigger_timer_clk_source)) / \
+                config_header.macros['CONFIG_ADC_TIMER_DIV']
+
+        self.params = {
+            'adc_sampling_freq_hz' : config_header.macros['CONFIG_ADC_SAMPLING_FREQ_HZ']
+        }
+
+        self.replay_log = None
+        self.rcv_no_parse = None
         
     def destroy(self):
         self.serial.close()
+
+    def set_param(self, param, value):
+        self.params[param] = value
     
     def buildRxPkt(self, buf):
         """Parses packet header and returns whether it is ready or not"""
@@ -134,8 +186,8 @@ class WispMonitor:
                     # unknown identifier - reset state
                     self.rxPkt.constructState = CONSTRUCT_STATE_IDENTIFIER
                     print >>sys.stderr, "packet construction failed: unknown identifier: ", \
-                            self.rxPkt.identifier, " (exp ", \
-                            str(host_comm_header.macros['UART_IDENTIFIER_USB']), ")"
+                            "0x%02x" % self.rxPkt.identifier, " (exp ", \
+                            "0x%02x" % host_comm_header.macros['UART_IDENTIFIER_USB'], ")"
                     continue
                 self.rxPkt.constructState = CONSTRUCT_STATE_DESCRIPTOR
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DESCRIPTOR):
@@ -146,6 +198,11 @@ class WispMonitor:
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA_LEN):
                 self.rxPkt.length = buf.pop(0) # get data length
                 minBufLen -= 1
+                self.rxPkt.constructState = CONSTRUCT_STATE_PADDING
+                continue
+            elif(self.rxPkt.constructState == CONSTRUCT_STATE_PADDING):
+                buf.pop(0) # padding
+                minBufLen -= 1 # padding
                 self.rxPkt.constructState = CONSTRUCT_STATE_DATA
                 continue
             elif(self.rxPkt.constructState == CONSTRUCT_STATE_DATA):
@@ -178,8 +235,10 @@ class WispMonitor:
         self.serial.write(serialMsg)
 
     def receive(self):
-        if self.buildRxPkt(self.rcv_buf):
+        if not self.rcv_no_parse and self.buildRxPkt(self.rcv_buf):
             pkt = { "descriptor" : self.rxPkt.descriptor }
+
+            # TODO: add error handling for all descriptors
 
             if self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']:
                 pkt["code"] = self.rxPkt.data[0]
@@ -218,12 +277,12 @@ class WispMonitor:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
                                  (self.rxPkt.data[1] <<  8) | (self.rxPkt.data[0] <<  0)
 
-            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['SERIAL_ECHO']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
-            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_DATA']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']:
                 FIELD_LEN_STREAMS = 1
-                FIELD_LEN_TIMESTAMP = 4
+                FIELD_LEN_TIMESTAMP = 2
 
                 offset = 0
 
@@ -234,22 +293,19 @@ class WispMonitor:
                     pkt_streams = self.rxPkt.data[offset]
                     #print "pkt_streams=0x%08x" % pkt_streams
                     offset += 1
-                    offset += 1 # padding
 
+                    # padding
+                    offset += 1
 
                     while offset < len(self.rxPkt.data):
                         # invalid pkt, but best we can do here is not fail
                         if offset + FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
-                            print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: timestamp field"
+                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: timestamp field"
                             break
 
-                        timestamp_cycles = (self.rxPkt.data[offset + 3] << 24) | \
-                                           (self.rxPkt.data[offset + 2] << 16) | \
-                                           (self.rxPkt.data[offset + 1] <<  8) | \
+                        timestamp_cycles = (self.rxPkt.data[offset + 1] <<  8) | \
                                            (self.rxPkt.data[offset + 0] <<  0)
-                        offset += 4
-
-                        timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
+                        offset += FIELD_LEN_TIMESTAMP
 
                         try:
                             # Decode the pkt into a dictionary: stream->value.
@@ -261,20 +317,91 @@ class WispMonitor:
                                     offset += length
                                     value_set[stream] = value
 
-                            data_points.append(StreamDataPoint(timestamp_sec, value_set))
-                        except StreamDecodeException:
+                            data_points.append(StreamDataPoint(timestamp_cycles, value_set))
+                        except StreamDecodeException as e:
                             # invalid pkt, best we can do here is not fail
-                            print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: value field"
+                            print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: value field: " + \
+                                    e.message
                             break
                 else:
                     # invalid pkt, best we can do here is not fail
-                    print >>sys.stderr, "WARNING: corrupt host_comm_header.enums['STREAM']_DATA pkt: streams field"
+                    print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: streams field"
 
                 pkt["data_points"] = data_points
 
+            # The voltage stream packet has to be forked because we are forced to layout
+            # the buffer with timestamps grouped together folled by voltage samples
+            # grouped together for efficiency reasons (DMA).
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']:
+                FIELD_LEN_STREAMS = 1
+                FIELD_LEN_SAMPLE_COUNT = 1
+                FIELD_LEN_TIMESTAMP = 2
+                FIELD_LEN_VOLTAGE = 2
+
+                offset = 0
+
+                data_points = []
+
+                try:
+                    if offset + FIELD_LEN_STREAMS + FIELD_LEN_SAMPLE_COUNT > len(self.rxPkt.data):
+                        raise PacketParseException("header")
+
+                    pkt_streams = self.rxPkt.data[offset]
+                    #print "pkt_streams=0x%08x" % pkt_streams
+                    offset += 1
+
+                    num_samples = self.rxPkt.data[offset]
+                    offset += 1
+
+                    timestamp_offset = offset
+                    voltage_offset = offset + num_samples * FIELD_LEN_TIMESTAMP
+
+                    if timestamp_offset + num_samples * FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
+                        raise PacketParseException("timestamps section")
+
+                    if voltage_offset + num_samples * FIELD_LEN_VOLTAGE > len(self.rxPkt.data):
+                        raise PacketParseException("voltages section")
+
+                    for sample_i in range(num_samples):
+
+                        timestamp_cycles = (self.rxPkt.data[timestamp_offset + 1] << 8) | \
+                                           (self.rxPkt.data[timestamp_offset + 0] << 0);
+                        timestamp_offset += FIELD_LEN_TIMESTAMP
+
+                        # Decode the pkt into a dictionary: stream->value.
+                        # Order is implied by the bit index of each stream as defined by the enum
+                        value_set = {}
+                        for stream in host_comm_header.enums['STREAM']:
+                            if pkt_streams & host_comm_header.enums['STREAM'][stream]:
+                                value, length = self.stream_decoders[stream](self.rxPkt.data,
+                                                                             voltage_offset)
+                                voltage_offset += length
+                                value_set[stream] = value
+
+                        data_points.append(StreamDataPoint(timestamp_cycles, value_set))
+
+                except StreamDecodeException as e:
+                    # invalid pkt, best we can do here is not fail
+                    print >>sys.stderr, "StreamDecodeException: ", e.message
+
+                except PacketParseException:
+                    print >>sys.stderr, "PacketParseException: ", e.message
+
+                pkt["data_points"] = data_points
+
+
             return pkt
 
-        newData = self.serial.read()
+
+        if self.replay_log is not None:
+            newData = self.replay_log.read(1)
+        else:
+            newData = self.serial.read()
+
+        if self.rcv_no_parse: # debugging gimmick
+            self.rcv_no_parse_total_bytes += len(newData)
+            print "\r%d" % self.rcv_no_parse_total_bytes,
+            return None
 
         if len(newData) > 0:
             newBytes = bytearray(newData)
@@ -284,25 +411,33 @@ class WispMonitor:
             self.stream_bytes += len(newData)
         return None
 
-    def receive_reply(self, descriptor):
+    def receive_reply(self, descriptors):
+        # Be compatible with legacy code
+        if not hasattr(descriptors, "__iter__"):
+            descriptors = [descriptors]
         reply = None
         while reply is None:
             while reply is None:
                 reply = self.receive()
-            if reply["descriptor"] != descriptor:
+            reply_descriptor = reply["descriptor"]
+            if reply_descriptor not in descriptors:
                 print >>sys.stderr, "unexpected reply: ", \
-                        reply["descriptor"], "(exp ", str(descriptor), ")"
+                        "0x%02x" % reply["descriptor"], \
+                        "(exp [", ",".join(map(lambda d: "0x%02x" % d, descriptors)), "])"
                 reply = None
                 continue
-        if descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
+        if reply_descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
             if reply["code"] != 0:
-                raise Exception("Command failed: return code " + str(reply["code"]))
+                raise Exception("Command failed: return code " + ("0x%02x" % reply["code"]))
         return reply
 
     def flush(self):
         while len(self.serial.read()) > 0:
             pass
         self.rcv_buf = []
+
+    def load_replay_log(file):
+        self.replay_log = open(file, "r")
 
     def uint16_to_bytes(self, val):
         return [val & 0xFF, (val>> 8) & 0xFF]
@@ -342,8 +477,9 @@ class WispMonitor:
 
     def decode_adc_value(self, bytes, offset):
         FIELD_LEN = 2
-        #if offset + FIELD_LEN > len(bytes):
-        #    raise StreamDecodeException()
+        if offset + FIELD_LEN > len(bytes):
+            raise StreamDecodeException("buf (offset = " + str(offset) + "): " + \
+                    str(hexlify(bytearray(bytes))))
         adc_value = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         length = 2
         voltage = self.adc_to_voltage(adc_value)
@@ -352,12 +488,12 @@ class WispMonitor:
     def decode_rf_event_value(self, bytes, offset):
         FIELD_LEN = 2
         if offset + FIELD_LEN > len(bytes):
-            raise StreamDecodeException()
+            raise StreamDecodeException("not enough bytes")
         rf_event_id = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
         #print "rf_event_id = 0x%08x" % rf_event_id
         rf_event = key_lookup(host_comm_header.enums['RF_EVENT'], rf_event_id)
         if rf_event is None:
-            raise StreamDecodeException()
+            raise StreamDecodeException("invalid event id: " + "0x%04x" % rf_event_id)
         length = 2 # sizeof(rf_event_t.id field + padding in the struct)
         return rf_event, length
 
@@ -367,9 +503,14 @@ class WispMonitor:
         return reply["voltage"]
 
     def stream_begin(self, streams_bitmask):
+        adc_sampling_period_cycles = \
+                int((1.0 / float(self.params['adc_sampling_freq_hz'])) * self.ADC_TRIGGER_TIMER_CLK_FREQ)
+        print "adc_sampling_period_cycles=", adc_sampling_period_cycles
         self.stream_bytes = 0
         self.stream_start = time.time()
-        self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_BEGIN'], data=[streams_bitmask])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_BEGIN'],
+                     data=[streams_bitmask] + \
+                          self.uint16_to_bytes(adc_sampling_period_cycles))
 
     def stream_end(self, streams_bitmask):
         self.sendCmd(host_comm_header.enums['USB_CMD']['STREAM_END'], data=[streams_bitmask])
@@ -478,11 +619,20 @@ class WispMonitor:
 
     def serial_echo(self, value):
         cmd_data = [value]
-        self.sendCmd(host_comm_header.enums['USB_CMD']['SERIAL_ECHO'], data=cmd_data)
-        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['SERIAL_ECHO'])
+        self.sendCmd(host_comm_header.enums['USB_CMD']['ECHO'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
         return reply["value"]
 
-    def stream(self, streams, duration_sec=None, out_file=None, silent=True):
+    def dma_echo(self, value):
+        cmd_data = [value]
+        self.sendCmd(host_comm_header.enums['USB_CMD']['DMA_ECHO'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
+        return reply["value"]
+
+    def stream(self, streams, duration_sec=None, out_file=None, silent=True, no_parse=False):
+        self.rcv_no_parse = no_parse
+        self.rcv_no_parse_total_bytes = 0
+
         streams_bitmask = 0x0
         for stream in streams:
             streams_bitmask |= host_comm_header.enums['STREAM'][stream]
@@ -493,9 +643,18 @@ class WispMonitor:
         if not silent:
             print "Logging... Ctrl-C to stop"
 
-        start_time_sec = None
-        timestamp_sec = 0
+        overflow_timestamp_cycles = {
+            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
+        }
+
+        prev_timestamp_cycles = {
+            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
+        }
+
         num_samples = 0
+        last_progress_report = time.time()
 
         def format_voltage(voltage):
             return "%f" % voltage
@@ -510,19 +669,45 @@ class WispMonitor:
             "VINJ": format_voltage,
             "RF_EVENTS": format_rf_event,
         }
-        
-        with DelayedKeyboardInterrupt(): # prevent partial lines
+
+        interrupt_signals = [signal.SIGINT, signal.SIGALRM]
+
+        with DelayedSignals(interrupt_signals): # prevent partial lines
             out_file.write("timestamp_sec," + ",".join(streams) + "\n")
+
+        # Can't modify a variable in this scope, but can modify values in a dict
+        signal_handler_data = {'streaming' : True}
+
+        if duration_sec is not None:
+            # The main point here is to cause the read system call to return
+
+            def interrupt_loop(sig, frame):
+                signal_handler_data['streaming'] = False
+
+            signal.signal(signal.SIGALRM, interrupt_loop)
+            signal.setitimer(signal.ITIMER_REAL, duration_sec)
         
         try:
-            while duration_sec is None or timestamp_sec < duration_sec:
-                pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['STREAM_DATA'])
+            while signal_handler_data['streaming']:
+                pkt = self.receive_reply([
+                                host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS'],
+                                host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']
+                            ])
 
                 for data_point in pkt["data_points"]:
 
-                    if start_time_sec is None: # first time data - store it for reference
-                        start_time_sec = data_point.timestamp_sec
-                    timestamp_sec = data_point.timestamp_sec - start_time_sec
+                    # Detect overflow by watching for timestamp to decrease
+                    # NOTE: each pkt type has it's own time since the samples
+                    # in two packets of different types, which (the packets)
+                    # are transmitted one after another, may be interleaved.
+                    if data_point.timestamp_cycles < prev_timestamp_cycles[pkt['descriptor']]:
+                        overflow_timestamp_cycles[pkt['descriptor']] += 1 << 16;
+                    prev_timestamp_cycles[pkt['descriptor']] = data_point.timestamp_cycles
+
+                    # Count beyond 16 bits
+                    timestamp_cycles = overflow_timestamp_cycles[pkt['descriptor']] + \
+                                            data_point.timestamp_cycles
+                    timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
 
                     line = "%f" % timestamp_sec
                     for stream in streams:
@@ -532,13 +717,25 @@ class WispMonitor:
                             line += stream_formaters[stream](data_point.value_set[stream])
                     line += "\n"
 
-                    with DelayedKeyboardInterrupt(): # prevent partial lines
+                    with DelayedSignals(interrupt_signals): # prevent partial lines
                         out_file.write(line)
 
                     num_samples += 1
 
-                if not silent:
-                    print "\r%.2f KB/s" % self.stream_datarate_kbps()
+                now = time.time()
+                if not silent and now - last_progress_report > REPORT_STREAM_PROGRESS_INTERVAL:
+                    print "\r%d samples @ %.2f KB/s" % (num_samples, self.stream_datarate_kbps()),
+                    sys.stdout.flush()
+                    last_progress_report = now
+
+        # catch read syscall interrupt: that's clean exit
+        # NOTE: serial.Serial uses select and the exception is not wrapped into an IOError
+        except select.error as e:
+            err_num, err_msg = e.args
+            if err_num == errno.EINTR:
+                pass
+            else:
+                raise
 
         finally:
             self.stream_end(streams_bitmask)
@@ -550,7 +747,8 @@ class WispMonitor:
                 self.serial.flushInput()
 
         if not silent:
-            print "%d samples in %f seconds (target time)" % (num_samples, timestamp_sec)
+            print # the rolling progress report does not newline
+            print "%d samples in %f seconds" % (num_samples, duration_sec)
 
 class RxPkt():
     def __init__(self):

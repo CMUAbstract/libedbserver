@@ -47,6 +47,8 @@
 								<option id="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.DIAG_WRAP.1945024907" name="Wrap diagnostic messages (--diag_wrap)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.DIAG_WRAP" value="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.DIAG_WRAP.off" valueType="enumerated"/>
 								<option id="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.INCLUDE_PATH.153162558" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.MSP430_4.4.compilerID.INCLUDE_PATH" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${CCS_BASE_ROOT}/msp430/include&quot;"/>
+									<listOptionValue builtIn="false" value="/usr0/home/acolin/dev/tud/FirmwareAndInterface/firmware/src/mspware"/>
+									<listOptionValue builtIn="false" value="/usr0/home/acolin/dev/tud/FirmwareAndInterface/libdebug/src/include"/>
 									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/i2c&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${SRC_LOC}/adc12&quot;"/>

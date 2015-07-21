@@ -32,6 +32,7 @@ typedef struct {
     uint16_t channel_masks[ADC12_MAX_CHANNELS]; //<! maps a permanent software index to a hardware channel (must be filled out by the user statically or before first call to ADC12_addChannel)
     uint16_t channels[ADC12_MAX_CHANNELS];           //!< ADC channels that will be sampled
     uint16_t num_channels;           //!< number of channels in the channels array to sample in order
+    uint16_t sampling_period;        // ACLK cycles
 } adc12Cfg_t;
 
 /**
@@ -42,8 +43,6 @@ typedef struct {
     adc12Cfg_t config;              //!< channel configuration
     uint16_t results[ADC12_MAX_CHANNELS];            //!< ADC conversion results
     int16_t indexes[ADC12_MAX_CHANNELS];            //!< channel index (never changes) -> index in 'results' array
-    uint16_t *pFlags;               //!< pointer to a bit mask that will be set in the ISR - should be checked in main loop
-    uint16_t flag_adc12Complete;    //!< flag that will be set in pFlags when conversion completes
 } adc12_t;
 
 /**
@@ -60,19 +59,19 @@ void ADC12_init(adc12_t *adc12);
  *              configured channels.  The interrupt sets the flag bit mask
  *              present in the adc12_t data structure.
  */
-void ADC12_arm(adc12_t *adc12);
+void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask);
 
 /**
  * @brief   Add an ADC channel to the adc12 configuration structure
  * @param   chan_index Permanent index assigned to the ADC channel
  */
-void ADC12_addChannel(adc12_t *adc12, uint8_t chan_index);
+void ADC12_addChannel(adc12_t *adc12, unsigned chan_index);
 
 /**
  * @brief   Remove an ADC channel from the adc12 configuration structure
  * @param  chan_index   Permanent index assigned to the ADC channel
  */
-void ADC12_removeChannel(adc12_t *adc12, uint8_t chan_index);
+void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index);
 
 /**
  * @brief       Start an ADC conversion in the mode configured previously
@@ -91,7 +90,7 @@ void ADC12_stop();
  * @details This function reconfigures the ADC to read only the channel
  *          requested, and returns the result.
  */
-uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index);
+uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index);
 
 /**
  * @brief   Retrieve a recorded sample from memory
@@ -100,6 +99,8 @@ uint16_t ADC12_read(adc12_t *adc12, uint8_t chan_index);
  *          conversion has completed.
  */
 uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index);
+
+void ADC12_send_samples_to_host(adc12_t *adc12);
 
 /** @} end ADC12 */
 
