@@ -129,7 +129,7 @@ void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
 
     DMA(DMA_ADC_TIMESTAMPS, CTL) &= ~DMAEN;
 
-#if 0 // DMA trigger and ISR seem to not be allowed to co-exist
+#if 0
 #if DMA_ADC_TIMESTAMPS == 0
     DMACTL0 = DMA0TSEL_24; /* ADC12IFG */
 #elif DMA_ADC_TIMESTAMPS == 1
@@ -152,7 +152,7 @@ void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
 
     DMA(DMA_ADC_VOLTAGES, CTL) &= ~DMAEN;
 
-#if 0 // DMA trigger and ISR seem to not be allowed to co-exist
+#if 0
 #if DMA_ADC_VOLTAGES == 0
     DMACTL0 = DMA0TSEL_24; /* ADC12IFG */
 #elif DMA_ADC_VOLTAGES == 1
@@ -305,9 +305,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
         case ADC12IV_ADC12IFG3:                           // Vector 12:  ADC12IFG3
         case ADC12IV_ADC12IFG4:                           // Vector 14:  ADC12IFG4
 
-            // Apparently can't have both ADC12 interrupt call an ISR and trigger DMA,
-            // so we have to do trigger DMA in software here. Note that we must have
-            // this ISR for a separate reason (see below).
+            // TODO: why can't this trigger?
             DMA(DMA_ADC_TIMESTAMPS, CTL) |= DMAREQ;
             DMA(DMA_ADC_VOLTAGES, CTL) |= DMAREQ;
 
