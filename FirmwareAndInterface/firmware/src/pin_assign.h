@@ -28,6 +28,12 @@
 #define DMA_INTFLAG_INNER(name) DMAIV_DMA ## name ## IFG
 #define DMA_INTFLAG(name) DMA_INTFLAG_INNER(name)
 
+#define TIMER_DIV_BITS_INNER(div) ID__ ## div
+#define TIMER_DIV_BITS(div) TIMER_DIV_BITS_INNER(div)
+
+#define TIMER_B_CLK_SOURCE_BITS_INNER(name) TBSSEL__ ## name
+#define TIMER_B_CLK_SOURCE_BITS(name) TIMER_B_CLK_SOURCE_BITS_INNER(name)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT

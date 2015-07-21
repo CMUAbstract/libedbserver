@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 #include "config.h"
+#include "pin_assign.h"
 #include "timeLog.h"
 
 void TimeLog_request(unsigned request)
@@ -39,7 +40,7 @@ void TimeLog_request(unsigned request)
 		}
 
 		// configure relative timer
-		TA2CTL |= TACLR | CONFIG_TIMELOG_TIMER_SOURCE | CONFIG_TIMELOG_TIMER_DIV_BITS;
+		TA2CTL |= TACLR | CONFIG_TIMELOG_TIMER_SOURCE | TIMER_DIV_BITS(CONFIG_TIMELOG_TIMER_DIV);
 		TA2EX0 |= CONFIG_TIMELOG_TIMER_DIV_BITS_EX;
 
 		// continuous mode, clear TAR, enable interrupt
