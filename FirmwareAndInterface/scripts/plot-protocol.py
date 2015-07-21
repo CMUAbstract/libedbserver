@@ -57,6 +57,7 @@ for voltage_column in voltage_columns:
 voltage_axes.grid(True)
 voltage_axes.legend(loc=0)
 voltage_axes.set_ylabel('Voltage (v)')
+voltage_axes.set_ylim([0, 3.35])
 
 rf_axes.plot(d[TIME_COLUMN], rf_events_as_numbers, '+')
 rf_axes.grid(True, which="both")
