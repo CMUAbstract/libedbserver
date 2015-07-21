@@ -304,7 +304,6 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
         case ADC12IV_ADC12IFG2:                           // Vector 10:  ADC12IFG2
         case ADC12IV_ADC12IFG3:                           // Vector 12:  ADC12IFG3
         case ADC12IV_ADC12IFG4:                           // Vector 14:  ADC12IFG4
-            ADC12IFG = 0; // clear interrupt flags // TODO: DMA should do this
 
             // TODO: why can't this trigger?
             DMA(DMA_ADC_TIMESTAMPS, CTL) |= DMAREQ;
