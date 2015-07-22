@@ -51,8 +51,10 @@ voltage_axes = plt.subplot2grid(plot_grid, (0, 0), rowspan=plot_grid[0] - 1)
 rf_axes = plt.subplot2grid(plot_grid, (plot_grid[0] - 1, 0))
 
 voltage_columns = filter(lambda c: c.startswith('V'), d.columns)
+d_voltages = d[[TIME_COLUMN] + voltage_columns].dropna()
+
 for voltage_column in voltage_columns:
-	voltage_axes.plot(d[TIME_COLUMN], d[voltage_column], '-', label=voltage_column)
+	voltage_axes.plot(d_voltages[TIME_COLUMN], d_voltages[voltage_column], '-', label=voltage_column)
 
 voltage_axes.grid(True)
 voltage_axes.legend(loc=0)
