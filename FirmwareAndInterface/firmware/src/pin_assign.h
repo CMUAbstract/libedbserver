@@ -108,7 +108,7 @@
 #define PIN_RF_RX                               1 //!< RF RX line
 #define PIN_RF_TX                               2 //!< RF TX line
 #define TMRCC_RF_RX                             0 //!< timer capture-compare register index
-#define TMRCC_RF_TX                             1 //!< timer capture-compare register index
+#define TMRCC_RF_TX                             0 //!< timer capture-compare register index
 
 /* The same as above, but for asm, which is limited to a simple pre-processor */
 #define PIN_RX BIT2
