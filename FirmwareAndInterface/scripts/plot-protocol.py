@@ -31,24 +31,9 @@ host_comm_header = Header(env.HOST_COMM_HEADER, enums=['RF_EVENT'])
 
 EVENT_LABELS_MARGIN = 1.0
 
-present_events = set(d['RF_EVENTS'].unique())
-ordered_events = filter(lambda e: e in present_events, host_comm_header.enums['RF_EVENT'])
-ordered_events = ordered_events[::-1] # top to bottom
-event_idxs = {}
-for idx, event in enumerate(ordered_events):
-	event_idxs[event] = idx
-
-def event_as_number(e):
-	if type(e) is str:
-		return event_idxs[e] + EVENT_LABELS_MARGIN
-	else:
-		return np.nan
-
-rf_events_as_numbers = map(event_as_number, d['RF_EVENTS'])
-
 plot_grid = (6, 1)
+
 voltage_axes = plt.subplot2grid(plot_grid, (0, 0), rowspan=plot_grid[0] - 1)
-rf_axes = plt.subplot2grid(plot_grid, (plot_grid[0] - 1, 0))
 
 voltage_columns = filter(lambda c: c.startswith('V'), d.columns)
 d_voltages = d[[TIME_COLUMN] + voltage_columns].dropna()
@@ -61,19 +46,37 @@ voltage_axes.legend(loc=0)
 voltage_axes.set_ylabel('Voltage (v)')
 voltage_axes.set_ylim([0, 3.35])
 
-rf_axes.plot(d[TIME_COLUMN], rf_events_as_numbers, '+')
-rf_axes.grid(True, which="both")
-rf_axes.set_yticks(np.arange(len(ordered_events)) + EVENT_LABELS_MARGIN)
-rf_axes.set_yticklabels(ordered_events)
- 
-for tick in rf_axes.yaxis.get_major_ticks():
-	tick.label.set_fontsize(8)
+if 'RF_EVENTS' in d.columns:
+	present_events = set(d['RF_EVENTS'].unique())
+	ordered_events = filter(lambda e: e in present_events, host_comm_header.enums['RF_EVENT'])
+	ordered_events = ordered_events[::-1] # top to bottom
+	event_idxs = {}
+	for idx, event in enumerate(ordered_events):
+		event_idxs[event] = idx
 
-if len(voltage_columns) > 0:
-	rf_axes.set_xlim(voltage_axes.get_xlim())
-rf_axes.set_ylim([0, len(ordered_events) + EVENT_LABELS_MARGIN])
+	def event_as_number(e):
+		if type(e) is str:
+			return event_idxs[e] + EVENT_LABELS_MARGIN
+		else:
+			return np.nan
 
-rf_axes.set_xlabel('Time (sec)')
+	rf_events_as_numbers = map(event_as_number, d['RF_EVENTS'])
+
+	rf_axes = plt.subplot2grid(plot_grid, (plot_grid[0] - 1, 0))
+
+	rf_axes.plot(d[TIME_COLUMN], rf_events_as_numbers, '+')
+	rf_axes.grid(True, which="both")
+	rf_axes.set_yticks(np.arange(len(ordered_events)) + EVENT_LABELS_MARGIN)
+	rf_axes.set_yticklabels(ordered_events)
+
+	for tick in rf_axes.yaxis.get_major_ticks():
+		tick.label.set_fontsize(8)
+
+	if len(voltage_columns) > 0:
+		rf_axes.set_xlim(voltage_axes.get_xlim())
+	rf_axes.set_ylim([0, len(ordered_events) + EVENT_LABELS_MARGIN])
+
+	rf_axes.set_xlabel('Time (sec)')
 
 plt.tight_layout()
 
