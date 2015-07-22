@@ -17,12 +17,6 @@
 #include "config.h"
 #include "error.h"
 
-#define TIMER_DIV_BITS_INNER(div) ID__ ## div
-#define TIMER_DIV_BITS(div) TIMER_DIV_BITS_INNER(div)
-
-#define TIMER_B_CLK_SOURCE_BITS_INNER(name) TBSSEL__ ## name
-#define TIMER_B_CLK_SOURCE_BITS(name) TIMER_B_CLK_SOURCE_BITS_INNER(name)
-
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_BUFFERED_SAMPLES                        16
 

@@ -96,14 +96,14 @@ typedef enum {
 
 /** @brief Transmission time of an RFID reply from tag to the reader
  *  @details Units: SMCLK cycles
- *           @ 21.921792 MHz measured on scope to be about 150us
+ *           measured on scope to be about 200us
  *
  *           This is a shortcut in place while parsing of the TX bit stream
  *           is not implemented. We simply report a reply event whenever
  *           an activity is detected and then ignore the renaming edges for
  *           this long (since they are part of the same message).
  */
-#define RFID_TX_MSG_DURATION        3288
+#define RFID_TX_MSG_DURATION        4800 // cycles @ 24 Mhz = 200 us
 
 #if 0 // these come from ASM implementation from (wisp-base)
       // TODO: remove once C impl is working

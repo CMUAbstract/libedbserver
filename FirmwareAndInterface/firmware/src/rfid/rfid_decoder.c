@@ -120,15 +120,22 @@ void rfid_decoder_stop()
     TIMER(TIMER_RF_RX_DECODE, CTL) = MC__STOP;
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) &= ~CCIE;
 
+    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_RX); // back to GPIO input
+
+#ifdef CONFIG_ENABLE_RF_TX_DECODING
+    // Turn off timer *and* disable interrupt atomically, otherwise
+    // if timer ISR or pin interrupt happens in between disabling
+    // either one, then it will cause the other thing to be re-enabled.
+    __disable_interrupt();
     TIMER(TIMER_RF_TX_DECODE, CTL) = MC__STOP; // stop and disable rollover interrupt
 
 	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
 	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear interrupt flag
-
-    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_RX); // back to GPIO input
+    __enable_interrupt();
 
     GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_TX); // tx pin in GPIO function
     GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_TX); // input direction
+#endif
 
 #ifdef CONFIG_RFID_DECODER_STATE_PINS
     GPIO(PORT_RFID_DEC_STATE, DIR) &=
@@ -530,7 +537,8 @@ void rfid_decoder_tx_pin_isr()
 	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
 
     // SMCLK, up mode with period set earlier, clear, interrupt on rollover
-    TIMER(TIMER_RF_TX_DECODE, CTL) = TASSEL__SMCLK | MC__UP | TACLR | TAIE;
+    TIMER(TIMER_RF_TX_DECODE, CTL) = TASSEL__SMCLK | MC__UP | TACLR;
+    TIMER_CC(TIMER_RF_TX_DECODE, TMRCC_RF_TX, CCTL) |= CCIE;
 
     // Decoding is not implemented, so report a generic response ID
     rfid_rsp_handler(RFID_RSP_GENERIC);
@@ -538,20 +546,20 @@ void rfid_decoder_tx_pin_isr()
 
 /** @brief TX "ignore" timer ISR */
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A1_VECTOR
-__interrupt void TIMER1_A1_ISR(void)
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt void TIMER1_A0_ISR(void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
+void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #else
 #error Compiler not supported!
 #endif
 {
     // stop the timer, we'll set it again on first edge of the next message
-	TIMER(TIMER_RF_TX_DECODE, CTL) = MC__STOP;
+    TIMER(TIMER_RF_TX_DECODE, CTL) = MC__STOP;
 
     // Message transmission is over: re-enable the edge interrupt on the TX pin
-	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
-	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
+    GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
+    GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
 }
 
 #else

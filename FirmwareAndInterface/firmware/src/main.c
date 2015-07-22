@@ -1126,8 +1126,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
         // actions common to all adc streams
         if (adc12.config.num_channels == 0) {
-		    main_loop_flags &= ~FLAG_LOGGING; // for main loop
             ADC12_stop();
+            main_loop_flags &= ~FLAG_LOGGING; // for main loop
         }
         break;
     }
