@@ -26,10 +26,13 @@ d = pd.read_csv(args.data_file)
 
 if args.range is not None:
 	d = d[(args.range[0] <= d[TIME_COLUMN]) & (d[TIME_COLUMN] <= args.range[1])]
+time_values = d[TIME_COLUMN]
+time_range = time_values.min(), time_values.max()
 
 host_comm_header = Header(env.HOST_COMM_HEADER, enums=['RF_EVENT'])
 
 EVENT_LABELS_MARGIN = 1.0
+
 
 plot_grid = (6, 1)
 
@@ -45,6 +48,7 @@ voltage_axes.grid(True)
 voltage_axes.legend(loc=0)
 voltage_axes.set_ylabel('Voltage (v)')
 voltage_axes.set_ylim([0, 3.35])
+voltage_axes.set_xlim(time_range)
 
 if 'RF_EVENTS' in d.columns:
 	present_events = set(d['RF_EVENTS'].unique())
@@ -72,8 +76,7 @@ if 'RF_EVENTS' in d.columns:
 	for tick in rf_axes.yaxis.get_major_ticks():
 		tick.label.set_fontsize(8)
 
-	if len(voltage_columns) > 0:
-		rf_axes.set_xlim(voltage_axes.get_xlim())
+	rf_axes.set_xlim(time_range)
 	rf_axes.set_ylim([0, len(ordered_events) + EVENT_LABELS_MARGIN])
 
 	rf_axes.set_xlabel('Time (sec)')
