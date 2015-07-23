@@ -11,9 +11,9 @@
 
 #include <stdint.h>
 
-void RFID_setup();
+void RFID_init();
 void RFID_start_event_stream();
 void RFID_stop_event_stream();
-void RFID_send_ready_rf_events_buf();
+void RFID_send_rf_events_to_host();
 
 #endif

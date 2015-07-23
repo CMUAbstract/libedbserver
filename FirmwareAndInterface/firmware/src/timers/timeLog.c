@@ -24,9 +24,8 @@
 #include <stdint.h>
 
 #include "config.h"
+#include "pin_assign.h"
 #include "timeLog.h"
-
-uint16_t overflowCycles = 0;
 
 void TimeLog_request(unsigned request)
 {
@@ -40,10 +39,8 @@ void TimeLog_request(unsigned request)
 			time_log_requests++;
 		}
 
-		overflowCycles = 0;
-
 		// configure relative timer
-		TA2CTL |= TACLR | TAIE | CONFIG_TIMELOG_TIMER_SOURCE | CONFIG_TIMELOG_TIMER_DIV_BITS;
+		TA2CTL |= TACLR | CONFIG_TIMELOG_TIMER_SOURCE | TIMER_DIV_BITS(CONFIG_TIMELOG_TIMER_DIV);
 		TA2EX0 |= CONFIG_TIMELOG_TIMER_DIV_BITS_EX;
 
 		// continuous mode, clear TAR, enable interrupt
@@ -56,32 +53,5 @@ void TimeLog_request(unsigned request)
 				TA2CTL = 0; // stop timer
 			}
 		}
-	}
-}
-
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER2_A1_VECTOR
-__interrupt void TIMER2_A1_ISR(void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER2_A1_VECTOR))) TIMER2_A1_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-{
-	switch(__even_in_range(TA2IV, 14))
-	{
-	case TA2IV_NONE:
-	case TA2IV_TACCR1:
-	case TA2IV_TACCR2:
-	case TA2IV_3:
-	case TA2IV_4:
-	case TA2IV_5:
-	case TA2IV_6:
-		break;
-	case TA2IV_TAIFG:
-		overflowCycles++;
-		break;
-	default:
-		break;
 	}
 }

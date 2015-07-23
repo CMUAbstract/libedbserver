@@ -16,6 +16,7 @@
 #include "config.h"
 #include "error.h"
 #include "main_loop.h"
+#include "dma.h"
 
 #include "uart.h"
 
@@ -24,19 +25,6 @@
 
 #define BRF_BITS_INNER(brf) UCBRF_ ## brf
 #define BRF_BITS(brf) BRF_BITS_INNER(brf)
-
-#if defined(__TI_COMPILER_VERSION__)
-#define __DMA_ACCESS_REG__      __SFR_FARPTR
-#elif defined(__GNUC__)
-#define __DMA_ACCESS_REG__      uintptr_t
-#else
-#error Compiler not supported!
-#endif
-
-typedef enum {
-    UART_STATUS_TX_BUSY = 0x01,
-    UART_STATUS_RX_BUSY = 0x02,
-} uart_status_t;
 
 volatile unsigned host_uart_status = 0;
 
@@ -192,7 +180,7 @@ unsigned UART_RxBufEmpty(unsigned interface)
 static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len)
 {
     while(len--) {
-        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_TAIL, bufInto->tail < UART_BUF_MAX_LEN_WITH_TAIL);
+        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_OVERFLOW, bufInto->tail < UART_BUF_MAX_LEN_WITH_TAIL);
         bufInto->buf[bufInto->tail] = *bufFrom++; // copy byte
         bufInto->tail = (bufInto->tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;   // set tail of circular buffer
     }
@@ -209,7 +197,7 @@ static void uartBuf_copyTo(uartBuf_t *bufInto, uint8_t *bufFrom, unsigned len)
 static void uartBuf_copyFrom(uartBuf_t *bufFrom, uint8_t *bufInto, unsigned len)
 {
     while(len--) {
-        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_HEAD, bufFrom->head < UART_BUF_MAX_LEN_WITH_TAIL);
+        ASSERT(ASSERT_UART_ERROR_CIRC_BUF_OVERFLOW, bufFrom->head < UART_BUF_MAX_LEN_WITH_TAIL);
         *bufInto++ = bufFrom->buf[bufFrom->head]; // copy byte
         bufFrom->head = (bufFrom->head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;   // set head of circular buffer
     }
@@ -287,7 +275,8 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
         case CONSTRUCT_STATE_DATA:
             if(minUartBufLen >= pkt->length) {
                 // copy the data
-                ASSERT(ASSERT_UART_ERROR_RX_PKT_LEN, pkt->length < UART_PKT_MAX_DATA_LEN);
+                // TODO: make non-fatal
+                ASSERT(ASSERT_UART_ERROR_RX_PKT_OVERFLOW, pkt->length < UART_PKT_MAX_DATA_LEN);
                 uartBuf_copyFrom(uartBuf, pkt->data, pkt->length);
                 // no need to update the minUartBufLen, since packet construction is complete
                 // mark this packet as unprocessed
@@ -345,7 +334,7 @@ void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *b
 {
     unsigned len = 0;
 
-    ASSERT(ASSERT_INVALID_PAYLOAD, (host_uart_status & UART_STATUS_TX_BUSY) == 0x0);
+    ASSERT(ASSERT_UART_TX_BUSY, (host_uart_status & UART_STATUS_TX_BUSY) == 0x0);
 
     host_uart_status |= UART_STATUS_TX_BUSY;
 
@@ -381,22 +370,6 @@ void UART_end_transmission()
     UART_wait_for_tx_dma();
 }
 
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=DMA_VECTOR
-__interrupt void DMA_ISR(void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-{
-    switch (__even_in_range(DMAIV, 16)) {
-        case DMA_INTFLAG(DMA_HOST_UART_TX):
-            host_uart_status &= ~UART_STATUS_TX_BUSY;
-            break;
-    }
-}
-
 /*
  * USB message ISR
  */
@@ -417,8 +390,7 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     {
 
 #ifdef CONFIG_ABORT_ON_USB_UART_ERROR
-        ASSERT(ASSERT_UART_ERROR_OVERFLOW, !(UCA0STAT & UCRXERR & UCOE));
-        ASSERT(ASSERT_UART_ERROR_GENERIC,  !(UCA0STAT & UCRXERR));
+        ASSERT(ASSERT_UART_FAULT,  !(UCA0STAT & UCRXERR));
 #endif
         usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
         usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail

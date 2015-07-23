@@ -20,7 +20,8 @@ UART_LOG_FILE   = open("uart.log", "w")
 
 REPORT_STREAM_PROGRESS_INTERVAL = 0.2 # sec
 
-VDD = 3.3
+#VDD = 3.3
+VDD = 2.985
 
 COMPARATOR_REF_VOLTAGE = {
     "VCC" : VDD,
@@ -76,7 +77,8 @@ config_header = Header(env.CONFIG_HEADER,
         'CONFIG_DCOCLKDIV_FREQ',
         'CONFIG_CLK_DIV_SMCLK',
         'CONFIG_ADC_SAMPLING_FREQ_HZ',
-        'CONFIG_ADC_TIMER_DIV'
+        'CONFIG_ADC_TIMER_DIV',
+        'CONFIG_TIMELOG_TIMER_DIV'
     ])
 
 class StreamInterrupted(Exception):
@@ -89,11 +91,15 @@ class InterruptContext:
         self.saved_vcap = saved_vcap
 
 class StreamDataPoint:
-    def __init__(self, timestamp_sec, value_set):
-        self.timestamp_sec = timestamp_sec
+    def __init__(self, timestamp_cycles, value_set):
+        self.timestamp_cycles = timestamp_cycles
         self.value_set = value_set 
 
 class StreamDecodeException(Exception):
+    def __init__(self, msg=""):
+        self.message = msg
+
+class PacketParseException(Exception):
     def __init__(self, msg=""):
         self.message = msg
 
@@ -147,7 +153,8 @@ class WispMonitor:
                     return source
             raise Exception("Could not find a defined clk source macro for: " + source_macro_prefix)
 
-        self.CLK_FREQ = clk_source_freq(config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE'])
+        self.CLK_FREQ = clk_source_freq(config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE']) / \
+                config_header.macros['CONFIG_TIMELOG_TIMER_DIV']
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
 
         adc_trigger_timer_clk_source = clk_source('CONFIG_ADC_TIMER_SOURCE_')
@@ -275,9 +282,9 @@ class WispMonitor:
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
-            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_DATA']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']:
                 FIELD_LEN_STREAMS = 1
-                FIELD_LEN_TIMESTAMP = 4
+                FIELD_LEN_TIMESTAMP = 2
 
                 offset = 0
 
@@ -298,13 +305,9 @@ class WispMonitor:
                             print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: timestamp field"
                             break
 
-                        timestamp_cycles = (self.rxPkt.data[offset + 3] << 24) | \
-                                           (self.rxPkt.data[offset + 2] << 16) | \
-                                           (self.rxPkt.data[offset + 1] <<  8) | \
+                        timestamp_cycles = (self.rxPkt.data[offset + 1] <<  8) | \
                                            (self.rxPkt.data[offset + 0] <<  0)
-                        offset += 4
-
-                        timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
+                        offset += FIELD_LEN_TIMESTAMP
 
                         try:
                             # Decode the pkt into a dictionary: stream->value.
@@ -316,7 +319,7 @@ class WispMonitor:
                                     offset += length
                                     value_set[stream] = value
 
-                            data_points.append(StreamDataPoint(timestamp_sec, value_set))
+                            data_points.append(StreamDataPoint(timestamp_cycles, value_set))
                         except StreamDecodeException as e:
                             # invalid pkt, best we can do here is not fail
                             print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: value field: " + \
@@ -327,6 +330,67 @@ class WispMonitor:
                     print >>sys.stderr, "WARNING: corrupt STREAM_DATA pkt: streams field"
 
                 pkt["data_points"] = data_points
+
+            # The voltage stream packet has to be forked because we are forced to layout
+            # the buffer with timestamps grouped together folled by voltage samples
+            # grouped together for efficiency reasons (DMA).
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']:
+                FIELD_LEN_STREAMS = 1
+                FIELD_LEN_SAMPLE_COUNT = 1
+                FIELD_LEN_TIMESTAMP = 2
+                FIELD_LEN_VOLTAGE = 2
+
+                offset = 0
+
+                data_points = []
+
+                try:
+                    if offset + FIELD_LEN_STREAMS + FIELD_LEN_SAMPLE_COUNT > len(self.rxPkt.data):
+                        raise PacketParseException("header")
+
+                    pkt_streams = self.rxPkt.data[offset]
+                    #print "pkt_streams=0x%08x" % pkt_streams
+                    offset += 1
+
+                    num_samples = self.rxPkt.data[offset]
+                    offset += 1
+
+                    timestamp_offset = offset
+                    voltage_offset = offset + num_samples * FIELD_LEN_TIMESTAMP
+
+                    if timestamp_offset + num_samples * FIELD_LEN_TIMESTAMP > len(self.rxPkt.data):
+                        raise PacketParseException("timestamps section")
+
+                    if voltage_offset + num_samples * FIELD_LEN_VOLTAGE > len(self.rxPkt.data):
+                        raise PacketParseException("voltages section")
+
+                    for sample_i in range(num_samples):
+
+                        timestamp_cycles = (self.rxPkt.data[timestamp_offset + 1] << 8) | \
+                                           (self.rxPkt.data[timestamp_offset + 0] << 0);
+                        timestamp_offset += FIELD_LEN_TIMESTAMP
+
+                        # Decode the pkt into a dictionary: stream->value.
+                        # Order is implied by the bit index of each stream as defined by the enum
+                        value_set = {}
+                        for stream in host_comm_header.enums['STREAM']:
+                            if pkt_streams & host_comm_header.enums['STREAM'][stream]:
+                                value, length = self.stream_decoders[stream](self.rxPkt.data,
+                                                                             voltage_offset)
+                                voltage_offset += length
+                                value_set[stream] = value
+
+                        data_points.append(StreamDataPoint(timestamp_cycles, value_set))
+
+                except StreamDecodeException as e:
+                    # invalid pkt, best we can do here is not fail
+                    print >>sys.stderr, "StreamDecodeException: ", e.message
+
+                except PacketParseException:
+                    print >>sys.stderr, "PacketParseException: ", e.message
+
+                pkt["data_points"] = data_points
+
 
             return pkt
 
@@ -349,17 +413,22 @@ class WispMonitor:
             self.stream_bytes += len(newData)
         return None
 
-    def receive_reply(self, descriptor):
+    def receive_reply(self, descriptors):
+        # Be compatible with legacy code
+        if not hasattr(descriptors, "__iter__"):
+            descriptors = [descriptors]
         reply = None
         while reply is None:
             while reply is None:
                 reply = self.receive()
-            if reply["descriptor"] != descriptor:
+            reply_descriptor = reply["descriptor"]
+            if reply_descriptor not in descriptors:
                 print >>sys.stderr, "unexpected reply: ", \
-                        "0x%02x" % reply["descriptor"], "(exp ", "0x%02x" % descriptor, ")"
+                        "0x%02x" % reply["descriptor"], \
+                        "(exp [", ",".join(map(lambda d: "0x%02x" % d, descriptors)), "])"
                 reply = None
                 continue
-        if descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
+        if reply_descriptor == host_comm_header.enums['USB_RSP']['RETURN_CODE']: # this one is generic, so handle it here
             if reply["code"] != 0:
                 raise Exception("Command failed: return code " + ("0x%02x" % reply["code"]))
         return reply
@@ -576,7 +645,16 @@ class WispMonitor:
         if not silent:
             print "Logging... Ctrl-C to stop"
 
-        timestamp_sec = 0
+        overflow_timestamp_cycles = {
+            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
+        }
+
+        prev_timestamp_cycles = {
+            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
+        }
+
         num_samples = 0
         last_progress_report = time.time()
 
@@ -613,11 +691,27 @@ class WispMonitor:
         
         try:
             while signal_handler_data['streaming']:
-                pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['STREAM_DATA'])
+                pkt = self.receive_reply([
+                                host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS'],
+                                host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']
+                            ])
 
                 for data_point in pkt["data_points"]:
 
-                    line = "%f" % data_point.timestamp_sec
+                    # Detect overflow by watching for timestamp to decrease
+                    # NOTE: each pkt type has it's own time since the samples
+                    # in two packets of different types, which (the packets)
+                    # are transmitted one after another, may be interleaved.
+                    if data_point.timestamp_cycles < prev_timestamp_cycles[pkt['descriptor']]:
+                        overflow_timestamp_cycles[pkt['descriptor']] += 1 << 16;
+                    prev_timestamp_cycles[pkt['descriptor']] = data_point.timestamp_cycles
+
+                    # Count beyond 16 bits
+                    timestamp_cycles = overflow_timestamp_cycles[pkt['descriptor']] + \
+                                            data_point.timestamp_cycles
+                    timestamp_sec = float(timestamp_cycles) * self.CLK_PERIOD
+
+                    line = "%f" % timestamp_sec
                     for stream in streams:
                         # a column per requested stream, so may have blanks on some rows
                         line += ","

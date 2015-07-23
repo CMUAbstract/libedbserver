@@ -195,6 +195,8 @@ while True:
     line = line.strip()
     if len(line) == 0: # new-line character only (blank command)
         continue
+    if line.startswith("#"): # comment
+        continue
     cmd_lines = line.split(';')
     try:
         for cmd_line in cmd_lines:

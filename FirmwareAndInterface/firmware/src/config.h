@@ -37,9 +37,9 @@
 #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__ACLK
 // #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__SMCLK
 
-#define CONFIG_TIMELOG_TIMER_DIV_BITS 0
+//#define CONFIG_TIMELOG_TIMER_DIV 1
+#define CONFIG_TIMELOG_TIMER_DIV 8
 #define CONFIG_TIMELOG_TIMER_DIV_BITS_EX 0
-// #define CONFIG_TIMELOG_TIMER_DIV_BITS (ID0 | ID1)
 // #define CONFIG_TIMELOG_TIMER_DIV_BITS_EX (TAIDEX_2 | TAIDEX_1 | TAIDEX_0)
 
 // #define CONFIG_ADC_TIMER_SOURCE_ACLK
@@ -162,12 +162,12 @@
  *         TODO: setup RF pins only upon cmd to monitor RF because otherwise we
  *         get spurious interrupts on RX pin
  */
-// #define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+#define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
 /**
  * @brief Enable code to decode RFID transmissions from the target
  */
-// #define CONFIG_ENABLE_RF_TX_DECODING
+#define CONFIG_ENABLE_RF_TX_DECODING
 
 /**
  * @brief Decode the RFID command payload bits (not only the command code)

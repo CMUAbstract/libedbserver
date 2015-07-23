@@ -1,14 +1,15 @@
-#if CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "config.h"
 #include "pin_assign.h"
 #include "error.h"
 #include "rfid_protocol.h"
 
 #include "rfid_decoder.h"
+
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
 #define NS_TO_CYCLES(t) (t * CONFIG_DCOCLKDIV_FREQ / 1000000000UL)
 
@@ -72,7 +73,10 @@ void rfid_decoder_init(rfid_cmd_handler_t *rfid_cmd_handler_cb,
     rfid_rsp_handler = rfid_rsp_handler_cb;
 
     ASSERT(ASSERT_INVALID_RFID_CMD_HANDLER, rfid_cmd_handler);
+}
 
+void rfid_decoder_start()
+{
     GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_TX); // tx pin in GPIO function
     GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_TX); // input direction
 
@@ -96,10 +100,7 @@ void rfid_decoder_init(rfid_cmd_handler_t *rfid_cmd_handler_cb,
     GPIO(PORT_RFID_DEC_STATE, DIR) |=
         BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2);
 #endif
-}
 
-void rfid_decoder_start()
-{
     set_rx_decoder_state(RX_DEC_STATE_IDLE);
     prev_rx_edge_timestamp = 0;
 
@@ -107,7 +108,6 @@ void rfid_decoder_start()
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) &= ~CCIFG;
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) |= CCIE;
     TIMER(TIMER_RF_RX_DECODE, CTL) |= TASSEL__SMCLK | MC__CONTINUOUS | TACLR;
-
 
 #ifdef CONFIG_ENABLE_RF_TX_DECODING
 	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear Tx interrupt flag
@@ -120,10 +120,27 @@ void rfid_decoder_stop()
     TIMER(TIMER_RF_RX_DECODE, CTL) = MC__STOP;
     TIMER_CC(TIMER_RF_RX_DECODE, TMRCC_RF_RX, CCTL) &= ~CCIE;
 
+    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_RX); // back to GPIO input
+
+#ifdef CONFIG_ENABLE_RF_TX_DECODING
+    // Turn off timer *and* disable interrupt atomically, otherwise
+    // if timer ISR or pin interrupt happens in between disabling
+    // either one, then it will cause the other thing to be re-enabled.
+    __disable_interrupt();
     TIMER(TIMER_RF_TX_DECODE, CTL) = MC__STOP; // stop and disable rollover interrupt
 
 	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
 	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);			// clear interrupt flag
+    __enable_interrupt();
+
+    GPIO(PORT_RF, SEL) &= ~BIT(PIN_RF_TX); // tx pin in GPIO function
+    GPIO(PORT_RF, DIR) &= ~BIT(PIN_RF_TX); // input direction
+#endif
+
+#ifdef CONFIG_RFID_DECODER_STATE_PINS
+    GPIO(PORT_RFID_DEC_STATE, DIR) &=
+        ~(BIT(PIN_RFID_RX_DEC_STATE_0) | BIT(PIN_RFID_RX_DEC_STATE_1) | BIT(PIN_RFID_RX_DEC_STATE_2));
+#endif
 }
 
 static inline void reset_cmd_dec_state()
@@ -232,6 +249,8 @@ static inline void receive_data_bit(unsigned data_bit)
                         case RFID_CMD_QUERYREP:
                         case RFID_CMD_ACK:
                             goto rx_cmd_code_decoded;
+                        default:
+                            break;
                     }
                     break;
                 case 4:
@@ -240,6 +259,8 @@ static inline void receive_data_bit(unsigned data_bit)
                         case RFID_CMD_QUERYADJUST:
                         case RFID_CMD_SELECT:
                             goto rx_cmd_code_decoded;
+                        default:
+                            break;
                     }
                     break;
                 case 8:
@@ -273,6 +294,8 @@ static inline void receive_data_bit(unsigned data_bit)
         case RX_CMD_STATE_PAYLOAD:
             receive_payload_bit(data_bit);
 #endif
+        default:
+            ASSERT(ASSERT_CORRUPT_STATE, false);
     }
     return;
 
@@ -514,7 +537,8 @@ void rfid_decoder_tx_pin_isr()
 	GPIO(PORT_RF, IE) &= ~BIT(PIN_RF_TX);			// disable interrupt
 
     // SMCLK, up mode with period set earlier, clear, interrupt on rollover
-    TIMER(TIMER_RF_TX_DECODE, CTL) = TASSEL__SMCLK | MC__UP | TACLR | TAIE;
+    TIMER(TIMER_RF_TX_DECODE, CTL) = TASSEL__SMCLK | MC__UP | TACLR;
+    TIMER_CC(TIMER_RF_TX_DECODE, TMRCC_RF_TX, CCTL) |= CCIE;
 
     // Decoding is not implemented, so report a generic response ID
     rfid_rsp_handler(RFID_RSP_GENERIC);
@@ -522,20 +546,20 @@ void rfid_decoder_tx_pin_isr()
 
 /** @brief TX "ignore" timer ISR */
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A1_VECTOR
-__interrupt void TIMER1_A1_ISR(void)
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt void TIMER1_A0_ISR(void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
+void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #else
 #error Compiler not supported!
 #endif
 {
     // stop the timer, we'll set it again on first edge of the next message
-	TIMER(TIMER_RF_TX_DECODE, CTL) = MC__STOP;
+    TIMER(TIMER_RF_TX_DECODE, CTL) = MC__STOP;
 
     // Message transmission is over: re-enable the edge interrupt on the TX pin
-	GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
-	GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
+    GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
+    GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
 }
 
 #else

@@ -28,6 +28,12 @@
 #define DMA_INTFLAG_INNER(name) DMAIV_DMA ## name ## IFG
 #define DMA_INTFLAG(name) DMA_INTFLAG_INNER(name)
 
+#define TIMER_DIV_BITS_INNER(div) ID__ ## div
+#define TIMER_DIV_BITS(div) TIMER_DIV_BITS_INNER(div)
+
+#define TIMER_B_CLK_SOURCE_BITS_INNER(name) TBSSEL__ ## name
+#define TIMER_B_CLK_SOURCE_BITS(name) TIMER_B_CLK_SOURCE_BITS_INNER(name)
+
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
@@ -102,7 +108,7 @@
 #define PIN_RF_RX                               1 //!< RF RX line
 #define PIN_RF_TX                               2 //!< RF TX line
 #define TMRCC_RF_RX                             0 //!< timer capture-compare register index
-#define TMRCC_RF_TX                             1 //!< timer capture-compare register index
+#define TMRCC_RF_TX                             0 //!< timer capture-compare register index
 
 /* The same as above, but for asm, which is limited to a simple pre-processor */
 #define PIN_RX BIT2
