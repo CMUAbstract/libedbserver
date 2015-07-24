@@ -130,7 +130,7 @@
 // #define CONFIG_STATE_PINS
 
 // Encode RFID decoder state onto pins for debugging purposes
-#define CONFIG_RFID_DECODER_STATE_PINS
+// #define CONFIG_RFID_DECODER_STATE_PINS
 
 // Use implementation of symbol time validity checks that requires bounds to
 // be calculated at runtime. More aligned with the spec without chosen magic
