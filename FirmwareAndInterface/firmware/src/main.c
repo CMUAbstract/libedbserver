@@ -475,8 +475,7 @@ static void enter_debug_mode(interrupt_type_t int_type)
         case INTERRUPT_TYPE_DEBUGGER_REQ:
         case INTERRUPT_TYPE_BREAKPOINT: // passive breakpoint only
         case INTERRUPT_TYPE_ENERGY_BREAKPOINT:
-            debug_mode_flags |= DEBUG_MODE_INTERACTIVE |
-                                DEBUG_MODE_WITH_UART | DEBUG_MODE_WITH_I2C;
+            debug_mode_flags |= DEBUG_MODE_FULL_FEATURES;
             break;
         case INTERRUPT_TYPE_TARGET_REQ:
             /* debugger mode flags read from signal line (serially encoded) */
