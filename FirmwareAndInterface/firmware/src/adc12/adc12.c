@@ -18,7 +18,7 @@
 #include "error.h"
 
 #define NUM_BUFFERS                                  2 // double-buffer pair
-#define NUM_BUFFERED_SAMPLES                        16
+#define NUM_BUFFERED_SAMPLES                        32
 
 #define SAMPLE_TIMESTAMPS_SIZE (NUM_BUFFERED_SAMPLES * sizeof(uint16_t))
 #define SAMPLE_VOLTAGES_SIZE   (NUM_BUFFERED_SAMPLES * ADC12_MAX_CHANNELS * sizeof(uint16_t))
