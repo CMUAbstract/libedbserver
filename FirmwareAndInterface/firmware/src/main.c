@@ -1178,6 +1178,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_RESET_STATE:
         reset_state();
+        send_return_code(RETURN_CODE_SUCCESS);
         break;
 
 #ifdef CONFIG_PWM_CHARGING
