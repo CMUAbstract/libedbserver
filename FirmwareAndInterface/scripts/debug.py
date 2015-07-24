@@ -4,6 +4,7 @@ import sys
 import traceback
 import wispmon
 import os
+import time
 import atexit
 import readline # loading this causes raw_input to offer a rich prompt
 
@@ -34,6 +35,9 @@ def print_interrupt_context(context):
 
 def cmd_echo(mon, args):
     print args
+
+def cmd_sleep(mon, time_sec):
+    time.sleep(float(time_sec))
 
 def cmd_attach(mon):
     global monitor
