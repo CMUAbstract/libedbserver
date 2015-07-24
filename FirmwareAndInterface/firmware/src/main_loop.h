@@ -15,6 +15,7 @@ typedef enum {
     FLAG_RF_DATA				= 0x0040, //!< RF Rx activity ready to be logged
     FLAG_CHARGER_COMPLETE		= 0x0080, //!< Charge or discharge operation completed
     FLAG_INTERRUPTED     		= 0x0100, //!< target is in active debug mode
+    FLAG_EXITED_DEBUG_MODE      = 0x0200, //!< debugger has restored energy level
 } main_loop_flag_t;
 
 extern volatile uint16_t main_loop_flags; // bit mask containing bit flags to check in the main loop

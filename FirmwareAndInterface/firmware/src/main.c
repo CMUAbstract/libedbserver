@@ -113,6 +113,7 @@ typedef struct {
     interrupt_type_t type;
     unsigned id;
     uint16_t saved_vcap;
+    uint16_t restored_vcap;
 } interrupt_context_t;
 
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
@@ -743,8 +744,6 @@ static void finish_enter_debug_mode()
 
 static void finish_exit_debug_mode()
 {
-    uint16_t restored_vcap;
-
     // WISP has shutdown UART and is asleep waiting for int to resume
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_teardown(UART_INTERFACE_WISP);
@@ -752,14 +751,10 @@ static void finish_exit_debug_mode()
         I2C_teardown();
 
     continuous_power_off();
-    restored_vcap = discharge_adc(interrupt_context.saved_vcap); // restore energy level
+    interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap); // restore energy level
 
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
-        send_voltage(restored_vcap); // TODO: take this out of the critical path
-
-    interrupt_context.type = INTERRUPT_TYPE_NONE;
-    interrupt_context.id = 0;
-    interrupt_context.saved_vcap = 0;
+        main_loop_flags |= FLAG_EXITED_DEBUG_MODE;
 
     debug_mode_flags = 0;
 
@@ -934,6 +929,12 @@ int main(void)
                 get_target_interrupt_context(&interrupt_context);
             // do it here: reply marks completion of enter sequence
             send_interrupt_context(&interrupt_context);
+        }
+
+        if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
+            main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
+
+            send_voltage(interrupt_context.restored_vcap);
         }
 
         if((main_loop_flags & FLAG_ADC12_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
