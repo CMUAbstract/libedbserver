@@ -614,6 +614,10 @@ class WispMonitor:
         reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ADDRESS'])
         return reply["address"]
 
+    def reset_debug_mode_state(self):
+        self.sendCmd(host_comm_header.enums['USB_CMD']['RESET_STATE'])
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
+
     def cont_power(self, on):
         cmd_data = [on]
         self.sendCmd(host_comm_header.enums['USB_CMD']['CONT_POWER'], data=cmd_data)

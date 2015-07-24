@@ -52,6 +52,9 @@ def cmd_power(mon, state):
 def cmd_sense(mon, channel):
     print mon.sense(wispmon.ADC_CHAN_INDEX[channel.upper()])
 
+def cmd_reset(mon):
+    mon.reset_debug_mode_state()
+
 def do_stream(mon, out_file, duration_sec, streams, no_parse):
     if duration_sec == "-":
         duration_sec = None # stream indefinitely
