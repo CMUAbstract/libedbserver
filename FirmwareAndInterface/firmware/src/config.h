@@ -8,7 +8,7 @@
 // #define CONFIG_XT2_FREQ 25000000
 #define CONFIG_REFO_FREQ 32768ull
 
-#define MCU_ON_THRES 2607ull /* 2.1 V */ // int(math.ceil(voltage * 4096 / self.VDD))
+#define MCU_ON_THRES 2730ull /* 2.0 V */ // int(math.ceil(voltage * 4096 / self.VDD))
 #define MCU_BOOT_LATENCY_MS 3ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
