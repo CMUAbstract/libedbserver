@@ -564,9 +564,9 @@ class WispMonitor:
 
     def break_at_vcap_level(self, level, impl):
         extra_args = []
-        if impl == "adc":
+        if impl == "ADC":
             level = self.voltage_to_adc(level)
-        elif impl == "cmp":
+        elif impl == "CMP":
             level, ref = self.voltage_to_cmp(level)
             extra_args += [host_comm_header.enums['CMP_REF'][ref]]
         else:
