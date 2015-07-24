@@ -66,7 +66,7 @@ typedef enum {
 #define DEBUG_MODE_WITH_I2C         0x04
 /** @} End DEBUG_MODE_FLAGS */
 
-#define DEBUG_MODE_FULL_FEATURES    (~0x00)
+#define DEBUG_MODE_FULL_FEATURES    (DEBUG_MODE_INTERACTIVE | DEBUG_MODE_WITH_UART)
 
 /**
  * @defgroup    SIG_SERIAL_BIT_DURATION Signal-line serial protocol bit duration param
