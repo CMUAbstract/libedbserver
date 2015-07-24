@@ -488,7 +488,6 @@ static void enter_debug_mode(interrupt_type_t int_type)
     mask_target_signal();
     signal_target();
     unmask_target_signal();
-    continuous_power_on();
 }
 
 static void exit_debug_mode()
@@ -789,6 +788,7 @@ static void handle_target_signal()
             if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 --sig_serial_bit_index;
                 start_serial_decode_timer();
+                continuous_power_on();
             } else if (sig_serial_bit_index >= 0) {
                 debug_mode_flags |= 1 << sig_serial_bit_index;
             } else { // bitstream over (there is a terminating edge)
