@@ -1501,10 +1501,20 @@ static void break_at_vcap_level_adc(uint16_t level)
 
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
+
+    cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    if (cur_vreg < MCU_ON_THRES) { // MCU is off, wait for MCU to turn on
+        do {
+            cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+        } while (cur_vreg < MCU_ON_THRES);
+        // TODO: MCU boot delay
+        __delay_cycles(35000);
+        __delay_cycles(35000);
+    } // else: MCU is already on, go on to check Vcap right away
+
     do {
         cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-        cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
-    } while (cur_vreg < MCU_ON_THRES || cur_vcap > level);
+    } while (cur_vcap > level);
 
     enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT);
 }
