@@ -233,7 +233,7 @@ class WispMonitor:
     #                    = bytearray([0x82, 0x0A])
     def sendCmd(self, descriptor, data=[]):
         serialMsg = bytearray([host_comm_header.macros['UART_IDENTIFIER_USB'], descriptor])
-        serialMsg += bytearray([len(data)]) + bytearray(data)
+        serialMsg += bytearray([len(data), 0]) + bytearray(data) # zero is padding
         self.serial.write(serialMsg)
 
     def receive(self):

@@ -46,6 +46,7 @@ typedef enum {
     CONSTRUCT_STATE_IDENTIFIER,     //!< Currently parsing the UART identifier from the software buffer
     CONSTRUCT_STATE_DESCRIPTOR,     //!< Currently parsing the message descriptor from the software buffer
     CONSTRUCT_STATE_DATA_LEN,       //!< Currently parsing length of the data from the software buffer
+    CONSTRUCT_STATE_PADDING,        //!< Padding in msg header for alignment
     CONSTRUCT_STATE_DATA            //!< Currently parsing the message data from the software buffer
 } pktConstructState_t;
 

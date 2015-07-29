@@ -50,7 +50,8 @@ typedef enum {
 	MSG_STATE_IDENTIFIER,	//!< UART identifier byte
 	MSG_STATE_DESCRIPTOR,	//!< UART descriptor byte
 	MSG_STATE_DATALEN,		//!< data length byte
-	MSG_STATE_DATA			//!< UART data
+	MSG_STATE_PADDING,      //!< padding in header for alignment
+	MSG_STATE_DATA,		    //!< UART data
 } msgState_t;
 
 typedef struct {
@@ -309,6 +310,7 @@ static void execute_cmd(cmd_t *cmd)
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_ADDRESS;
             tx_buf[msg_len++] = sizeof(uint32_t);
+            tx_buf[msg_len++] = 0; // padding
             tx_buf[msg_len++] = ((uintptr_t)address >> 0) & 0xff;
             tx_buf[msg_len++] = ((uintptr_t)address >> 8) & 0xff;
             tx_buf[msg_len++] = 0; // TODO: 20-bit ptr
@@ -320,7 +322,7 @@ static void execute_cmd(cmd_t *cmd)
         case WISP_CMD_READ_MEM:
         {
             // TODO: assert(msg->len == 4)
-            uint8_t max_len = TX_BUF_SIZE - (1 + 1 + sizeof(uint32_t)); /* id, desc, addr */
+            uint8_t max_len = TX_BUF_SIZE - (UART_MSG_HEADER_SIZE + sizeof(uint32_t)); /* addr */
 
             offset = 0;
             address = (uint8_t *)mem_addr_from_bytes(&cmd->data[offset]); // TODO: 20-bit ptr
@@ -335,6 +337,7 @@ static void execute_cmd(cmd_t *cmd)
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
             tx_buf[msg_len++] = sizeof(uint32_t) + len;
+            tx_buf[msg_len++] = 0; // padding
             tx_buf[msg_len++] = ((uintptr_t)address >> 0) & 0xff;
             tx_buf[msg_len++] = ((uintptr_t)address >> 8) & 0xff;
             tx_buf[msg_len++] = 0; // TODO: 20-bit ptr
@@ -366,6 +369,7 @@ static void execute_cmd(cmd_t *cmd)
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
             tx_buf[msg_len++] = sizeof(uint32_t) + sizeof(uint8_t);
+            tx_buf[msg_len++] = 0; // padding
             tx_buf[msg_len++] = ((uintptr_t)address >> 0) & 0xff;
             tx_buf[msg_len++] = ((uintptr_t)address >> 8) & 0xff;
             tx_buf[msg_len++] = 0; // TODO: 20-bit ptr
@@ -388,7 +392,8 @@ static void execute_cmd(cmd_t *cmd)
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_BREAKPOINT;
-            tx_buf[msg_len++] = 0;
+            tx_buf[msg_len++] = 0; // length
+            tx_buf[msg_len++] = 0; // padding
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
             break;
@@ -403,6 +408,7 @@ static void execute_cmd(cmd_t *cmd)
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_INTERRUPT_CONTEXT;
             tx_buf[msg_len++] = 3 * sizeof(uint8_t);
+            tx_buf[msg_len++] = 0; // padding
             tx_buf[msg_len++] = interrupt_context.type;
             tx_buf[msg_len++] = interrupt_context.id;
             tx_buf[msg_len++] = interrupt_context.id >> 8;
@@ -420,7 +426,8 @@ static void execute_cmd(cmd_t *cmd)
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_SERIAL_ECHO;
-            tx_buf[msg_len++] = 0;
+            tx_buf[msg_len++] = 0; // length
+            tx_buf[msg_len++] = 0; // padding
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
             break;
@@ -465,6 +472,10 @@ static bool parse_cmd(cmd_t *cmd, uint8_t *msg, uint8_t len)
 
             case MSG_STATE_DATALEN:
                 data_len = msg[i]; // decremented as data bytes are parsed
+                msg_state = MSG_STATE_PADDING;
+                break;
+
+            case MSG_STATE_PADDING:
                 if (data_len) {
                     msg_state = MSG_STATE_DATA;
                 } else { // done

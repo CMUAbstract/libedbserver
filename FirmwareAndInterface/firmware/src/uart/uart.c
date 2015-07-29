@@ -246,10 +246,14 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
             state = CONSTRUCT_STATE_DATA_LEN;
             break;
         case CONSTRUCT_STATE_DATA_LEN:
-        {
-            // copy length
             uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
             pkt->length = pkt_byte;
+            minUartBufLen -= sizeof(uint8_t);
+            state = CONSTRUCT_STATE_PADDING;
+            break;
+        case CONSTRUCT_STATE_PADDING:
+        {
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
             minUartBufLen -= sizeof(uint8_t);
             if (pkt->length > 0) {
                 state = CONSTRUCT_STATE_DATA;

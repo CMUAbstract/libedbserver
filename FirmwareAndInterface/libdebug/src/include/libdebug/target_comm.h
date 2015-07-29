@@ -15,6 +15,12 @@
  * @{
  */
 
+/*
+ * @brief Size of generic header for all UART messages
+ * @details WARNING: duplicated from firmware/uart.h
+ */
+#define UART_MSG_HEADER_SIZE           4
+
 /**
  * @brief A magic value prefix in every message comming from the target
  */
