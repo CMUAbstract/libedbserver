@@ -15,6 +15,12 @@
  * @{
  */
 
+/*
+ * @brief Size of generic header for all UART messages
+ * @details WARNING: duplicated from firmware/uart.h
+ */
+#define UART_MSG_HEADER_SIZE           4
+
 /**
  * @brief A magic value prefix in every message comming from the target
  */
@@ -114,6 +120,7 @@ typedef enum {
     INTERRUPT_TYPE_BREAKPOINT               = 3,
     INTERRUPT_TYPE_ENERGY_BREAKPOINT        = 4,
     INTERRUPT_TYPE_ENERGY_GUARD             = 5, // not a true interrupt: execution continues immediately
+    INTERRUPT_TYPE_ASSERT                   = 6,
 } interrupt_type_t;
 
 #endif // TARGET_COMM_H

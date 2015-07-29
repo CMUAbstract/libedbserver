@@ -32,9 +32,6 @@ static uartBuf_t usbRx = { .head = 0, .tail = 0 };
 static uartBuf_t wispRx = { .head = 0, .tail = 0 };
 static uartBuf_t wispTx = { .head = 0, .tail = 0 };
 
-
-static uint8_t msg[UART_BUF_MAX_LEN];
-
 /**
  * @brief       Determine the length of the circular buffer
  * @param       buf        Pointer to the circular buffer
@@ -246,10 +243,14 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
             state = CONSTRUCT_STATE_DATA_LEN;
             break;
         case CONSTRUCT_STATE_DATA_LEN:
-        {
-            // copy length
             uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
             pkt->length = pkt_byte;
+            minUartBufLen -= sizeof(uint8_t);
+            state = CONSTRUCT_STATE_PADDING;
+            break;
+        case CONSTRUCT_STATE_PADDING:
+        {
+            uartBuf_copyFrom(uartBuf, &pkt_byte, sizeof(uint8_t));
             minUartBufLen -= sizeof(uint8_t);
             if (pkt->length > 0) {
                 state = CONSTRUCT_STATE_DATA;
@@ -287,31 +288,39 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
     return 2;   // packet construction will resume the next time this function is called
 }
 
-// TODO: make target version also copy-free
-void UART_send_msg_to_target(unsigned descriptor, unsigned data_len, uint8_t *data)
+static inline unsigned write_header(uint8_t *buf,
+                                    unsigned identifier, unsigned descriptor,
+                                    unsigned payload_len)
 {
-    unsigned msg_len = 0;
+    unsigned len = 0;
+
+    buf[len++] = identifier;
+    buf[len++] = descriptor;
+    buf[len++] = payload_len;
+    buf[len++] = 0; // padding
+
+    len += payload_len;
+
+    return len;
+}
+
+// TODO: make target version also copy-free
+void UART_send_msg_to_target(unsigned descriptor, unsigned payload_len, uint8_t *buf)
+{
+    unsigned len;
     unsigned uartBufLen, copyLen;
-    uint8_t *buf = msg;
+    uint8_t *byte_ptr;
 
-    msg[msg_len++] = UART_IDENTIFIER_WISP;
-    msg[msg_len++] = descriptor;
-    msg[msg_len++] = data_len;
-    msg[msg_len++] = 0; // padding
-
-    while(data_len > 0) {
-        msg[msg_len++] = *data++;
-        data_len--;
-    }
+    len = write_header(buf, UART_IDENTIFIER_WISP, descriptor, payload_len);
 
 	// loop until we have copied all of buf into the UART TX buffer
-    buf = msg;
-	while(msg_len > 0) {
+    byte_ptr = buf;
+	while(len > 0) {
 		uartBufLen = uartBuf_len(&wispTx);
-		copyLen = MIN(UART_BUF_MAX_LEN - uartBufLen, msg_len);
-		uartBuf_copyTo(&wispTx, buf, copyLen);
-		buf += copyLen;
-		msg_len -= copyLen;
+		copyLen = MIN(UART_BUF_MAX_LEN - uartBufLen, len);
+		uartBuf_copyTo(&wispTx, byte_ptr, copyLen);
+		byte_ptr += copyLen;
+		len -= copyLen;
 	}
 
     // enable the correct interrupt to start sending data
@@ -320,7 +329,7 @@ void UART_send_msg_to_target(unsigned descriptor, unsigned data_len, uint8_t *da
 
 void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *buf)
 {
-    unsigned len = 0;
+    unsigned len;
 
     ASSERT(ASSERT_UART_TX_BUSY, (host_uart_status & UART_STATUS_TX_BUSY) == 0x0);
 
@@ -328,12 +337,7 @@ void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *b
 
     DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN; // should already be disabled, but just in case
 
-    buf[len++] = UART_IDENTIFIER_USB;
-    buf[len++] = descriptor;
-    buf[len++] = payload_len;
-    buf[len++] = 0; // padding
-
-    len += payload_len;
+    len = write_header(buf, UART_IDENTIFIER_USB, descriptor, payload_len);
 
     DMA(DMA_HOST_UART_TX, SA) = (__DMA_ACCESS_REG__)buf;
     DMA(DMA_HOST_UART_TX, SZ) = len;

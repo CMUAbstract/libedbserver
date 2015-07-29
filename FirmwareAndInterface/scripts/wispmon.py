@@ -233,7 +233,7 @@ class WispMonitor:
     #                    = bytearray([0x82, 0x0A])
     def sendCmd(self, descriptor, data=[]):
         serialMsg = bytearray([host_comm_header.macros['UART_IDENTIFIER_USB'], descriptor])
-        serialMsg += bytearray([len(data)]) + bytearray(data)
+        serialMsg += bytearray([len(data), 0]) + bytearray(data) # zero is padding
         self.serial.write(serialMsg)
 
     def receive(self):
@@ -266,8 +266,8 @@ class WispMonitor:
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['INTERRUPTED']:
                 pkt["interrupt_type"] = key_lookup(target_comm_header.enums['INTERRUPT_TYPE'], self.rxPkt.data[0])
-                pkt["interrupt_id"] = self.rxPkt.data[1]
-                saved_vcap_adc_reading = (self.rxPkt.data[3] << 8) | self.rxPkt.data[2]
+                pkt["interrupt_id"] = (self.rxPkt.data[2] << 8) | self.rxPkt.data[1]
+                saved_vcap_adc_reading = (self.rxPkt.data[4] << 8) | self.rxPkt.data[3]
                 pkt["saved_vcap"] = self.adc_to_voltage(saved_vcap_adc_reading)
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['WISP_MEMORY']:

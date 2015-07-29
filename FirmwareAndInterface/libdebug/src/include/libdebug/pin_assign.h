@@ -1,5 +1,5 @@
-#ifndef PIN_ASSIGN_H
-#define PIN_ASSIGN_H
+#ifndef LIBDEBUG_PIN_ASSIGN_H
+#define LIBDEBUG_PIN_ASSIGN_H
 
 #define BIT_INNER(idx) BIT ## idx
 #define BIT(idx) BIT_INNER(idx)
@@ -30,4 +30,4 @@
 #define PIN_CODEPOINT_1 5 // msb
 #define BITS_CODEPOINT  (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1))
 
-#endif // PIN_ASSIGN_H
+#endif // LIBDEBUG_PIN_ASSIGN_H

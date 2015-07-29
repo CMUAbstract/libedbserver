@@ -55,9 +55,9 @@
 // https://e2e.ti.com/support/development_tools/compiler/f/343/t/433587
 //
 // What we would like ideally would be:
-//    #define CODEPOINT(idx) do { \
-//        asm ( " BIS.B ((idx + 1) << #PIN_CODEPOINT_0), &PIN_CODEPOINT_REG " ); \
-//        asm ( " BIC.B #PIN_CODEPOINT_0 | #PIN_CODEPOINT_1, &PIN_CODEPOINT_REG " ); \
+//    #define CODEPOINT(idx) do {
+//        asm ( " BIS.B ((idx + 1) << #PIN_CODEPOINT_0), &PIN_CODEPOINT_REG " );
+//        asm ( " BIC.B #PIN_CODEPOINT_0 | #PIN_CODEPOINT_1, &PIN_CODEPOINT_REG " );
 //      } while (0)
 //    // NOTE: the +1 is because the encoding of all lines low is not allowed, since
 //    //       the debugger needs a pulse that would generate an interrupt.
@@ -91,7 +91,7 @@
  */
 extern volatile uint16_t _libdebug_internal_breakpoints;
 
-void request_debug_mode(interrupt_type_t int_type, uint8_t id);
+void request_debug_mode(interrupt_type_t int_type, unsigned id);
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -146,8 +146,8 @@ void request_debug_mode(interrupt_type_t int_type, uint8_t id);
         request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
-#define ASSERT(idx, cond) \
-    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, idx)
+#define ASSERT(cond) \
+    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, __LINE__)
 
 #define ENERGY_GUARD_BEGIN() request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0)
 #define ENERGY_GUARD_END() resume_application()
