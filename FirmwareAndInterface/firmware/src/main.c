@@ -881,9 +881,7 @@ static inline void pin_setup()
 #endif
 
     // In our IDLE state, target might request to enter active debug mode
-    // NOTE: this might interfere with RFID protocol decoding
-    // TODO: temporary
-    //unmask_target_signal();
+    unmask_target_signal();
 }
 
 int main(void)
