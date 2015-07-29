@@ -27,7 +27,12 @@ def match_keyword(part, words):
     return match
 
 def print_interrupt_context(context):
-    print "Interrupted:", context.type, "id:", context.id,
+    print "Interrupted:", context.type,
+    if context.type == "ASSERT":
+        print "line:",
+    else:
+        print "id:",
+    print context.id,
     if context.saved_vcap is not None:
         print "Vcap_saved = %.4f" % context.saved_vcap
     else:
