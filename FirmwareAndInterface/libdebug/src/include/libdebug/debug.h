@@ -91,7 +91,7 @@
  */
 extern volatile uint16_t _libdebug_internal_breakpoints;
 
-void request_debug_mode(interrupt_type_t int_type, uint8_t id);
+void request_debug_mode(interrupt_type_t int_type, unsigned id);
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -146,8 +146,8 @@ void request_debug_mode(interrupt_type_t int_type, uint8_t id);
         request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
-#define ASSERT(idx, cond) \
-    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, idx)
+#define ASSERT(cond) \
+    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, __LINE__)
 
 #define ENERGY_GUARD_BEGIN() request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0)
 #define ENERGY_GUARD_END() resume_application()

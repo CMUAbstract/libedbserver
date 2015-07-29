@@ -438,6 +438,7 @@ static void send_interrupt_context(interrupt_context_t *int_context)
 
     host_msg_payload[payload_len++] = int_context->type;
     host_msg_payload[payload_len++] = int_context->id;
+    host_msg_payload[payload_len++] = int_context->id >> 8;
     host_msg_payload[payload_len++] = (int_context->saved_vcap >> 0) & 0xff;
     host_msg_payload[payload_len++] = (int_context->saved_vcap >> 8) & 0xff;
 
@@ -590,7 +591,7 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
     while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
             (wispRxPkt.descriptor != WISP_RSP_INTERRUPT_CONTEXT)); // wait for response
     int_context->type = (interrupt_type_t)wispRxPkt.data[0];
-    int_context->id = wispRxPkt.data[1];
+    int_context->id = ((uint16_t)wispRxPkt.data[2] << 8) | wispRxPkt.data[1];
     wispRxPkt.processed = 1;
 }
 

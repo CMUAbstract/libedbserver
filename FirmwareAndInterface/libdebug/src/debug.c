@@ -61,7 +61,7 @@ typedef struct {
 
 typedef struct {
     interrupt_type_t type;
-    uint8_t id;
+    uint16_t id;
     uint8_t features;
 } interrupt_context_t;
 
@@ -238,7 +238,7 @@ void exit_debug_mode()
     clear_interrupt_context();
 }
 
-void request_debug_mode(interrupt_type_t int_type, uint8_t int_id)
+void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
 {
     // Disable interrupts before unmasking debugger signal to make sure
     // we are asleep (at end of this function) before ISR runs. Otherwise,
@@ -403,9 +403,10 @@ static void execute_cmd(cmd_t *cmd)
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_INTERRUPT_CONTEXT;
-            tx_buf[msg_len++] = 2 * sizeof(uint8_t);
+            tx_buf[msg_len++] = 3 * sizeof(uint8_t);
             tx_buf[msg_len++] = interrupt_context.type;
             tx_buf[msg_len++] = interrupt_context.id;
+            tx_buf[msg_len++] = interrupt_context.id >> 8;
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends -1 bytes (TODO)
             break;
