@@ -55,9 +55,9 @@
 // https://e2e.ti.com/support/development_tools/compiler/f/343/t/433587
 //
 // What we would like ideally would be:
-//    #define CODEPOINT(idx) do { \
-//        asm ( " BIS.B ((idx + 1) << #PIN_CODEPOINT_0), &PIN_CODEPOINT_REG " ); \
-//        asm ( " BIC.B #PIN_CODEPOINT_0 | #PIN_CODEPOINT_1, &PIN_CODEPOINT_REG " ); \
+//    #define CODEPOINT(idx) do {
+//        asm ( " BIS.B ((idx + 1) << #PIN_CODEPOINT_0), &PIN_CODEPOINT_REG " );
+//        asm ( " BIC.B #PIN_CODEPOINT_0 | #PIN_CODEPOINT_1, &PIN_CODEPOINT_REG " );
 //      } while (0)
 //    // NOTE: the +1 is because the encoding of all lines low is not allowed, since
 //    //       the debugger needs a pulse that would generate an interrupt.

@@ -283,9 +283,9 @@ void resume_application()
     unmask_debugger_signal();
 }
 
-uint8_t *mem_addr_from_bytes(uint8_t *buf)
+uintptr_t mem_addr_from_bytes(uint8_t *buf)
 {
-    return (uint8_t *)
+    return (uintptr_t)
         (((uint32_t)buf[3] << 24) |
         ((uint32_t)buf[2] << 16) |
         ((uint32_t)buf[1] << 8) |
@@ -299,21 +299,20 @@ static void execute_cmd(cmd_t *cmd)
     uint8_t offset;
     uint8_t len;
     uint8_t i;
-
     switch (cmd->descriptor)
     {
         case WISP_CMD_GET_PC:
         {
-            uint32_t address = *(wisp_sp + 11); // 22-byte offset to PC
+            uintptr_t address = *(wisp_sp + 11); // 22-byte offset to PC
 
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_ADDRESS;
             tx_buf[msg_len++] = sizeof(uint32_t);
-            tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
+            tx_buf[msg_len++] = ((uintptr_t)address >> 0) & 0xff;
+            tx_buf[msg_len++] = ((uintptr_t)address >> 8) & 0xff;
+            tx_buf[msg_len++] = 0; // TODO: 20-bit ptr
+            tx_buf[msg_len++] = 0;
 
             UART_send(tx_buf, msg_len + 1);  // +1 since send sends - 1 bytes (TODO)
             break;
@@ -324,7 +323,7 @@ static void execute_cmd(cmd_t *cmd)
             uint8_t max_len = TX_BUF_SIZE - (1 + 1 + sizeof(uint32_t)); /* id, desc, addr */
 
             offset = 0;
-            address = mem_addr_from_bytes(&cmd->data[offset]);
+            address = (uint8_t *)mem_addr_from_bytes(&cmd->data[offset]); // TODO: 20-bit ptr
             offset += sizeof(uint32_t);
             len = cmd->data[offset];
             offset += sizeof(uint8_t);
@@ -336,10 +335,10 @@ static void execute_cmd(cmd_t *cmd)
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
             tx_buf[msg_len++] = sizeof(uint32_t) + len;
-            tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
+            tx_buf[msg_len++] = ((uintptr_t)address >> 0) & 0xff;
+            tx_buf[msg_len++] = ((uintptr_t)address >> 8) & 0xff;
+            tx_buf[msg_len++] = 0; // TODO: 20-bit ptr
+            tx_buf[msg_len++] = 0;
 
             for (i = 0; i < len; ++i)
                 tx_buf[msg_len++] = *address++;
@@ -352,7 +351,7 @@ static void execute_cmd(cmd_t *cmd)
             // TODO: assert(msg->len >= 5)
 
             offset = 0;
-            address = mem_addr_from_bytes(&cmd->data[offset]);
+            address = (uint8_t *)mem_addr_from_bytes(&cmd->data[offset]); // TODO: 20-bit ptr
             offset += sizeof(uint32_t);
             len = cmd->data[offset];
             offset += sizeof(uint8_t);
@@ -367,10 +366,10 @@ static void execute_cmd(cmd_t *cmd)
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;
             tx_buf[msg_len++] = WISP_RSP_MEMORY;
             tx_buf[msg_len++] = sizeof(uint32_t) + sizeof(uint8_t);
-            tx_buf[msg_len++] = ((uint32_t)address >> 0) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 8) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 16) & 0xff;
-            tx_buf[msg_len++] = ((uint32_t)address >> 24) & 0xff;
+            tx_buf[msg_len++] = ((uintptr_t)address >> 0) & 0xff;
+            tx_buf[msg_len++] = ((uintptr_t)address >> 8) & 0xff;
+            tx_buf[msg_len++] = 0; // TODO: 20-bit ptr
+            tx_buf[msg_len++] = 0;
             tx_buf[msg_len++] = *address;
 
             UART_send(tx_buf, msg_len + 1); // +1 since send sends - 1 bytes (TODO)
@@ -597,7 +596,13 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
             // Save application stack pointer
             // TODO: ideally this would be in enter_debug_mode, but then
             // would need to subtract the extra call frames.
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
             wisp_sp = (uint16_t *) __get_SP_register();
+#elif defined(__GNUC__)
+            wisp_sp = 0x0; // TODO
+#else
+#error Compiler not supported!
+#endif
 
             mask_debugger_signal();
 
