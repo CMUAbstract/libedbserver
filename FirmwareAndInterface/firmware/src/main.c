@@ -497,7 +497,7 @@ static void exit_debug_mode()
     // interrupt_context cleared after the target acks the exit request
 
     unmask_target_signal();
-    UART_send_msg_to_target(WISP_CMD_EXIT_ACTIVE_DEBUG, 0, 0);
+    UART_send_msg_to_target(WISP_CMD_EXIT_ACTIVE_DEBUG, 0, target_msg_buf);
 }
 
 static void reset_state()
@@ -587,7 +587,7 @@ static void interrupt_target()
 static void get_target_interrupt_context(interrupt_context_t *int_context)
 {
     // In case target requested the interrupt, ask it for more details
-    UART_send_msg_to_target(WISP_CMD_GET_INTERRUPT_CONTEXT, 0, 0);
+    UART_send_msg_to_target(WISP_CMD_GET_INTERRUPT_CONTEXT, 0, target_msg_buf);
     while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
             (wispRxPkt.descriptor != WISP_RSP_INTERRUPT_CONTEXT)); // wait for response
     int_context->type = (interrupt_type_t)wispRxPkt.data[0];
@@ -668,7 +668,7 @@ static void toggle_breakpoint(breakpoint_type_t type, unsigned index,
             target_msg_payload[payload_len++] = index;
             target_msg_payload[payload_len++] = enable ? 0x1 : 0x0;
 
-            UART_send_msg_to_target(WISP_CMD_BREAKPOINT, payload_len, target_msg_payload);
+            UART_send_msg_to_target(WISP_CMD_BREAKPOINT, payload_len, target_msg_buf);
             while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                     (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
             wispRxPkt.processed = 1;
@@ -1062,7 +1062,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
 
     case USB_CMD_GET_WISP_PC:
-    	UART_send_msg_to_target(WISP_CMD_GET_PC, 0, 0);
+        UART_send_msg_to_target(WISP_CMD_GET_PC, 0, target_msg_buf);
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
     			(wispRxPkt.descriptor != WISP_RSP_ADDRESS)); // wait for response
         forward_msg_to_host(USB_RSP_ADDRESS, wispRxPkt.data, wispRxPkt.length);
@@ -1236,7 +1236,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         target_msg_payload[payload_len++] = (address >> 24) & 0xff;
         target_msg_payload[payload_len++] = len;
 
-        UART_send_msg_to_target(WISP_CMD_READ_MEM, payload_len, target_msg_payload);
+        UART_send_msg_to_target(WISP_CMD_READ_MEM, payload_len, target_msg_buf);
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                 (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
         forward_msg_to_host(USB_RSP_WISP_MEMORY, wispRxPkt.data, wispRxPkt.length);
@@ -1266,7 +1266,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
             value++;
         }
 
-        UART_send_msg_to_target(WISP_CMD_WRITE_MEM, payload_len, target_msg_payload);
+        UART_send_msg_to_target(WISP_CMD_WRITE_MEM, payload_len, target_msg_buf);
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                 (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
         wispRxPkt.processed = 1;
@@ -1330,7 +1330,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
         payload_len = 0;
         target_msg_payload[payload_len++] = value;
-        UART_send_msg_to_target(WISP_CMD_SERIAL_ECHO, payload_len, target_msg_payload);
+        UART_send_msg_to_target(WISP_CMD_SERIAL_ECHO, payload_len, target_msg_buf);
 
         // Wait while the ISRs decode the serial bit stream
         volatile uint16_t timeout = 0xffff;
