@@ -1065,7 +1065,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     	UART_send_msg_to_target(WISP_CMD_GET_PC, 0, 0);
     	while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
     			(wispRxPkt.descriptor != WISP_RSP_ADDRESS)); // wait for response
-        forward_msg_to_host(USB_RSP_ADDRESS, wispRxPkt.data, wispRxPkt.length / 2);
+        forward_msg_to_host(USB_RSP_ADDRESS, wispRxPkt.data, wispRxPkt.length);
     	wispRxPkt.processed = 1;
     	break;
 
@@ -1239,7 +1239,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         UART_send_msg_to_target(WISP_CMD_READ_MEM, payload_len, target_msg_payload);
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
                 (wispRxPkt.descriptor != WISP_RSP_MEMORY)); // wait for response
-        forward_msg_to_host(USB_RSP_WISP_MEMORY, wispRxPkt.data, wispRxPkt.length / 2);
+        forward_msg_to_host(USB_RSP_WISP_MEMORY, wispRxPkt.data, wispRxPkt.length);
         wispRxPkt.processed = 1;
         break;
 
