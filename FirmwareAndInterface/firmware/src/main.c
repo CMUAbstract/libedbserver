@@ -309,7 +309,7 @@ static void set_state(state_t new_state)
 
 #ifdef CONFIG_STATE_PINS
     // Encode state onto two indicator pins
-    GPIO(PORT_STATE, OUT) &= (GPIO(PORT_STATE, OUT) & ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1))) |
+    GPIO(PORT_STATE, OUT) = (GPIO(PORT_STATE, OUT) & ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1))) |
                              (new_state << PIN_STATE_0);
 #endif
 }
