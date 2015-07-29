@@ -114,6 +114,7 @@ typedef enum {
     INTERRUPT_TYPE_BREAKPOINT               = 3,
     INTERRUPT_TYPE_ENERGY_BREAKPOINT        = 4,
     INTERRUPT_TYPE_ENERGY_GUARD             = 5, // not a true interrupt: execution continues immediately
+    INTERRUPT_TYPE_ASSERT                   = 6,
 } interrupt_type_t;
 
 #endif // TARGET_COMM_H
