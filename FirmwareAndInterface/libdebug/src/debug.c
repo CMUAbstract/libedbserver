@@ -206,23 +206,6 @@ static void enter_debug_mode()
 {
     __enable_interrupt();
 
-#if 0 // TODO: save
-    // save clock configuration
-    clkInfo.CSCTL0 = CSCTL0;
-    clkInfo.CSCTL1 = CSCTL1;
-    clkInfo.CSCTL2 = CSCTL2;
-    clkInfo.CSCTL3 = CSCTL3;
-#endif
-
-    // Switch to a faster clock (strictly necessary for UART drivers, but we do
-    // it always too reduce time overhead)
-    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-    CSCTL1 = DCOFSEL_6;                       // Set DCO to 8MHz
-    CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
-                                              // ACLK = VLOCLK
-    CSCTL3 = DIVA__1 | DIVS__1 | DIVM__1;     // Set all dividers to 1
-    CSCTL0_H = 0;                             // Lock CS registers
-
     if (interrupt_context.features & DEBUG_MODE_WITH_UART)
         UART_init();
 
@@ -233,20 +216,6 @@ void exit_debug_mode()
 {
     if (interrupt_context.features & DEBUG_MODE_WITH_UART)
         UART_teardown();
-
-    // restore clock configuration
-    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-#if 0 // TODO: restore (this causes reset, probably need to do bit by bit)
-    CSCTL0 = clkInfo.CSCTL0;
-    CSCTL1 = clkInfo.CSCTL1;
-    CSCTL2 = clkInfo.CSCTL2;
-    CSCTL3 = clkInfo.CSCTL3;
-#else
-    CSCTL1 = DCOFSEL0 + DCOFSEL1; //4MHz
-    CSCTL2 = SELA_0 + SELS_3 + SELM_3;
-    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;
-#endif
-    CSCTL0_H = 0;                             // Lock CS registers
 
     clear_interrupt_context();
 }

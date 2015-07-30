@@ -91,8 +91,8 @@ typedef enum {
  *          TODO: values for both default clock and the fast (debug mode) clock
  * @{
  */
-#define SIG_SERIAL_BIT_DURATION_ON_TARGET       64 // "fast" (8 Mhz) clock cycles
-#define SIG_SERIAL_BIT_DURATION_ON_DEBUGGER     250 // SMCLK cycles
+#define SIG_SERIAL_BIT_DURATION_ON_TARGET       64 // MCLK clock cycles
+#define SIG_SERIAL_BIT_DURATION_ON_DEBUGGER     480 // SMCLK cycles
 /** @} End SIG_SERIAL_BIT_DURATION */
 
 
