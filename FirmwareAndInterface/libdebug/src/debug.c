@@ -112,7 +112,18 @@ static void signal_debugger()
 
 static void signal_debugger_with_data(uint8_t data)
 {
+    unsigned i;
     uint8_t bit;
+    uint8_t port_bits[SIG_SERIAL_NUM_BITS];
+
+    // Precompute all port values in order to keep the bit duration constant,
+    // i.e. so that it does not vary with the bit index and bit value.
+    for (i = 0; i < SIG_SERIAL_NUM_BITS; ++i) {
+        bit = (data >> i) & 0x1;
+        port_bits[i] = bit << PIN_SIG;
+    }
+
+    __disable_interrupt();
 
     // target signal line starts in high imedence state
 
@@ -124,8 +135,7 @@ static void signal_debugger_with_data(uint8_t data)
     // Need constant and short time between bits, so no loops or conditionals
 #define PULSE_BIT(idx) \
     __delay_cycles(SIG_SERIAL_BIT_DURATION_ON_TARGET); \
-    bit = (data >> idx) & 0x1; \
-    GPIO(PORT_SIG, OUT) |= bit << PIN_SIG; \
+    GPIO(PORT_SIG, OUT) |= port_bits[idx]; \
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG); \
 
 #if SIG_SERIAL_NUM_BITS > 3
@@ -148,6 +158,8 @@ static void signal_debugger_with_data(uint8_t data)
 
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
     GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+
+    __enable_interrupt();
 }
 
 
