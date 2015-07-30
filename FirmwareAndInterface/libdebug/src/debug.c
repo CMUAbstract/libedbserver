@@ -244,7 +244,14 @@ void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
     }
 
     mask_debugger_signal();
-    signal_debugger();
+
+    switch (state) {
+        case STATE_DEBUG: // an assert/breakpoint nested in an energy guard
+            signal_debugger_with_data(SIG_CMD_INTERRUPT);
+            break;
+        default: // hot path (hit an assert/bkpt), we want the debugger to take action asap
+            signal_debugger();
+    }
 
     unmask_debugger_signal();
 
@@ -255,7 +262,7 @@ void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
 static void release_debugger()
 {
     set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
-    signal_debugger(); // tell debugger we have shutdown UART
+    signal_debugger_with_data(SIG_CMD_EXIT); // tell debugger we have shutdown UART
 }
 
 void resume_application()
@@ -513,6 +520,7 @@ static inline void handle_debugger_signal()
 {
     switch (state) {
         case STATE_IDLE: // debugger requested us to enter debug mode
+        case STATE_DEBUG: // debugger requested to enter a *nested* debug mode
 
             // If entering debug mode on debugger's initiative (i.e. when we
             // didn't request it), then need to set the features.
@@ -523,6 +531,7 @@ static inline void handle_debugger_signal()
 
             enter_debug_mode();
             signal_debugger_with_data(interrupt_context.features);
+            unmask_debugger_signal();
 
             if (interrupt_context.features & DEBUG_MODE_INTERACTIVE) {
                 debug_main();
@@ -603,6 +612,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
             /* Power state manipulation is required to be inside the ISR */
             switch (state) {
                 case STATE_DEBUG: /* IDLE->DEBUG just happend: entered energy guard */
+                    // TODO: we also get here on *nested* assert/bkpt -- what happens
+                    // in that case? It seems to work (at least for nested assert),
+                    // but comments need to address this case. Also, nested bkpt need
+                    // to be tested.
 
                     // We clear the sleep flags corresponding to the sleep on request
                     // to enter debug mode here, and do not touch them in the DEBUG->SUSPENDED

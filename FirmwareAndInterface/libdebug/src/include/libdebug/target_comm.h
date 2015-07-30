@@ -67,9 +67,12 @@ typedef enum {
  * @details NOTE: must update CONFIG_SIG_SERIAL_NUM_BITS when this list changes
  * @{
  */
+#define DEBUG_MODE_NO_FLAGS         0x00
 #define DEBUG_MODE_INTERACTIVE      0x01
 #define DEBUG_MODE_WITH_UART        0x02
 #define DEBUG_MODE_WITH_I2C         0x04
+
+#define DEBUG_MODE_PRESERVE_VCAP    0x08 // not communicated on signal line
 /** @} End DEBUG_MODE_FLAGS */
 
 #define DEBUG_MODE_FULL_FEATURES    (DEBUG_MODE_INTERACTIVE | DEBUG_MODE_WITH_UART)
@@ -95,6 +98,17 @@ typedef enum {
 #define SIG_SERIAL_BIT_DURATION_ON_DEBUGGER     480 // SMCLK cycles
 /** @} End SIG_SERIAL_BIT_DURATION */
 
+/**
+ * @brief Commands sent over the signal line from target to debugger
+ * @details The commands are encoded serially and must be
+ *          at most SIG_SERIAL_NUM_BITS long
+ */
+typedef enum {
+    SIG_CMD_NONE                            = 0,
+    SIG_CMD_INTERRUPT                       = 1,
+    SIG_CMD_EXIT                            = 2,
+} sig_cmd_t;
+
 
 /** @brief Latency between a code point marker edge and the signal to enter debug mode 
  *
@@ -109,6 +123,18 @@ typedef enum {
  *           reaction latency.
  */
 #define ENTER_DEBUG_MODE_LATENCY_CYCLES 100
+
+/**
+ * @brief Time for the target to start listening for debugger's signal
+ *
+ * @details This applies to *nested* interrupts into debug mode
+ *          (asserts/breakpoints). After the target signals the
+ *          debugger (with data identifying whether it wants to
+ *          enter a nested debug mode or exit the current debug mode),
+ *          it takes some cycles before it actually goes to sleep
+ *          and enables the interrupt.
+ */
+#define NESTED_DEBUG_MODE_INTERRUPT_LATENCY_CYCLES 100
 
 /**
  * @brief Reason target execution is interrupted
