@@ -114,7 +114,7 @@ typedef struct {
     unsigned id;
     uint16_t saved_vcap;
     uint16_t restored_vcap;
-    state_t saved_state;
+    uint16_t saved_debug_mode_flags; // for nested debug mode
 } interrupt_context_t;
 
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
@@ -468,12 +468,14 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
     interrupt_context.type = int_type;
     interrupt_context.id = 0;
-    interrupt_context.saved_state = state;
 
     set_state(STATE_ENTERING);
 
-    if (flags & DEBUG_MODE_PRESERVE_VCAP)
+    if (!(flags & DEBUG_MODE_NESTED)) {
         interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } else {
+        interrupt_context.saved_debug_mode_flags = debug_mode_flags;
+    }
 
     reset_serial_decoder();
 
@@ -575,7 +577,7 @@ static void interrupt_target()
 
     __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
 
-    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES | DEBUG_MODE_PRESERVE_VCAP);
+    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
 }
 
 static void get_target_interrupt_context(interrupt_context_t *int_context)
@@ -747,18 +749,20 @@ static void finish_exit_debug_mode()
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
         I2C_teardown();
 
-    if (debug_mode_flags & DEBUG_MODE_PRESERVE_VCAP) {
-        continuous_power_off();
-        interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap);
-    }
-
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
         main_loop_flags |= FLAG_EXITED_DEBUG_MODE;
 
-    debug_mode_flags = 0;
+    if (!(debug_mode_flags & DEBUG_MODE_NESTED)) {
+        continuous_power_off();
+        interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap);
+        set_state(STATE_IDLE);
+    } else { // nested: go back to the outer debug mode
+        debug_mode_flags = interrupt_context.saved_debug_mode_flags;
+        set_state(STATE_DEBUG);
+    }
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-    set_state(interrupt_context.saved_state);
+
     signal_target(); // tell target to continue execution
     unmask_target_signal(); // target may request to enter active debug mode
 }
@@ -774,7 +778,7 @@ static void handle_target_signal()
             // for the target to start listening for the interrupt
             mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
             enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ,
-                             DEBUG_MODE_PRESERVE_VCAP /* feature list rcved from target later */);
+                             DEBUG_MODE_NO_FLAGS /* feature list rcved from target later */);
             break;
 
         case STATE_ENTERING:
@@ -784,7 +788,7 @@ static void handle_target_signal()
 
                 // clear the bits we are about to read from target
                 debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
-                if (debug_mode_flags & DEBUG_MODE_PRESERVE_VCAP)
+                if (!(debug_mode_flags & DEBUG_MODE_NESTED))
                     continuous_power_on();
             } else if (sig_serial_bit_index >= 0) {
                 debug_mode_flags |= 1 << sig_serial_bit_index;
@@ -820,7 +824,7 @@ static void handle_target_signal()
                 switch (target_sig_cmd) {
                     case SIG_CMD_INTERRUPT: // assert/bkpt nested in an energy guard
                         __delay_cycles(NESTED_DEBUG_MODE_INTERRUPT_LATENCY_CYCLES);
-                        enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ, DEBUG_MODE_NO_FLAGS);
+                        enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ, DEBUG_MODE_NESTED);
                         break;
                     case SIG_CMD_EXIT: // exit debug mode (both innner and outer gets here)
                         finish_exit_debug_mode();
@@ -1082,7 +1086,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
-        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES | DEBUG_MODE_PRESERVE_VCAP);
+        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
         break;
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
@@ -1546,7 +1550,7 @@ static void break_at_vcap_level_adc(uint16_t level)
         cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
     } while (cur_vcap > level);
 
-    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES | DEBUG_MODE_PRESERVE_VCAP);
+    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
 }
 
 static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
@@ -1599,8 +1603,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
 
-            enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT,
-                             DEBUG_MODE_FULL_FEATURES | DEBUG_MODE_PRESERVE_VCAP);
+            enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
         }
         break;
     }
@@ -1633,8 +1636,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
         case CMP_OP_ENERGY_BREAKPOINT:
-            enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT,
-                             DEBUG_MODE_FULL_FEATURES | DEBUG_MODE_PRESERVE_VCAP);
+            enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
             // TODO: should the interrupt be re-enabled upon exit from debug mode?
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt

@@ -72,7 +72,7 @@ typedef enum {
 #define DEBUG_MODE_WITH_UART        0x02
 #define DEBUG_MODE_WITH_I2C         0x04
 
-#define DEBUG_MODE_PRESERVE_VCAP    0x08 // not communicated on signal line
+#define DEBUG_MODE_NESTED           0x08 // not communicated on signal line
 /** @} End DEBUG_MODE_FLAGS */
 
 #define DEBUG_MODE_FULL_FEATURES    (DEBUG_MODE_INTERACTIVE | DEBUG_MODE_WITH_UART)

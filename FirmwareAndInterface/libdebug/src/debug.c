@@ -259,16 +259,18 @@ void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
     __bis_SR_register(DEBUG_MODE_REQUEST_WAIT_STATE_BITS | GIE);
 }
 
-static void release_debugger()
-{
-    set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
-    signal_debugger_with_data(SIG_CMD_EXIT); // tell debugger we have shutdown UART
-}
-
 void resume_application()
 {
     exit_debug_mode();
-    release_debugger();
+
+    set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
+
+    // debugger is in DEBUG state, so our signal needs to contain
+    // the information about whether we are exiting the debug mode
+    // (as we are here) or whether we are requesting a nested debug
+    // mode due to an assert/bkpt.
+    signal_debugger_with_data(SIG_CMD_EXIT); // tell debugger we have shutdown UART
+
     unmask_debugger_signal();
 }
 
@@ -535,8 +537,9 @@ static inline void handle_debugger_signal()
 
             if (interrupt_context.features & DEBUG_MODE_INTERACTIVE) {
                 debug_main();
-                // debug loop exited (due to UART cmd to exit debugger)
-                release_debugger();
+                // debug loop exited (due to UART cmd to exit debugger), release debugger
+                set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
+                signal_debugger(); // tell debugger we have shutdown UART
             } // else: exit the ISR, let the app continue in tethered mode
             break;
         case STATE_SUSPENDED: // debugger finished restoring the energy level
