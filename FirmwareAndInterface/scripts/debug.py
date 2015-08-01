@@ -188,6 +188,10 @@ def cmd_replay(mon, file):
 def cmd_set(mon, parm, value):
     mon.set_param(parm, value)
 
+def cmd_uart(mon, op):
+    enable = "enable".startswith(op)
+    mon.enable_target_uart(enable)
+
 def compose_prompt(active_mode):
     if active_mode:
         return "*> "

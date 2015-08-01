@@ -63,6 +63,7 @@ typedef enum {
     USB_CMD_GET_INTERRUPT_CONTEXT           = 0x39, //!< ask why target interrupted execution
     USB_CMD_SERIAL_ECHO                     = 0x40, //!< test communication with WISP via serial encoding over the signal line
     USB_CMD_DMA_ECHO                        = 0x41, //!< send message to USB UART using DMA
+    USB_CMD_ENABLE_TARGET_UART              = 0x42, //!< prepare UART to accept messages from target
 } usb_cmd_t;
 
 /**

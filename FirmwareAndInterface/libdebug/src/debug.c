@@ -175,7 +175,7 @@ static void mask_debugger_signal()
     GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
 
-static void UART_teardown()
+void UART_teardown()
 {
     // disable UART
     // Not sure how to do this best, but set all UCA0* registers to

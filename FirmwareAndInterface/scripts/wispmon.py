@@ -651,6 +651,11 @@ class WispMonitor:
         reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
         return reply["value"]
 
+    def enable_target_uart(self, enable):
+        cmd_data = [enable]
+        self.sendCmd(host_comm_header.enums['USB_CMD']['ENABLE_TARGET_UART'], data=cmd_data)
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
+
     def stream(self, streams, duration_sec=None, out_file=None, silent=True, no_parse=False):
         self.rcv_no_parse = no_parse
         self.rcv_no_parse_total_bytes = 0

@@ -1399,6 +1399,17 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
     }
 
+    case USB_CMD_ENABLE_TARGET_UART: {
+        bool enable = pkt->data[0];
+        if (enable) {
+            UART_setup(UART_INTERFACE_WISP);
+        } else {
+            UART_teardown(UART_INTERFACE_WISP);
+        }
+        send_return_code(RETURN_CODE_SUCCESS);
+        break;
+    }
+
     default:
         break;
     }

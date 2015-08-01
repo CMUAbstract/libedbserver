@@ -165,10 +165,20 @@ void debug_setup();
  */
 void resume_application();
 
+void UART_init(); // defined by wisp-base
+void UART_teardown(); // defined by libdebug
+
 #define PRINTF(...) do { \
         request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0, DEBUG_MODE_WITH_UART); \
         printf(__VA_ARGS__); \
         resume_application(); \
     } while (0);
+
+#define ONDEMAND_PRINTF(...) do { \
+        UART_init(); \
+        printf(__VA_ARGS__); \
+        UART_teardown(); \
+    } while (0);
+
 
 #endif
