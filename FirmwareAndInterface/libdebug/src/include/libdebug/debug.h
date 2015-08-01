@@ -174,11 +174,9 @@ void UART_teardown(); // defined by libdebug
         resume_application(); \
     } while (0);
 
-#define ONDEMAND_PRINTF(...) do { \
-        UART_init(); \
-        printf(__VA_ARGS__); \
-        UART_teardown(); \
-    } while (0);
+#define BARE_PRINTF_ENABLE() UART_init()
+#define BARE_PRINTF_DISABLE() UART_teardown()
 
+#define BARE_PRINTF(...) printf(__VA_ARGS__)
 
 #endif
