@@ -29,6 +29,7 @@ BINARY = libdebug.a
 
 OBJECTS = \
 	debug.o \
+	io.o \
 
 all: $(BINARY)
 

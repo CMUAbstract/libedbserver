@@ -1010,23 +1010,25 @@ int main(void)
             main_loop_flags &= ~FLAG_UART_USB_TX;
         }
 */
-/*
+
         if(main_loop_flags & FLAG_UART_WISP_RX) {
             // we've received a byte over UART from the WISP
             if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
-            	// packet is complete
-            	//doStuff();
+                switch (wispRxPkt.descriptor) {
+                    case WISP_RSP_STDIO:
+                        forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
+                        break;
+                    default:
+                        ASSERT(ASSERT_UNEXPECTED_TARGET_PKT, false);
+                }
             	wispRxPkt.processed = 1;
             }
 
-            // check if we're done for now
-            UART_DISABLE_WISP_RX; // disable interrupt so new bytes don't come in
             if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
             	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
             }
-            UART_ENABLE_WISP_RX; // enable interrupt
         }
-*/
+
 /*
         if(main_loop_flags & FLAG_UART_WISP_TX) {
             // WISP UART Tx byte

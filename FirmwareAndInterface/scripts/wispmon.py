@@ -90,6 +90,10 @@ class InterruptContext:
         self.id = id
         self.saved_vcap = saved_vcap
 
+class StdIOData:
+    def __init__(self, string):
+        self.string = string
+
 class StreamDataPoint:
     def __init__(self, timestamp_cycles, value_set):
         self.timestamp_cycles = timestamp_cycles
@@ -269,6 +273,9 @@ class WispMonitor:
                 pkt["interrupt_id"] = (self.rxPkt.data[2] << 8) | self.rxPkt.data[1]
                 saved_vcap_adc_reading = (self.rxPkt.data[4] << 8) | self.rxPkt.data[3]
                 pkt["saved_vcap"] = self.adc_to_voltage(saved_vcap_adc_reading)
+
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STDIO']:
+                pkt["string"] = str(bytearray(self.rxPkt.data))
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['WISP_MEMORY']:
                 pkt["address"] = (self.rxPkt.data[3] << 24) | (self.rxPkt.data[2] << 16) | \
@@ -589,9 +596,18 @@ class WispMonitor:
                            [host_comm_header.enums['CMP_REF'][cmp_ref], enable])
         self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
-    def wait_for_interrupt(self):
-        pkt = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
-        return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
+    def wait(self):
+        pkt = self.receive_reply([
+            host_comm_header.enums['USB_RSP']['INTERRUPTED'],
+            host_comm_header.enums['USB_RSP']['STDIO']
+        ])
+        desc = pkt["descriptor"]
+        if desc == host_comm_header.enums['USB_RSP']['INTERRUPTED']:
+            return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
+        elif desc == host_comm_header.enums['USB_RSP']['STDIO']:
+            return StdIOData(pkt["string"])
+        else:
+            raise Exception("Unexpected pkt: " + "0x%08x" % pkt["descriptor"])
 
     def get_interrupt_context(self, source):
         self.sendCmd(host_comm_header.enums['USB_CMD']['GET_INTERRUPT_CONTEXT'], data=[host_comm_header.enums['INTERRUPT_SOURCE'][source]])

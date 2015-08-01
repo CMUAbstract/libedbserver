@@ -50,6 +50,7 @@ typedef enum {
     WISP_RSP_BREAKPOINT             = 0x02, //!< message acknowledging breakpoint cmd
     WISP_RSP_INTERRUPT_CONTEXT      = 0x03, //!< reason execution was interrupted
     WISP_RSP_SERIAL_ECHO            = 0x04, //!< response to the serial echo request
+    WISP_RSP_STDIO                  = 0x05, //!< data from printf
 } wisp_rsp_t;
 
 /** @} End UART_PROTOCOL */

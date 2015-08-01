@@ -9,6 +9,7 @@
 #define DEBUG_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #include "pin_assign.h"
 #include "target_comm.h"
@@ -163,5 +164,11 @@ void debug_setup();
  * @brief Initiate disconnection from debugger to eventually resume application
  */
 void resume_application();
+
+#define PRINTF(...) do { \
+        request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0, DEBUG_MODE_WITH_UART); \
+        printf(__VA_ARGS__); \
+        resume_application(); \
+    } while (0);
 
 #endif
