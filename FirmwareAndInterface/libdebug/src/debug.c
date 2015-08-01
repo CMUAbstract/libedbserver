@@ -220,7 +220,7 @@ void exit_debug_mode()
     clear_interrupt_context();
 }
 
-void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
+void request_debug_mode(interrupt_type_t int_type, unsigned int_id, unsigned features)
 {
     // Disable interrupts before unmasking debugger signal to make sure
     // we are asleep (at end of this function) before ISR runs. Otherwise,
@@ -233,15 +233,7 @@ void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
     debug_flags |= DEBUG_REQUESTED_BY_TARGET;
     interrupt_context.type = int_type;
     interrupt_context.id = int_id;
-
-    switch (int_type) {
-        case INTERRUPT_TYPE_ENERGY_GUARD:
-            interrupt_context.features = 0;
-            break;
-        default:
-            interrupt_context.features = DEBUG_MODE_FULL_FEATURES;
-            break;
-    }
+    interrupt_context.features = features;
 
     mask_debugger_signal();
 
