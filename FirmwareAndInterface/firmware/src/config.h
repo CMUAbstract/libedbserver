@@ -129,6 +129,9 @@
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
 
+// Enable pins for general-purpose event reporting (for debugging)
+// #define CONFIG_EVENT_PINS
+//
 // Encode RFID decoder state onto pins for debugging purposes
 // #define CONFIG_RFID_DECODER_STATE_PINS
 
