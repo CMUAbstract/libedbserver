@@ -499,7 +499,7 @@ static void exit_debug_mode()
 static void reset_state()
 {
     continuous_power_off();
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     set_state(STATE_IDLE);
     unmask_target_signal();
 }
@@ -726,7 +726,7 @@ static void finish_enter_debug_mode()
 {
     // WISP has entered debug main loop
     set_state(STATE_DEBUG);
-    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_GREEN);
 
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_setup(UART_INTERFACE_WISP);
@@ -761,7 +761,7 @@ static void finish_exit_debug_mode()
         set_state(STATE_DEBUG);
     }
 
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
 
     signal_target(); // tell target to continue execution
     unmask_target_signal(); // target may request to enter active debug mode
@@ -1039,7 +1039,8 @@ int main(void)
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
         if (++count == 0xffff) {
-            GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+            if (state == STATE_IDLE)
+                GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
             count = 0;
         }
 
