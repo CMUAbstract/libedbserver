@@ -30,6 +30,7 @@ BINARY = libdebug.a
 OBJECTS = \
 	debug.o \
 	io.o \
+	printf.o \
 
 all: $(BINARY)
 

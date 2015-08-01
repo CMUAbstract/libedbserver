@@ -9,10 +9,10 @@
 #define DEBUG_H
 
 #include <stdint.h>
-#include <stdio.h>
 
 #include "pin_assign.h"
 #include "target_comm.h"
+#include "printf.h"
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
