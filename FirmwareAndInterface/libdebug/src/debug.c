@@ -112,7 +112,18 @@ static void signal_debugger()
 
 static void signal_debugger_with_data(uint8_t data)
 {
+    unsigned i;
     uint8_t bit;
+    uint8_t port_bits[SIG_SERIAL_NUM_BITS];
+
+    // Precompute all port values in order to keep the bit duration constant,
+    // i.e. so that it does not vary with the bit index and bit value.
+    for (i = 0; i < SIG_SERIAL_NUM_BITS; ++i) {
+        bit = (data >> i) & 0x1;
+        port_bits[i] = bit << PIN_SIG;
+    }
+
+    __disable_interrupt();
 
     // target signal line starts in high imedence state
 
@@ -124,8 +135,7 @@ static void signal_debugger_with_data(uint8_t data)
     // Need constant and short time between bits, so no loops or conditionals
 #define PULSE_BIT(idx) \
     __delay_cycles(SIG_SERIAL_BIT_DURATION_ON_TARGET); \
-    bit = (data >> idx) & 0x1; \
-    GPIO(PORT_SIG, OUT) |= bit << PIN_SIG; \
+    GPIO(PORT_SIG, OUT) |= port_bits[idx]; \
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG); \
 
 #if SIG_SERIAL_NUM_BITS > 3
@@ -148,6 +158,8 @@ static void signal_debugger_with_data(uint8_t data)
 
     GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);    // back to high impedence state
     GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+
+    __enable_interrupt();
 }
 
 
@@ -194,23 +206,6 @@ static void enter_debug_mode()
 {
     __enable_interrupt();
 
-#if 0 // TODO: save
-    // save clock configuration
-    clkInfo.CSCTL0 = CSCTL0;
-    clkInfo.CSCTL1 = CSCTL1;
-    clkInfo.CSCTL2 = CSCTL2;
-    clkInfo.CSCTL3 = CSCTL3;
-#endif
-
-    // Switch to a faster clock (strictly necessary for UART drivers, but we do
-    // it always too reduce time overhead)
-    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-    CSCTL1 = DCOFSEL_6;                       // Set DCO to 8MHz
-    CSCTL2 = SELA__VLOCLK | SELS__DCOCLK | SELM__DCOCLK;  // Set SMCLK = MCLK = DCO
-                                              // ACLK = VLOCLK
-    CSCTL3 = DIVA__1 | DIVS__1 | DIVM__1;     // Set all dividers to 1
-    CSCTL0_H = 0;                             // Lock CS registers
-
     if (interrupt_context.features & DEBUG_MODE_WITH_UART)
         UART_init();
 
@@ -222,24 +217,10 @@ void exit_debug_mode()
     if (interrupt_context.features & DEBUG_MODE_WITH_UART)
         UART_teardown();
 
-    // restore clock configuration
-    CSCTL0_H = CSKEY >> 8;                    // Unlock CS registers
-#if 0 // TODO: restore (this causes reset, probably need to do bit by bit)
-    CSCTL0 = clkInfo.CSCTL0;
-    CSCTL1 = clkInfo.CSCTL1;
-    CSCTL2 = clkInfo.CSCTL2;
-    CSCTL3 = clkInfo.CSCTL3;
-#else
-    CSCTL1 = DCOFSEL0 + DCOFSEL1; //4MHz
-    CSCTL2 = SELA_0 + SELS_3 + SELM_3;
-    CSCTL3 = DIVA_0 + DIVS_0 + DIVM_0;
-#endif
-    CSCTL0_H = 0;                             // Lock CS registers
-
     clear_interrupt_context();
 }
 
-void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
+void request_debug_mode(interrupt_type_t int_type, unsigned int_id, unsigned features)
 {
     // Disable interrupts before unmasking debugger signal to make sure
     // we are asleep (at end of this function) before ISR runs. Otherwise,
@@ -252,18 +233,17 @@ void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
     debug_flags |= DEBUG_REQUESTED_BY_TARGET;
     interrupt_context.type = int_type;
     interrupt_context.id = int_id;
-
-    switch (int_type) {
-        case INTERRUPT_TYPE_ENERGY_GUARD:
-            interrupt_context.features = 0;
-            break;
-        default:
-            interrupt_context.features = DEBUG_MODE_FULL_FEATURES;
-            break;
-    }
+    interrupt_context.features = features;
 
     mask_debugger_signal();
-    signal_debugger();
+
+    switch (state) {
+        case STATE_DEBUG: // an assert/breakpoint nested in an energy guard
+            signal_debugger_with_data(SIG_CMD_INTERRUPT);
+            break;
+        default: // hot path (hit an assert/bkpt), we want the debugger to take action asap
+            signal_debugger();
+    }
 
     unmask_debugger_signal();
 
@@ -271,16 +251,18 @@ void request_debug_mode(interrupt_type_t int_type, unsigned int_id)
     __bis_SR_register(DEBUG_MODE_REQUEST_WAIT_STATE_BITS | GIE);
 }
 
-static void release_debugger()
-{
-    set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
-    signal_debugger(); // tell debugger we have shutdown UART
-}
-
 void resume_application()
 {
     exit_debug_mode();
-    release_debugger();
+
+    set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
+
+    // debugger is in DEBUG state, so our signal needs to contain
+    // the information about whether we are exiting the debug mode
+    // (as we are here) or whether we are requesting a nested debug
+    // mode due to an assert/bkpt.
+    signal_debugger_with_data(SIG_CMD_EXIT); // tell debugger we have shutdown UART
+
     unmask_debugger_signal();
 }
 
@@ -532,6 +514,7 @@ static inline void handle_debugger_signal()
 {
     switch (state) {
         case STATE_IDLE: // debugger requested us to enter debug mode
+        case STATE_DEBUG: // debugger requested to enter a *nested* debug mode
 
             // If entering debug mode on debugger's initiative (i.e. when we
             // didn't request it), then need to set the features.
@@ -542,11 +525,13 @@ static inline void handle_debugger_signal()
 
             enter_debug_mode();
             signal_debugger_with_data(interrupt_context.features);
+            unmask_debugger_signal();
 
             if (interrupt_context.features & DEBUG_MODE_INTERACTIVE) {
                 debug_main();
-                // debug loop exited (due to UART cmd to exit debugger)
-                release_debugger();
+                // debug loop exited (due to UART cmd to exit debugger), release debugger
+                set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
+                signal_debugger(); // tell debugger we have shutdown UART
             } // else: exit the ISR, let the app continue in tethered mode
             break;
         case STATE_SUSPENDED: // debugger finished restoring the energy level
@@ -622,6 +607,10 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1(void)
             /* Power state manipulation is required to be inside the ISR */
             switch (state) {
                 case STATE_DEBUG: /* IDLE->DEBUG just happend: entered energy guard */
+                    // TODO: we also get here on *nested* assert/bkpt -- what happens
+                    // in that case? It seems to work (at least for nested assert),
+                    // but comments need to address this case. Also, nested bkpt need
+                    // to be tested.
 
                     // We clear the sleep flags corresponding to the sleep on request
                     // to enter debug mode here, and do not touch them in the DEBUG->SUSPENDED

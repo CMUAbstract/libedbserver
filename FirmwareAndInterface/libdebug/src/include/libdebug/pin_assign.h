@@ -14,6 +14,15 @@
 // (a control bit for TAxCCTLx uses the name 'OUT')
 #undef OUT
 
+// NOTE: underscores LED_# iin order to not confict with wisp-base lib
+//
+// MCU-side LED
+#define PORT_LED_1   4
+#define PIN_LED_1    0
+//
+// Non-MCU-side LED
+#define PORT_LED_2   J
+#define PIN_LED_2    6
 
 #define PORT_STATE  3
 #define PIN_STATE_0 4 // lsb

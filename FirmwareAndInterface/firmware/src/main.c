@@ -114,6 +114,7 @@ typedef struct {
     unsigned id;
     uint16_t saved_vcap;
     uint16_t restored_vcap;
+    uint16_t saved_debug_mode_flags; // for nested debug mode
 } interrupt_context_t;
 
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
@@ -125,6 +126,8 @@ static int sig_serial_bit_index; // debug mode flags are serially encoded on the
 
 static unsigned sig_serial_echo_value = 0;
 static state_t saved_sig_serial_echo_state;
+
+static sig_cmd_t target_sig_cmd;
 
 static interrupt_context_t interrupt_context;
 
@@ -370,15 +373,17 @@ static void continuous_power_off()
     GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
 }
 
-static inline void setup_serial_decode_timer()
+static inline void reset_serial_decoder()
 {
+    sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
+
     TIMER(TIMER_SIG_SERIAL_DECODE, CCR0) = SIG_SERIAL_BIT_DURATION_ON_DEBUGGER;
     TIMER(TIMER_SIG_SERIAL_DECODE, CTL) |= TACLR | TASSEL__SMCLK;
     TIMER(TIMER_SIG_SERIAL_DECODE, CCTL0) &= ~CCIFG;
     TIMER(TIMER_SIG_SERIAL_DECODE, CCTL0) |= CCIE;
 }
 
-static inline void start_serial_decode_timer()
+static inline void start_serial_decoder()
 {
     TIMER(TIMER_SIG_SERIAL_DECODE, CTL) |= MC__UP; // start
 
@@ -388,7 +393,7 @@ static inline void start_serial_decode_timer()
 #endif
 }
 
-static inline void stop_serial_decode_timer()
+static inline void stop_serial_decoder()
 {
     TIMER(TIMER_SIG_SERIAL_DECODE, CTL) = 0;
 
@@ -459,31 +464,22 @@ static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
     send_msg_to_host(descriptor, payload_len);
 }
 
-static void enter_debug_mode(interrupt_type_t int_type)
+static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
-    set_state(STATE_ENTERING);
-
     interrupt_context.type = int_type;
     interrupt_context.id = 0;
-    interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
 
-    sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
-    setup_serial_decode_timer();
+    set_state(STATE_ENTERING);
 
-    debug_mode_flags = 0;
-    switch (int_type)
-    {
-        case INTERRUPT_TYPE_DEBUGGER_REQ:
-        case INTERRUPT_TYPE_BREAKPOINT: // passive breakpoint only
-        case INTERRUPT_TYPE_ENERGY_BREAKPOINT:
-            debug_mode_flags |= DEBUG_MODE_FULL_FEATURES;
-            break;
-        case INTERRUPT_TYPE_TARGET_REQ:
-            /* debugger mode flags read from signal line (serially encoded) */
-            break;
-        default:
-            ASSERT(ASSERT_CORRUPT_STATE, false);
+    if (!(flags & DEBUG_MODE_NESTED)) {
+        interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } else {
+        interrupt_context.saved_debug_mode_flags = debug_mode_flags;
     }
+
+    reset_serial_decoder();
+
+    debug_mode_flags = flags;
 
     mask_target_signal();
     signal_target();
@@ -503,7 +499,7 @@ static void exit_debug_mode()
 static void reset_state()
 {
     continuous_power_off();
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     set_state(STATE_IDLE);
     unmask_target_signal();
 }
@@ -581,7 +577,7 @@ static void interrupt_target()
 
     __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
 
-    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ);
+    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
 }
 
 static void get_target_interrupt_context(interrupt_context_t *int_context)
@@ -730,7 +726,7 @@ static void finish_enter_debug_mode()
 {
     // WISP has entered debug main loop
     set_state(STATE_DEBUG);
-    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_GREEN);
 
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_setup(UART_INTERFACE_WISP);
@@ -739,6 +735,8 @@ static void finish_enter_debug_mode()
 
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
           main_loop_flags |= FLAG_INTERRUPTED; // main loop notifies the host
+
+    reset_serial_decoder();
 
     unmask_target_signal(); // listen because target *may* request to exit active debug mode
 }
@@ -751,16 +749,20 @@ static void finish_exit_debug_mode()
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
         I2C_teardown();
 
-    continuous_power_off();
-    interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap); // restore energy level
-
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
         main_loop_flags |= FLAG_EXITED_DEBUG_MODE;
 
-    debug_mode_flags = 0;
+    if (!(debug_mode_flags & DEBUG_MODE_NESTED)) {
+        continuous_power_off();
+        interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap);
+        set_state(STATE_IDLE);
+    } else { // nested: go back to the outer debug mode
+        debug_mode_flags = interrupt_context.saved_debug_mode_flags;
+        set_state(STATE_DEBUG);
+    }
 
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-    set_state(STATE_IDLE);
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+
     signal_target(); // tell target to continue execution
     unmask_target_signal(); // target may request to enter active debug mode
 }
@@ -775,18 +777,23 @@ static void handle_target_signal()
             // NOTE: if the debugger/target speedup is very high, then might need a delay here
             // for the target to start listening for the interrupt
             mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
-            enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ);
+            enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ,
+                             DEBUG_MODE_NO_FLAGS /* feature list rcved from target later */);
             break;
 
         case STATE_ENTERING:
             if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 --sig_serial_bit_index;
-                start_serial_decode_timer();
-                continuous_power_on();
+                start_serial_decoder();
+
+                // clear the bits we are about to read from target
+                debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
+                if (!(debug_mode_flags & DEBUG_MODE_NESTED))
+                    continuous_power_on();
             } else if (sig_serial_bit_index >= 0) {
                 debug_mode_flags |= 1 << sig_serial_bit_index;
             } else { // bitstream over (there is a terminating edge)
-                stop_serial_decode_timer();
+                stop_serial_decoder();
 
                 mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
                 finish_enter_debug_mode();
@@ -794,9 +801,38 @@ static void handle_target_signal()
             break;
 
         case STATE_EXITING: // Targed acknowledged our request to exit debug mode
-        case STATE_DEBUG: // Target requested to exit debug mode
             mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
             finish_exit_debug_mode();
+            break;
+
+        case STATE_DEBUG: // Target requested to exit debug mode OR
+                          // target hit an assert or bkpt within an energy guard
+
+            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
+                --sig_serial_bit_index;
+                start_serial_decoder();
+
+                // clear the bits we are about to read from target
+                target_sig_cmd = 0;
+            } else if (sig_serial_bit_index >= 0) {
+                target_sig_cmd |= 1 << sig_serial_bit_index;
+            } else { // bitstream over (there is a terminating edge)
+                stop_serial_decoder();
+
+                mask_target_signal(); // TODO: incorporate this cleaner (int flag is set)
+
+                switch (target_sig_cmd) {
+                    case SIG_CMD_INTERRUPT: // assert/bkpt nested in an energy guard
+                        __delay_cycles(NESTED_DEBUG_MODE_INTERRUPT_LATENCY_CYCLES);
+                        enter_debug_mode(INTERRUPT_TYPE_TARGET_REQ, DEBUG_MODE_NESTED);
+                        break;
+                    case SIG_CMD_EXIT: // exit debug mode (both innner and outer gets here)
+                        finish_exit_debug_mode();
+                        break;
+                    default:
+                        ASSERT(ASSERT_INVALID_SIG_CMD, false);
+                }
+            }
             break;
 
         case STATE_SERIAL_ECHO: // for testing purposes
@@ -806,11 +842,11 @@ static void handle_target_signal()
 #endif
             if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 sig_serial_bit_index--;
-                start_serial_decode_timer();
+                start_serial_decoder();
             } else if (sig_serial_bit_index >= 0) {
                 sig_serial_echo_value |= 1 << sig_serial_bit_index;
             } else {
-                stop_serial_decode_timer();
+                stop_serial_decoder();
                 set_state(saved_sig_serial_echo_state);
             }
             break;
@@ -856,6 +892,11 @@ static inline void pin_setup()
 #ifdef CONFIG_STATE_PINS
     GPIO(PORT_STATE, OUT) &= ~(BIT(PIN_STATE_0) | BIT(PIN_STATE_1));
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1);
+#endif
+
+#ifdef CONFIG_EVENT_PINS
+    GPIO(PORT_EVENT, OUT) &= ~(BIT(PIN_EVENT_0) | BIT(PIN_EVENT_1));
+    GPIO(PORT_EVENT, DIR) |= BIT(PIN_EVENT_0) | BIT(PIN_EVENT_1);
 #endif
 
 #ifdef CONFIG_SIG_SERIAL_DECODE_PINS
@@ -969,23 +1010,25 @@ int main(void)
             main_loop_flags &= ~FLAG_UART_USB_TX;
         }
 */
-/*
+
         if(main_loop_flags & FLAG_UART_WISP_RX) {
             // we've received a byte over UART from the WISP
             if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
-            	// packet is complete
-            	//doStuff();
+                switch (wispRxPkt.descriptor) {
+                    case WISP_RSP_STDIO:
+                        forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
+                        break;
+                    default:
+                        ASSERT(ASSERT_UNEXPECTED_TARGET_PKT, false);
+                }
             	wispRxPkt.processed = 1;
             }
 
-            // check if we're done for now
-            UART_DISABLE_WISP_RX; // disable interrupt so new bytes don't come in
             if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
             	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
             }
-            UART_ENABLE_WISP_RX; // enable interrupt
         }
-*/
+
 /*
         if(main_loop_flags & FLAG_UART_WISP_TX) {
             // WISP UART Tx byte
@@ -1003,7 +1046,8 @@ int main(void)
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
         if (++count == 0xffff) {
-            GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+            if (state == STATE_IDLE)
+                GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
             count = 0;
         }
 
@@ -1050,7 +1094,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
-        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ);
+        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
         break;
 
     case USB_CMD_EXIT_ACTIVE_DEBUG:
@@ -1322,8 +1366,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         saved_sig_serial_echo_state = state;
         set_state(STATE_SERIAL_ECHO);
 
-        sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
-        setup_serial_decode_timer();
+        reset_serial_decoder();
 
         sig_serial_echo_value = 0;
         unmask_target_signal();
@@ -1515,7 +1558,7 @@ static void break_at_vcap_level_adc(uint16_t level)
         cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
     } while (cur_vcap > level);
 
-    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT);
+    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
 }
 
 static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
@@ -1568,7 +1611,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
             if (state == STATE_DEBUG)
                 error(ERROR_UNEXPECTED_CODEPOINT);
 
-            enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT);
+            enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
         }
         break;
     }
@@ -1601,7 +1644,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
         case CMP_OP_ENERGY_BREAKPOINT:
-            enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT);
+            enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
             // TODO: should the interrupt be re-enabled upon exit from debug mode?
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt

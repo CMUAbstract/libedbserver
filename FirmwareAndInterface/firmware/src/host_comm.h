@@ -86,6 +86,7 @@ typedef enum {
     USB_RSP_RETURN_CODE                     = 0x0F, //!< message containing a return code indicating success or failure
     USB_RSP_INTERRUPTED                     = 0x10, //!< message sent upon entering debug mode (includes saved Vcap level)
     USB_RSP_ECHO                            = 0x11, //!< response to test commands
+    USB_RSP_STDIO                           = 0x12, //!< printf data from target
 } usb_rsp_t;
 
 

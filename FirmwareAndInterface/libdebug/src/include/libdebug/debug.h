@@ -12,6 +12,7 @@
 
 #include "pin_assign.h"
 #include "target_comm.h"
+#include "printf.h"
 
 // Encode debugger state machine state onto pins
 // #define CONFIG_STATE_PINS
@@ -91,7 +92,7 @@
  */
 extern volatile uint16_t _libdebug_internal_breakpoints;
 
-void request_debug_mode(interrupt_type_t int_type, unsigned id);
+void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned features);
 
 #ifdef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -121,7 +122,7 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id);
  */
 #define INTERNAL_BREAKPOINT(idx) \
     if (_libdebug_internal_breakpoints & (1 << idx)) \
-        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
+        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx, DEBUG_MODE_FULL_FEATURES)
 
 #ifndef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 /**
@@ -143,14 +144,16 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id);
  */
 #define EXTERNAL_BREAKPOINT(idx) \
     if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) \
-        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx)
+        request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx, DEBUG_MODE_FULL_FEATURES)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
 #define ASSERT(cond) \
-    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, __LINE__)
+    if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, __LINE__, DEBUG_MODE_FULL_FEATURES)
 
-#define ENERGY_GUARD_BEGIN() request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0)
-#define ENERGY_GUARD_END() resume_application()
+#define ENERGY_GUARD_BEGIN() \
+    request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0, DEBUG_MODE_NO_FLAGS)
+#define ENERGY_GUARD_END() \
+    resume_application()
 
 /**
  * @brief	Initialize pins used by the debugger board
@@ -161,5 +164,11 @@ void debug_setup();
  * @brief Initiate disconnection from debugger to eventually resume application
  */
 void resume_application();
+
+#define PRINTF(...) do { \
+        request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0, DEBUG_MODE_WITH_UART); \
+        printf(__VA_ARGS__); \
+        resume_application(); \
+    } while (0);
 
 #endif

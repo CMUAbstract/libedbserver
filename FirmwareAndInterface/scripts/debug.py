@@ -140,9 +140,15 @@ def cmd_wait(mon):
     """Wait to enter active debug mode"""
     global active_mode
     try:
-        int_context = mon.wait_for_interrupt()
-        print_interrupt_context(int_context)
-        active_mode = True
+        event = mon.wait()
+
+        if isinstance(event, wispmon.InterruptContext):
+            print_interrupt_context(event)
+            active_mode = True
+        elif isinstance(event, wispmon.StdIOData):
+            print event.string,
+            if event.string[-1] != '\n':
+                print
     except KeyboardInterrupt:
         pass
 
