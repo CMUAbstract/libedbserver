@@ -1865,7 +1865,13 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    --sig_serial_bit_index;
+    // Timed out: at zero we are still waiting for terminator pulse, but if it
+    // never comes in one bit slot, then we get here with negative index.
+    if (sig_serial_bit_index < 0) {
+        reset_state();
+    } else {
+        --sig_serial_bit_index;
+    }
 
 #ifdef CONFIG_SIG_SERIAL_DECODE_PINS
     GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_TIMER);
