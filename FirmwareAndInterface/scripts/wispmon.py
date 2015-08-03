@@ -78,7 +78,7 @@ config_header = Header(env.CONFIG_HEADER,
         'CONFIG_CLK_DIV_SMCLK',
         'CONFIG_ADC_SAMPLING_FREQ_HZ',
         'CONFIG_ADC_TIMER_DIV',
-        'CONFIG_TIMELOG_TIMER_DIV'
+        'CONFIG_TIMELOG_TIMER_DIV',
         'CONFIG_TIMELOG_TIMER_DIV_EX'
     ])
 
