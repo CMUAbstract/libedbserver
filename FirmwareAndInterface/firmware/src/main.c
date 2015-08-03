@@ -540,6 +540,7 @@ static void exit_debug_mode()
 static void reset_state()
 {
     continuous_power_off();
+    stop_serial_decoder();
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     set_state(STATE_IDLE);
     unmask_target_signal();
