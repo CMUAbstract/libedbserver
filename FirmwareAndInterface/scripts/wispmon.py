@@ -143,7 +143,7 @@ class WispMonitor:
                 "VREG": self.decode_adc_value,
                 "VRECT": self.decode_adc_value,
                 "VINJ": self.decode_adc_value,
-                "RF_EVENTS": self.decode_rf_event_value,
+                "RF_EVENTS": self.decode_rf_event,
         }
 
         def clk_source_freq(source):
@@ -506,7 +506,7 @@ class WispMonitor:
         voltage = self.adc_to_voltage(adc_value)
         return voltage, length
 
-    def decode_rf_event_value(self, bytes, offset):
+    def decode_rf_event(self, bytes, offset):
         FIELD_LEN = 2
         if offset + FIELD_LEN > len(bytes):
             raise StreamDecodeException("not enough bytes")
