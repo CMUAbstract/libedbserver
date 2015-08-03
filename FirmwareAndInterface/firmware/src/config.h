@@ -201,6 +201,9 @@
  */
 // #define CONFIG_PWM_CHARGING
 
+// #define CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+#define CONFIG_ENABLE_WATCHPOINTS
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44

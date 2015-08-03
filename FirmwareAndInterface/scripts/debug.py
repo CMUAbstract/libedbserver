@@ -38,6 +38,11 @@ def print_interrupt_context(context):
     else:
         print
 
+def print_watchpoint_event(event):
+    print "Watchpoint:", "id:", event.id, \
+            "time: %.6f s" % event.timestamp, \
+            "Vcap = %.4f" % event.vcap
+
 def cmd_echo(mon, args):
     print args
 
@@ -134,7 +139,12 @@ def cmd_break(mon, type, idx, op, energy_level=None):
     enable = "enable".startswith(op)
     type = match_keyword(type.upper(), wispmon.host_comm_header.enums['BREAKPOINT_TYPE'].keys())
     energy_level = float(energy_level) if energy_level is not None else None
-    mon.breakpoint(type, idx, enable, energy_level)
+    mon.toggle_breakpoint(type, idx, enable, energy_level)
+
+def cmd_watch(mon, idx, op):
+    idx = int(idx)
+    enable = "enable".startswith(op)
+    mon.toggle_watchpoint(idx, enable)
 
 def cmd_wait(mon):
     """Wait to enter active debug mode"""
@@ -147,6 +157,8 @@ def cmd_wait(mon):
                 print_interrupt_context(event)
                 active_mode = True
                 break
+            if isinstance(event, wispmon.WatchpointEvent):
+                print_watchpoint_event(event)
             elif isinstance(event, wispmon.StdIOData):
                 print event.string,
                 if event.string[-1] != '\n':

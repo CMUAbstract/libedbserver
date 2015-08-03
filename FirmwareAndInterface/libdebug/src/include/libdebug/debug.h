@@ -21,6 +21,8 @@
 // the codepoint pins
 // #define CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
+#define CONFIG_ENABLE_WATCHPOINTS
+
 // #define CONFIG_PASSIVE_BREAKPOINT_IMPL_C
 #define CONFIG_PASSIVE_BREAKPOINT_IMPL_ASM
 
@@ -146,6 +148,17 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned feature
     if (GPIO(PORT_CODEPOINT, IN) & (1 << idx << PIN_CODEPOINT_0)) \
         request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx, DEBUG_MODE_FULL_FEATURES)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+
+/*
+ * @brief Watchpoint for generating an event and reporting it to the host
+ * @params  idx     Identifier for the watchpoint (one-based)
+ * @details The number of distinct identifiers is (2^NUM_CODEPOINT_PINS - 1)
+ */
+#define WATCHPOINT(idx) do { \
+        GPIO(PORT_CODEPOINT, OUT) = (GPIO(PORT_CODEPOINT, OUT) & ~BITS_CODEPOINT) \
+                                        | (idx << PIN_CODEPOINT_0); \
+        GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT; \
+    } while (0);
 
 #define ASSERT(cond) \
     if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, __LINE__, DEBUG_MODE_FULL_FEATURES)

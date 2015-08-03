@@ -551,7 +551,8 @@ void debug_setup()
     GPIO(PORT_STATE, DIR) |= BIT(PIN_STATE_0) | BIT(PIN_STATE_1); // output
 #endif
 
-#if defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS) // codepoint pins are outputs
+#if defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS) || defined(CONFIG_ENABLE_WATCHPOINTS)
+    // codepoint pins are outputs
     GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
 #elif !defined(CONFIG_STATE_PINS) // codepoint pins are inputs for target-side breakpoints

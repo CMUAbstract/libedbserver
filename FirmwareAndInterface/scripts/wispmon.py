@@ -90,6 +90,12 @@ class InterruptContext:
         self.id = id
         self.saved_vcap = saved_vcap
 
+class WatchpointEvent:
+    def __init__(self, id, timestamp, vcap):
+        self.id = id
+        self.timestamp = timestamp
+        self.vcap = vcap
+
 class StdIOData:
     def __init__(self, string):
         self.string = string
@@ -273,6 +279,12 @@ class WispMonitor:
                 pkt["interrupt_id"] = (self.rxPkt.data[2] << 8) | self.rxPkt.data[1]
                 saved_vcap_adc_reading = (self.rxPkt.data[4] << 8) | self.rxPkt.data[3]
                 pkt["saved_vcap"] = self.adc_to_voltage(saved_vcap_adc_reading)
+
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['WATCHPOINT']:
+                pkt["id"] = (self.rxPkt.data[1] << 8) | self.rxPkt.data[0]
+                pkt["timestamp"] = (self.rxPkt.data[3] << 8) | self.rxPkt.data[2]
+                vcap_adc_reading = (self.rxPkt.data[5] << 8) | self.rxPkt.data[4]
+                pkt["vcap"] = self.adc_to_voltage(vcap_adc_reading)
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STDIO']:
                 pkt["string"] = str(bytearray(self.rxPkt.data))
@@ -583,7 +595,7 @@ class WispMonitor:
         reply = self.receive_reply(host_comm_header.enums['USB_RSP']['INTERRUPTED'])
         return reply["saved_vcap"]
 
-    def breakpoint(self, type, idx, enable, energy_level=None):
+    def toggle_breakpoint(self, type, idx, enable, energy_level=None):
 
         if energy_level is not None:
             energy_level_cmp, cmp_ref = self.voltage_to_cmp(energy_level)
@@ -596,14 +608,22 @@ class WispMonitor:
                            [host_comm_header.enums['CMP_REF'][cmp_ref], enable])
         self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
 
+    def toggle_watchpoint(self, idx, enable):
+        self.sendCmd(host_comm_header.enums['USB_CMD']['WATCHPOINT'], data=[idx, enable])
+        self.receive_reply(host_comm_header.enums['USB_RSP']['RETURN_CODE'])
+
     def wait(self):
         pkt = self.receive_reply([
             host_comm_header.enums['USB_RSP']['INTERRUPTED'],
+            host_comm_header.enums['USB_RSP']['WATCHPOINT'],
             host_comm_header.enums['USB_RSP']['STDIO']
         ])
         desc = pkt["descriptor"]
         if desc == host_comm_header.enums['USB_RSP']['INTERRUPTED']:
             return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
+        if desc == host_comm_header.enums['USB_RSP']['WATCHPOINT']:
+            timestamp_sec = float(pkt["timestamp"]) * self.CLK_PERIOD
+            return WatchpointEvent(pkt["id"], timestamp_sec, pkt["vcap"])
         elif desc == host_comm_header.enums['USB_RSP']['STDIO']:
             return StdIOData(pkt["string"])
         else:
