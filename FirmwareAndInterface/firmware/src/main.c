@@ -955,6 +955,8 @@ int main(void)
 
     ADC12_init(&adc12);
 
+    TimeLog_request(1);
+
     __enable_interrupt();                   // enable all interrupts
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
@@ -1117,8 +1119,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         uint16_t streams = pkt->data[0];
         adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 
-        TimeLog_request(1); // start the time-keeping clock
-
         adc_streams_bitmask = streams & ADC_STREAMS;
 
         if (streams & STREAM_VCAP)
@@ -1146,8 +1146,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_END: {
         unsigned streams = pkt->data[0];
-
-        TimeLog_request(0);
 
         adc_streams_bitmask &= ~(streams & ADC_STREAMS);
 
