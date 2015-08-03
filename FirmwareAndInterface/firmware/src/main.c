@@ -141,6 +141,7 @@ static sig_cmd_t target_sig_cmd;
 static interrupt_context_t interrupt_context;
 
 static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
+static uint16_t streams_bitmask; // currently enabled streams
 
 static uartPkt_t usbRxPkt = { .processed = 1 };
 static uartPkt_t wispRxPkt = { .processed = 1 };
@@ -172,11 +173,33 @@ static uint16_t code_energy_breakpoints = 0;
 static uint16_t watchpoints = 0;
 
 // TODO:
-//#define NUM_WATCHPOINT_BUFFERS 2
-//#define NUM_BUFFERED_WATCHPOINTS 16
+#define NUM_WATCHPOINT_BUFFERS 2
+#define NUM_WATCHPOINT_EVENTS_BUFFERED 16
 
-//static watchpoint_event_t watchpoint_event_msg_bufs[NUM_WATCHPOINT_BUFFERS][
-static watchpoint_event_t watchpoint_event;
+#define WATCHPOINT_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(watchpoint_event_t)
+#define WATCHPOINT_EVENT_BUF_PAYLOAD_SPACE NUM_WATCHPOINT_EVENTS_BUFFERED // units of sizeof(watchpoint_event_t)
+#define WATCHPOINT_EVENT_BUF_SIZE \
+    (WATCHPOINT_EVENT_BUF_HEADER_SPACE + WATCHPOINT_EVENT_BUF_PAYLOAD_SPACE) // units of sizeof(watchpoint_event_t)
+
+#if STREAM_DATA_MSG_HEADER > WATCHPOINT_EVENT_BUF_HEADER_SPACE
+#error Not enough space for header in event buf: add more units of sizeof(struct watchpoint_event_t)
+#endif
+
+#define WATCHPOINT_EVENT_BUF_HEADER_OFFSET \
+    (WATCHPOINT_EVENT_BUF_HEADER_SPACE * sizeof(watchpoint_event_t) - \
+        (UART_MSG_HEADER_SIZE + STREAM_DATA_MSG_HEADER_LEN))
+
+static watchpoint_event_t
+watchpoint_events_msg_bufs[NUM_WATCHPOINT_BUFFERS][WATCHPOINT_EVENT_BUF_SIZE];
+
+static watchpoint_event_t *watchpoint_events_bufs[NUM_WATCHPOINT_BUFFERS] = {
+    &watchpoint_events_msg_bufs[0][WATCHPOINT_EVENT_BUF_HEADER_SPACE],
+    &watchpoint_events_msg_bufs[1][WATCHPOINT_EVENT_BUF_HEADER_SPACE]
+};
+
+static unsigned watchpoint_events_count[NUM_WATCHPOINT_BUFFERS];
+static watchpoint_event_t *watchpoint_events_buf;
+static unsigned watchpoint_events_buf_idx;
 
 static adc12_t adc12 = {
     .config = {
@@ -468,22 +491,6 @@ static void send_interrupt_context(interrupt_context_t *int_context)
     send_msg_to_host(USB_RSP_INTERRUPTED, payload_len);
 }
 
-static void send_watchpoint_event(watchpoint_event_t *event)
-{
-    unsigned payload_len = 0;
-
-    UART_begin_transmission();
-
-    host_msg_payload[payload_len++] = event->index;
-    host_msg_payload[payload_len++] = event->index >> 8;
-    host_msg_payload[payload_len++] = event->timestamp;
-    host_msg_payload[payload_len++] = event->timestamp >> 8;
-    host_msg_payload[payload_len++] = event->vcap;
-    host_msg_payload[payload_len++] = event->vcap >> 8;
-
-    send_msg_to_host(USB_RSP_WATCHPOINT, payload_len);
-}
-
 static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
 {
     unsigned payload_len = 0;
@@ -597,6 +604,62 @@ static void disarm_comparator()
 {
     CBINT &= ~CBIE; // disable interrupt
     CBCTL1 &= ~CBON; // turn off
+}
+
+static void init_watchpoint_event_bufs()
+{
+    unsigned i, offset;
+    uint8_t *header;
+
+    for (i = 0; i < NUM_WATCHPOINT_BUFFERS; ++i) {
+        watchpoint_events_count[i] = 0;
+
+        header = (uint8_t *)&watchpoint_events_msg_bufs[i][0] +
+                    UART_MSG_HEADER_SIZE + WATCHPOINT_EVENT_BUF_HEADER_OFFSET;
+        offset = 0;
+        header[offset++] = STREAM_WATCHPOINTS;
+        header[offset++] = 0; // padding
+        ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset == STREAM_DATA_MSG_HEADER_LEN);
+    }
+    watchpoint_events_buf = watchpoint_events_bufs[0];
+}
+
+static inline void append_watchpoint_event(unsigned index)
+{
+    watchpoint_event_t *watchpoint_event =
+        &watchpoint_events_buf[watchpoint_events_count[watchpoint_events_buf_idx]++];
+
+    watchpoint_event->timestamp = TIMELOG_CURRENT_TIME;
+    watchpoint_event->index = index;
+    watchpoint_event->vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+
+    if (watchpoint_events_count[watchpoint_events_buf_idx] == NUM_WATCHPOINT_EVENTS_BUFFERED) {
+        // swap to the other buffer in the double-buffer pair
+        watchpoint_events_buf_idx ^= 1;
+        watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
+        main_loop_flags |= FLAG_WATCHPOINT_READY;
+    }
+}
+
+static void send_watchpoint_events()
+{
+    unsigned ready_events_count;
+    unsigned ready_events_buf_idx = watchpoint_events_buf_idx ^ 1; // the other one in the pair
+
+    ready_events_count = watchpoint_events_count[ready_events_buf_idx];
+
+    UART_begin_transmission();
+
+    // Must use a blocking call in order to mark buffer as free once transfer completes
+    UART_send_msg_to_host(USB_RSP_STREAM_EVENTS,
+            // TODO: the event count is == NUM_BUFFERED_EVENTS, except for the flush case
+            STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(watchpoint_event_t),
+            (uint8_t *)&watchpoint_events_msg_bufs[ready_events_buf_idx][0] +
+            WATCHPOINT_EVENT_BUF_HEADER_OFFSET);
+
+    UART_end_transmission();
+
+    watchpoint_events_count[ready_events_buf_idx] = 0; // mark buffer as free
 }
 
 static void interrupt_target()
@@ -759,7 +822,6 @@ static void toggle_breakpoint(breakpoint_type_t type, unsigned index,
 static void toggle_watchpoint(unsigned index, bool enable)
 {
     unsigned rc = RETURN_CODE_SUCCESS;
-    uint16_t prev_watchpoints_mask;
 
     if (index > MAX_WATCHPOINTS) { // effectively one-based index
         rc = RETURN_CODE_INVALID_ARGS;
@@ -773,23 +835,26 @@ static void toggle_watchpoint(unsigned index, bool enable)
             rc = RETURN_CODE_UNSUPPORTED;
             goto out;
         }
-        prev_watchpoints_mask = watchpoints;
         watchpoints |= 1 << index;
-        if (!prev_watchpoints_mask) {
-            // enable rising-edge interrupt on codepoint pins (harmless to do every time)
-            GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
-            GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
-            GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
-        }
     } else {
         watchpoints &= ~(1 << index);
-        if (!watchpoints) {
-            GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
-        }
     }
 
 out:
     send_return_code(rc);
+}
+
+static void enable_watchpoints()
+{
+    // enable rising-edge interrupt on codepoint pins (harmless to do every time)
+    GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
+}
+
+static void disable_watchpoints()
+{
+    GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
 }
 
 static void finish_enter_debug_mode()
@@ -1025,6 +1090,8 @@ int main(void)
 
     ADC12_init(&adc12);
 
+    init_watchpoint_event_bufs();
+
     TimeLog_request(1);
 
     __enable_interrupt();                   // enable all interrupts
@@ -1045,7 +1112,7 @@ int main(void)
 
         if (main_loop_flags & FLAG_WATCHPOINT_READY) {
             main_loop_flags &= ~FLAG_WATCHPOINT_READY;
-            send_watchpoint_event(&watchpoint_event);
+            send_watchpoint_events();
         }
 
         if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
@@ -1194,6 +1261,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         uint16_t streams = pkt->data[0];
         adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 
+        streams_bitmask = streams;
         adc_streams_bitmask = streams & ADC_STREAMS;
 
         if (streams & STREAM_VCAP)
@@ -1210,6 +1278,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
         if (streams & STREAM_RF_EVENTS)
             RFID_start_event_stream();
 #endif
+        if (streams & STREAM_WATCHPOINTS)
+            enable_watchpoints();
 
         // actions common to all adc streams
         if (adc12.config.num_channels > 0) {
@@ -1223,6 +1293,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         unsigned streams = pkt->data[0];
 
         adc_streams_bitmask &= ~(streams & ADC_STREAMS);
+        streams_bitmask = 0;
 
         if (streams & STREAM_VCAP)
             ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VCAP);
@@ -1238,6 +1309,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
         if (streams & STREAM_RF_EVENTS)
             RFID_stop_event_stream();
 #endif
+        if (streams & STREAM_WATCHPOINTS)
+            disable_watchpoints();
 
         // actions common to all adc streams
         if (adc12.config.num_channels == 0) {
@@ -1695,17 +1768,8 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
         // -1 to convert from one-based to zero-based index
         unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
-        if (watchpoints & (1 << index)) {
-
-            // TODO: double-buffer watchpoint events
-            //watchpoint_event_t *watchpt_event = &watchpoint_event_buf[num_watchpoint_events++];
-
-            watchpoint_event.timestamp = TIMELOG_CURRENT_TIME;
-            watchpoint_event.index = index;
-            watchpoint_event.vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-
-            main_loop_flags |= FLAG_WATCHPOINT_READY;
-        }
+        if (watchpoints & (1 << index))
+            append_watchpoint_event(index);
 
 #elif defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS)
         if (!passive_breakpoints) {

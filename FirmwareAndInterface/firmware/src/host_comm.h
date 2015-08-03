@@ -159,6 +159,7 @@ typedef enum {
     STREAM_VRECT                            = 0x0008,
     STREAM_VINJ                             = 0x0010,
     STREAM_RF_EVENTS                        = 0x0020,
+    STREAM_WATCHPOINTS                      = 0x0040,
 } stream_t;
 
 /**

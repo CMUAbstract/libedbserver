@@ -91,9 +91,8 @@ class InterruptContext:
         self.saved_vcap = saved_vcap
 
 class WatchpointEvent:
-    def __init__(self, id, timestamp, vcap):
+    def __init__(self, id, vcap):
         self.id = id
-        self.timestamp = timestamp
         self.vcap = vcap
 
 class StdIOData:
@@ -144,6 +143,7 @@ class WispMonitor:
                 "VRECT": self.decode_adc_value,
                 "VINJ": self.decode_adc_value,
                 "RF_EVENTS": self.decode_rf_event,
+                "WATCHPOINTS": self.decode_watchpoint_event,
         }
 
         def clk_source_freq(source):
@@ -518,6 +518,18 @@ class WispMonitor:
         length = 2 # sizeof(rf_event_t.id field + padding in the struct)
         return rf_event, length
 
+    def decode_watchpoint_event(self, bytes, offset):
+        DATA_LEN = 2 + 2 # id, adc value
+        starting_offset = offset 
+        if offset + DATA_LEN > len(bytes):
+            raise StreamDecodeException("not enough bytes")
+        id = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
+        offset += 2
+        adc_value = (bytes[offset + 1] << 8) | (bytes[offset] << 0)
+        offset += 2
+        voltage = self.adc_to_voltage(adc_value)
+        return WatchpointEvent(id, voltage), offset - starting_offset
+
     def sense(self, channel):
         self.sendCmd(host_comm_header.enums['USB_CMD']['SENSE'], data=[channel])
         reply = self.receive_reply(host_comm_header.enums['USB_RSP']['VOLTAGE'])
@@ -621,9 +633,6 @@ class WispMonitor:
         desc = pkt["descriptor"]
         if desc == host_comm_header.enums['USB_RSP']['INTERRUPTED']:
             return InterruptContext(pkt["interrupt_type"], pkt["interrupt_id"], pkt["saved_vcap"])
-        if desc == host_comm_header.enums['USB_RSP']['WATCHPOINT']:
-            timestamp_sec = float(pkt["timestamp"]) * self.CLK_PERIOD
-            return WatchpointEvent(pkt["id"], timestamp_sec, pkt["vcap"])
         elif desc == host_comm_header.enums['USB_RSP']['STDIO']:
             return StdIOData(pkt["string"])
         else:
@@ -707,6 +716,8 @@ class WispMonitor:
             return "%f" % voltage
         def format_rf_event(rf_event):
             return rf_event # a string
+        def format_watchpoint_event(event):
+            return "%u,%.4f" % (event.id, event.vcap)
 
         stream_formaters = {
             "VCAP": format_voltage,
@@ -715,6 +726,7 @@ class WispMonitor:
             "VRECT": format_voltage,
             "VINJ": format_voltage,
             "RF_EVENTS": format_rf_event,
+            "WATCHPOINTS": format_watchpoint_event,
         }
 
         interrupt_signals = [signal.SIGINT, signal.SIGALRM]
