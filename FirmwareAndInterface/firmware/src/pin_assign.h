@@ -101,9 +101,9 @@
 #define NUM_CODEPOINT_PINS                      2
 #define WORKAROUND_FLIP_CODEPOINT_PINS // the hardware routing routes AUX1,AUX2 to pins out of order
 
-#define PORT_SERIAL_DECODE                      1 //!< GPIO port for serial decoder state
-#define PIN_SERIAL_DECODE_PULSE                 5 //!< input pulse trigged decoder interrupt
-#define PIN_SERIAL_DECODE_TIMER                 4 //!< decoder timer started, rolled over, or stopped
+#define PORT_SERIAL_DECODE                      4 //!< GPIO port for serial decoder state
+#define PIN_SERIAL_DECODE_PULSE                 1 //!< input pulse trigged decoder interrupt
+#define PIN_SERIAL_DECODE_TIMER                 2 //!< decoder timer started, rolled over, or stopped
 
 #define PORT_RFID_DEC_STATE                     1
 #define PIN_RFID_RX_DEC_STATE_0                   3
