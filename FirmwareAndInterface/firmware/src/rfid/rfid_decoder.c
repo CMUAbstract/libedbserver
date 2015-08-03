@@ -524,6 +524,7 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
 #endif
 }
 
+#ifdef CONFIG_ENABLE_RF_TX_DECODING
 void rfid_decoder_tx_pin_isr()
 {
     // TODO: set GIE flag to enable nesting, so that the high-priority RX
@@ -543,7 +544,9 @@ void rfid_decoder_tx_pin_isr()
     // Decoding is not implemented, so report a generic response ID
     rfid_rsp_handler(RFID_RSP_GENERIC);
 }
+#endif // CONFIG_ENABLE_RF_TX_DECODING
 
+#ifdef CONFIG_ENABLE_RF_TX_DECODING
 /** @brief TX "ignore" timer ISR */
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER1_A0_VECTOR
@@ -561,6 +564,7 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
     GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
     GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
 }
+#endif // CONFIG_ENABLE_RF_TX_DECODING
 
 #else
 unsigned __dummy_rfid_decoder_c; // silence 'empty translation unit' warning
