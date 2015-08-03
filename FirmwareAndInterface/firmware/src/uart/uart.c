@@ -110,7 +110,17 @@ void UART_setup(unsigned interface)
 
         UCA1BR0 = CONFIG_TARGET_UART_BAUDRATE_BR0;
         UCA1BR1 = CONFIG_TARGET_UART_BAUDRATE_BR1;
-        UCA1MCTL |= BRS_BITS(CONFIG_TARGET_UART_BAUDRATE_BRS);
+        UCA1MCTL |= 0
+#ifdef CONFIG_TARGET_UART_BAUDRATE_UCOS16
+            | UCOS16
+#endif
+#ifdef CONFIG_TARGET_UART_BAUDRATE_BRS
+            | BRS_BITS(CONFIG_TARGET_UART_BAUDRATE_BRS)
+#endif
+#ifdef CONFIG_TARGET_UART_BAUDRATE_BRF
+            | BRF_BITS(CONFIG_TARGET_UART_BAUDRATE_BRF)
+#endif
+       ;
 
         UCA1CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA1IE |= UCRXIE;                       // enable USCI_A1 Tx + Rx interrupts

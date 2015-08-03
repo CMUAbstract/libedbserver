@@ -16,6 +16,7 @@ typedef enum {
     FLAG_CHARGER_COMPLETE		= 0x0080, //!< Charge or discharge operation completed
     FLAG_INTERRUPTED     		= 0x0100, //!< target is in active debug mode
     FLAG_EXITED_DEBUG_MODE      = 0x0200, //!< debugger has restored energy level
+    FLAG_WATCHPOINT_READY       = 0x0400, //!< watchpoint event ready for transmission to host
 } main_loop_flag_t;
 
 extern volatile uint16_t main_loop_flags; // bit mask containing bit flags to check in the main loop

@@ -63,6 +63,8 @@ typedef enum {
     USB_CMD_GET_INTERRUPT_CONTEXT           = 0x39, //!< ask why target interrupted execution
     USB_CMD_SERIAL_ECHO                     = 0x40, //!< test communication with WISP via serial encoding over the signal line
     USB_CMD_DMA_ECHO                        = 0x41, //!< send message to USB UART using DMA
+    USB_CMD_ENABLE_TARGET_UART              = 0x42, //!< prepare UART to accept messages from target
+    USB_CMD_WATCHPOINT                      = 0x43, //!< enable/disable a watchpoint
 } usb_cmd_t;
 
 /**
@@ -87,6 +89,7 @@ typedef enum {
     USB_RSP_INTERRUPTED                     = 0x10, //!< message sent upon entering debug mode (includes saved Vcap level)
     USB_RSP_ECHO                            = 0x11, //!< response to test commands
     USB_RSP_STDIO                           = 0x12, //!< printf data from target
+    USB_RSP_WATCHPOINT                      = 0x13, //!< watchpoint event info
 } usb_rsp_t;
 
 

@@ -59,9 +59,12 @@
 #endif
 
 // See libdebug/debug.h for description
-#define MAX_PASSIVE_BREAKPOINTS ((1 << NUM_CODEPOINT_PINS) - 1)
+#define NUM_CODEPOINT_VALUES     ((1 << NUM_CODEPOINT_PINS) - 1)
+#define MAX_PASSIVE_BREAKPOINTS  NUM_CODEPOINT_VALUES
 #define MAX_INTERNAL_BREAKPOINTS (sizeof(uint16_t) * 8) // _debug_breakpoints_enable in libdebug
 #define MAX_EXTERNAL_BREAKPOINTS NUM_CODEPOINT_PINS
+
+#define MAX_WATCHPOINTS          NUM_CODEPOINT_VALUES
 
 #define COMP_NEG_CHAN_INNER(idx) CBIMSEL_ ## idx
 #define COMP_NEG_CHAN(idx) COMP_NEG_CHAN_INNER(idx)
@@ -117,6 +120,12 @@ typedef struct {
     uint16_t saved_debug_mode_flags; // for nested debug mode
 } interrupt_context_t;
 
+typedef struct {
+    unsigned timestamp;
+    unsigned index;
+    unsigned vcap;
+} watchpoint_event_t;
+
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
 static state_t state = STATE_IDLE;
@@ -159,6 +168,15 @@ static uint16_t passive_breakpoints = 0;
 static uint16_t external_breakpoints = 0;
 static uint16_t internal_breakpoints = 0;
 static uint16_t code_energy_breakpoints = 0;
+
+static uint16_t watchpoints = 0;
+
+// TODO:
+//#define NUM_WATCHPOINT_BUFFERS 2
+//#define NUM_BUFFERED_WATCHPOINTS 16
+
+//static watchpoint_event_t watchpoint_event_msg_bufs[NUM_WATCHPOINT_BUFFERS][
+static watchpoint_event_t watchpoint_event;
 
 static adc12_t adc12 = {
     .config = {
@@ -450,6 +468,22 @@ static void send_interrupt_context(interrupt_context_t *int_context)
     send_msg_to_host(USB_RSP_INTERRUPTED, payload_len);
 }
 
+static void send_watchpoint_event(watchpoint_event_t *event)
+{
+    unsigned payload_len = 0;
+
+    UART_begin_transmission();
+
+    host_msg_payload[payload_len++] = event->index;
+    host_msg_payload[payload_len++] = event->index >> 8;
+    host_msg_payload[payload_len++] = event->timestamp;
+    host_msg_payload[payload_len++] = event->timestamp >> 8;
+    host_msg_payload[payload_len++] = event->vcap;
+    host_msg_payload[payload_len++] = event->vcap >> 8;
+
+    send_msg_to_host(USB_RSP_WATCHPOINT, payload_len);
+}
+
 static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
 {
     unsigned payload_len = 0;
@@ -722,6 +756,42 @@ static void toggle_breakpoint(breakpoint_type_t type, unsigned index,
     send_return_code(rc);
 }
 
+static void toggle_watchpoint(unsigned index, bool enable)
+{
+    unsigned rc = RETURN_CODE_SUCCESS;
+    uint16_t prev_watchpoints_mask;
+
+    if (index > MAX_WATCHPOINTS) { // effectively one-based index
+        rc = RETURN_CODE_INVALID_ARGS;
+        goto out;
+    }
+
+    if (enable) {
+        // watchpoints and passive and exteranl bkpts cannot be used simultaneously since
+        // they reuse the codepoint pins in opposite directions
+        if (external_breakpoints | passive_breakpoints) {
+            rc = RETURN_CODE_UNSUPPORTED;
+            goto out;
+        }
+        prev_watchpoints_mask = watchpoints;
+        watchpoints |= 1 << index;
+        if (!prev_watchpoints_mask) {
+            // enable rising-edge interrupt on codepoint pins (harmless to do every time)
+            GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
+            GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
+            GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
+        }
+    } else {
+        watchpoints &= ~(1 << index);
+        if (!watchpoints) {
+            GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
+        }
+    }
+
+out:
+    send_return_code(rc);
+}
+
 static void finish_enter_debug_mode()
 {
     // WISP has entered debug main loop
@@ -955,6 +1025,8 @@ int main(void)
 
     ADC12_init(&adc12);
 
+    TimeLog_request(1);
+
     __enable_interrupt();                   // enable all interrupts
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
@@ -969,6 +1041,11 @@ int main(void)
                 get_target_interrupt_context(&interrupt_context);
             // do it here: reply marks completion of enter sequence
             send_interrupt_context(&interrupt_context);
+        }
+
+        if (main_loop_flags & FLAG_WATCHPOINT_READY) {
+            main_loop_flags &= ~FLAG_WATCHPOINT_READY;
+            send_watchpoint_event(&watchpoint_event);
         }
 
         if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
@@ -1117,8 +1194,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         uint16_t streams = pkt->data[0];
         adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 
-        TimeLog_request(1); // start the time-keeping clock
-
         adc_streams_bitmask = streams & ADC_STREAMS;
 
         if (streams & STREAM_VCAP)
@@ -1146,8 +1221,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_END: {
         unsigned streams = pkt->data[0];
-
-        TimeLog_request(0);
 
         adc_streams_bitmask &= ~(streams & ADC_STREAMS);
 
@@ -1341,6 +1414,14 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
     }
 
+    case USB_CMD_WATCHPOINT:
+    {
+        unsigned index = pkt->data[0];
+        bool enable = (bool)pkt->data[1];
+        toggle_watchpoint(index, enable);
+        break;
+    }
+
     case USB_CMD_GET_INTERRUPT_CONTEXT: {
         interrupt_context_t target_int_context;
         interrupt_source_t source = (interrupt_source_t)pkt->data[0];
@@ -1396,6 +1477,17 @@ static void executeUSBCmd(uartPkt_t *pkt)
         payload_len = 0;
         host_msg_payload[payload_len++] = value;
         send_msg_to_host(USB_RSP_ECHO, payload_len);
+        break;
+    }
+
+    case USB_CMD_ENABLE_TARGET_UART: {
+        bool enable = pkt->data[0];
+        if (enable) {
+            UART_setup(UART_INTERFACE_WISP);
+        } else {
+            UART_teardown(UART_INTERFACE_WISP);
+        }
+        send_return_code(RETURN_CODE_SUCCESS);
         break;
     }
 
@@ -1595,6 +1687,27 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
+#if defined(CONFIG_ENABLE_WATCHPOINTS)
+        /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
+        pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
+                    (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
+
+        // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
+        // -1 to convert from one-based to zero-based index
+        unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
+        if (watchpoints & (1 << index)) {
+
+            // TODO: double-buffer watchpoint events
+            //watchpoint_event_t *watchpt_event = &watchpoint_event_buf[num_watchpoint_events++];
+
+            watchpoint_event.timestamp = TIMELOG_CURRENT_TIME;
+            watchpoint_event.index = index;
+            watchpoint_event.vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+
+            main_loop_flags |= FLAG_WATCHPOINT_READY;
+        }
+
+#elif defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS)
         if (!passive_breakpoints) {
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
@@ -1613,6 +1726,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 
             enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
         }
+#endif // CONFIG_ENABLE_PASSIVE_BREAKPOINTS
         break;
     }
 
