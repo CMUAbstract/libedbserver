@@ -138,6 +138,15 @@ typedef enum {
 #define NESTED_DEBUG_MODE_INTERRUPT_LATENCY_CYCLES 100
 
 /**
+ * @brief Minimum time between watchpoints
+ * @detail Debugger needs this much time to record a watchpoint, during
+ *         which it is blind to any more watchpoints.
+ *
+ *         Measured in target cycles: 75 @ 4 Mhz.
+ */
+#define WATCHPOINT_LATENCY 75
+
+/**
  * @brief Reason target execution is interrupted
  */
 typedef enum {

@@ -158,6 +158,7 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned feature
         GPIO(PORT_CODEPOINT, OUT) = (GPIO(PORT_CODEPOINT, OUT) & ~BITS_CODEPOINT) \
                                         | (idx << PIN_CODEPOINT_0); \
         GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT; \
+        __delay_cycles(WATCHPOINT_LATENCY); \
     } while (0);
 
 #define ASSERT(cond) \
