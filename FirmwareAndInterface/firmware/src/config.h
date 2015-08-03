@@ -212,6 +212,19 @@
  */
 #define CONFIG_ENABLE_DEBUG_MODE
 
+/*
+ * @brief Reset debug mode state machine when target detected to turn on
+ * @details The detection is done by monitoring Vreg rising to MCU_ON_THRES
+ *          using the comparator.
+ *
+ *          This conflicts with other uses of the comparator: charge, discharge,
+ *          and energy breakpoint. All of these have alternative implementations
+ *          using the ADC.
+ *
+ *          TODO: this should be enablable by a persistent option
+ */
+#define CONFIG_RESET_STATE_ON_BOOT
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44

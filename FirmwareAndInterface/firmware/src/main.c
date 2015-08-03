@@ -104,6 +104,7 @@ typedef enum {
     CMP_OP_DISCHARGE,
     CMP_OP_ENERGY_BREAKPOINT,
     CMP_OP_CODE_ENERGY_BREAKPOINT,
+    CMP_OP_RESET_STATE_ON_BOOT,
 } comparator_op_t;
 
 typedef enum {
@@ -1102,6 +1103,11 @@ int main(void)
 
     init_watchpoint_event_bufs();
 
+#ifdef CONFIG_RESET_STATE_ON_BOOT
+    arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
+                   CMP_REF_VREF_2_5, CMP_EDGE_RISING);
+#endif
+
     TimeLog_request(1);
 
     __enable_interrupt();                   // enable all interrupts
@@ -1848,6 +1854,10 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
 
             CBCTL1 ^= CBIES; // reverse the edge direction of the interrupt
             CBINT &= ~CBIFG; // clear the flag, leave interrupt enabled
+            break;
+        case CMP_OP_RESET_STATE_ON_BOOT:
+            reset_state();
+            CBINT &= ~CBIFG;   // clear Interrupt flag, leave interrupt enabled
             break;
         default:
             error(ERROR_UNEXPECTED_INTERRUPT);
