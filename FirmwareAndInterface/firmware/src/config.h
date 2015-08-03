@@ -182,8 +182,7 @@
 /**
  * @brief Route serial decoder events to external pins
  * @details For testing and tuning decoding of serial protocol over the signal
- *          line. Applies only to the USB_CMD_SERIAL_ECHO, not to regular
- *          debug mode enter sequence.
+ *          line.
  */
 // #define CONFIG_SIG_SERIAL_DECODE_PINS
 

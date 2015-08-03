@@ -918,6 +918,10 @@ static void handle_target_signal()
             break;
 
         case STATE_ENTERING:
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+            GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
+            GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
+#endif
             if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 --sig_serial_bit_index;
                 start_serial_decoder();
@@ -943,6 +947,11 @@ static void handle_target_signal()
 
         case STATE_DEBUG: // Target requested to exit debug mode OR
                           // target hit an assert or bkpt within an energy guard
+
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+            GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
+            GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
+#endif
 
             if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
                 --sig_serial_bit_index;
