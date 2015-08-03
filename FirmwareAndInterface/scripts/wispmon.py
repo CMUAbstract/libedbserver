@@ -672,7 +672,7 @@ class WispMonitor:
 
     def serial_echo(self, value):
         cmd_data = [value]
-        self.sendCmd(host_comm_header.enums['USB_CMD']['ECHO'], data=cmd_data)
+        self.sendCmd(host_comm_header.enums['USB_CMD']['SERIAL_ECHO'], data=cmd_data)
         reply = self.receive_reply(host_comm_header.enums['USB_RSP']['ECHO'])
         return reply["value"]
 
