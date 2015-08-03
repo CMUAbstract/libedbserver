@@ -139,7 +139,8 @@
 
 // TODO: warning: timer shared with voltage logging code
 // NOTE: if changed, the ISR in main.c must also be changed
-#define TIMER_SIG_SERIAL_DECODE                 A2
+#define TIMER_SIG_SERIAL_DECODE                 A1
+#define TMRCC_SIG_SERIAL                        0
 
 // NOTE: if changed, the ISR definition in rfid_decoder.c must be also changed
 #define TIMER_RF_RX_DECODE                      A0

@@ -171,7 +171,7 @@
 /**
  * @brief Enable code to decode RFID transmissions from the target
  */
-#define CONFIG_ENABLE_RF_TX_DECODING
+// #define CONFIG_ENABLE_RF_TX_DECODING
 
 /**
  * @brief Decode the RFID command payload bits (not only the command code)

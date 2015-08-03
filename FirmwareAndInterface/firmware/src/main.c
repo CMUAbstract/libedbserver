@@ -1857,10 +1857,10 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER2_A0_VECTOR
-__interrupt void TIMER2_A0_ISR (void)
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt void TIMER1_A0_ISR (void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER2_A0_VECTOR))) TIMER2_A0_ISR (void)
+void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #else
 #error Compiler not supported!
 #endif
