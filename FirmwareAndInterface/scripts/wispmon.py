@@ -714,10 +714,16 @@ class WispMonitor:
         num_samples = 0
         last_progress_report = time.time()
 
+        def format_voltage_header(stream):
+            return stream
         def format_voltage(voltage):
             return "%f" % voltage
+        def format_rf_event_header(stream):
+            return "rf_event"
         def format_rf_event(rf_event):
             return rf_event # a string
+        def format_watchpoint_event_header(stream):
+            return "watchpoint_id,watchpoint_vcap"
         def format_watchpoint_event(event):
             return "%u,%.4f" % (event.id, event.vcap)
 
@@ -730,11 +736,23 @@ class WispMonitor:
             "RF_EVENTS": format_rf_event,
             "WATCHPOINTS": format_watchpoint_event,
         }
+        stream_headers = {
+            "VCAP": format_voltage_header,
+            "VBOOST": format_voltage_header,
+            "VREG": format_voltage_header,
+            "VRECT": format_voltage_header,
+            "VINJ": format_voltage_header,
+            "RF_EVENTS": format_rf_event_header,
+            "WATCHPOINTS": format_watchpoint_event_header,
+        }
 
         interrupt_signals = [signal.SIGINT, signal.SIGALRM]
 
+
+        csv_header = "timestamp_sec," + ",".join(map(lambda s: stream_headers[s](s), streams)) + "\n"
+
         with DelayedSignals(interrupt_signals): # prevent partial lines
-            out_file.write("timestamp_sec," + ",".join(streams) + "\n")
+            out_file.write(csv_header)
 
         # Can't modify a variable in this scope, but can modify values in a dict
         signal_handler_data = {'streaming' : True}
