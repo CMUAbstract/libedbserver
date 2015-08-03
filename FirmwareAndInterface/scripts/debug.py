@@ -43,6 +43,11 @@ def print_watchpoint_event(event):
             "time: %.6f s" % event.timestamp, \
             "Vcap = %.4f" % event.vcap
 
+def init_watchpoint_log(fout):
+    print >>fout, "id,timestamp,vcap"
+def log_watchpoint_event(fout, event):
+    print >>fout, "%u,%.6f,%.4f" %  (event.id, event.timestamp, event.vcap)
+
 def cmd_echo(mon, args):
     print args
 
@@ -146,9 +151,16 @@ def cmd_watch(mon, idx, op):
     enable = "enable".startswith(op)
     mon.toggle_watchpoint(idx, enable)
 
-def cmd_wait(mon):
+def cmd_wait(mon, log_file=None):
     """Wait to enter active debug mode"""
     global active_mode
+
+    if log_file is not None:
+        flog = open(log_file, "w")
+        init_watchpoint_log(flog)
+    else:
+        flog = None
+
     try:
         while True:
             event = mon.wait()
@@ -159,6 +171,8 @@ def cmd_wait(mon):
                 break
             if isinstance(event, wispmon.WatchpointEvent):
                 print_watchpoint_event(event)
+                if flog is not None:
+                    log_watchpoint_event(flog, event)
             elif isinstance(event, wispmon.StdIOData):
                 print event.string,
                 if event.string[-1] != '\n':
