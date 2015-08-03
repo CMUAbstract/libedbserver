@@ -149,6 +149,7 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned feature
         request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx, DEBUG_MODE_FULL_FEATURES)
 #endif // !CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 
+#ifdef CONFIG_ENABLE_WATCHPOINTS
 /*
  * @brief Watchpoint for generating an event and reporting it to the host
  * @params  idx     Identifier for the watchpoint (one-based)
@@ -160,6 +161,10 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned feature
         GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT; \
         __delay_cycles(WATCHPOINT_LATENCY); \
     } while (0);
+
+#else // !CONFIG_ENABLE_WATCHPOINTS
+#define WATCHPOINT(idx)
+#endif  // !CONFIG_ENABLE_WATCHPOINTS
 
 #define ASSERT(cond) \
     if (!(cond)) request_debug_mode(INTERRUPT_TYPE_ASSERT, __LINE__, DEBUG_MODE_FULL_FEATURES)
