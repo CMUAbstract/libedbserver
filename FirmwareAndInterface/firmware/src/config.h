@@ -203,6 +203,15 @@
 // #define CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 #define CONFIG_ENABLE_WATCHPOINTS
 
+/*
+ * @brief Support entering and exiting active debug mode
+ * @details The reason we have a switch are the limited resources
+ *          on the MCU that need to be shared (specifically, timers).
+ *          Right now, RFID TX decoding and debug mode cannot
+ *          co-exist.
+ */
+#define CONFIG_ENABLE_DEBUG_MODE
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44

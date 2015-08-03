@@ -1855,6 +1855,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
     }
 }
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER2_A0_VECTOR
 __interrupt void TIMER2_A0_ISR (void)
@@ -1872,6 +1873,7 @@ void __attribute__ ((interrupt(TIMER2_A0_VECTOR))) TIMER2_A0_ISR (void)
 #endif
     TIMER_CC(TIMER_SIG_SERIAL_DECODE, TMRCC_SIG_SERIAL, CCTL) &= ~CCIFG;
 }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=UNMI_VECTOR
