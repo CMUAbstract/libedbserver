@@ -79,6 +79,7 @@ config_header = Header(env.CONFIG_HEADER,
         'CONFIG_ADC_SAMPLING_FREQ_HZ',
         'CONFIG_ADC_TIMER_DIV',
         'CONFIG_TIMELOG_TIMER_DIV'
+        'CONFIG_TIMELOG_TIMER_DIV_EX'
     ])
 
 class StreamInterrupted(Exception):
@@ -164,7 +165,8 @@ class WispMonitor:
             raise Exception("Could not find a defined clk source macro for: " + source_macro_prefix)
 
         self.CLK_FREQ = clk_source_freq(config_header.macros['CONFIG_TIMELOG_TIMER_SOURCE']) / \
-                config_header.macros['CONFIG_TIMELOG_TIMER_DIV']
+                (config_header.macros['CONFIG_TIMELOG_TIMER_DIV'] * \
+                config_header.macros['CONFIG_TIMELOG_TIMER_DIV_EX'])
         self.CLK_PERIOD = 1.0 / self.CLK_FREQ # seconds
 
         adc_trigger_timer_clk_source = clk_source('CONFIG_ADC_TIMER_SOURCE_')
