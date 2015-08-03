@@ -149,7 +149,7 @@ void RFID_send_rf_events_to_host()
     UART_begin_transmission();
 
     // Must use a blocking call in order to mark buffer as free once transfer completes
-    UART_send_msg_to_host(USB_RSP_STREAM_RF_EVENTS,
+    UART_send_msg_to_host(USB_RSP_STREAM_EVENTS,
             // TODO: the event count is == NUM_BUFFERED_EVENTS, except for the flush case
             STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(rf_event_t),
             (uint8_t *)&rf_events_msg_bufs[ready_events_buf_idx][0] + RF_EVENT_BUF_HEADER_OFFSET);

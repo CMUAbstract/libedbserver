@@ -301,7 +301,7 @@ class WispMonitor:
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
 
-            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']:
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_EVENTS']:
                 FIELD_LEN_STREAMS = 1
                 FIELD_LEN_TIMESTAMP = 2
 
@@ -691,12 +691,12 @@ class WispMonitor:
             print "Logging... Ctrl-C to stop"
 
         overflow_timestamp_cycles = {
-            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_EVENTS']: 0,
             host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
         }
 
         prev_timestamp_cycles = {
-            host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS']: 0,
+            host_comm_header.enums['USB_RSP']['STREAM_EVENTS']: 0,
             host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']: 0
         }
 
@@ -737,7 +737,7 @@ class WispMonitor:
         try:
             while signal_handler_data['streaming']:
                 pkt = self.receive_reply([
-                                host_comm_header.enums['USB_RSP']['STREAM_RF_EVENTS'],
+                                host_comm_header.enums['USB_RSP']['STREAM_EVENTS'],
                                 host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']
                             ])
 
