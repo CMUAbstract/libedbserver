@@ -824,8 +824,12 @@ class WispMonitor:
             while signal_handler_data['streaming']:
                 pkt = self.receive_reply([
                                 host_comm_header.enums['USB_RSP']['STREAM_EVENTS'],
-                                host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES']
+                                host_comm_header.enums['USB_RSP']['STREAM_VOLTAGES'],
+                                host_comm_header.enums['USB_RSP']['STDIO']
                             ])
+
+                if pkt["descriptor"] == host_comm_header.enums['USB_RSP']['STDIO']:
+                    continue
 
                 for data_point in pkt["data_points"]:
 
