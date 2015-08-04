@@ -111,6 +111,7 @@ typedef enum {
 
 typedef enum {
     PARAM_TEST                              = 0,
+    PARAM_SAVED_VCAP_ADJUST                 = 1,
 } param_t;
 
 /**
