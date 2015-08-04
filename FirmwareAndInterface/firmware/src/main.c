@@ -36,6 +36,7 @@
 #include "config.h"
 #include "error.h"
 #include "main_loop.h"
+#include "params.h"
 
 
 /**
@@ -490,6 +491,19 @@ static void send_interrupt_context(interrupt_context_t *int_context)
     host_msg_payload[payload_len++] = (int_context->saved_vcap >> 8) & 0xff;
 
     send_msg_to_host(USB_RSP_INTERRUPTED, payload_len);
+}
+
+static void send_param(param_t param)
+{
+    unsigned payload_len = 0;
+    UART_begin_transmission();
+
+    host_msg_payload[payload_len++] = param & 0xff;
+    host_msg_payload[payload_len++] = (param >> 8) & 0xff;
+
+    payload_len += get_param(param, &host_msg_payload[payload_len]);
+
+    send_msg_to_host(USB_RSP_PARAM, payload_len);
 }
 
 static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
@@ -1577,6 +1591,19 @@ static void executeUSBCmd(uartPkt_t *pkt)
             UART_teardown(UART_INTERFACE_WISP);
         }
         send_return_code(RETURN_CODE_SUCCESS);
+        break;
+    }
+
+    case USB_CMD_SET_PARAM: {
+        param_t param = (pkt->data[1] << 8) | pkt->data[0];
+        set_param(param, &pkt->data[2]);
+        send_param(param);
+        break;
+    }
+
+    case USB_CMD_GET_PARAM: {
+        param_t param = pkt->data[0];
+        send_param(param);
         break;
     }
 

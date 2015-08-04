@@ -43,6 +43,27 @@ def key_lookup(d, value):
             return k
     return None
 
+def serialize_uint16(value):
+    value = int(value)
+    return [value & 0xFF, (value >> 8) & 0xFF]
+
+def deserialize_uint16(bytes):
+    value = (bytes[1] << 8) | bytes[0]
+    return '%d' % value
+
+def serialize_frac(value):
+    value = float(value)
+    denomenator = 10000
+    numerator = int(value * denomenator)
+    return [numerator & 0xFF, (numerator >> 8) & 0xFF,
+            denomenator & 0xFF, (denomenator >> 8) & 0xFF]
+
+def deserialize_frac(bytes):
+    numerator = (bytes[1] << 8) | bytes[0]
+    denomenator = (bytes[3] << 8) | bytes[2]
+    return "%f" % (float(numerator) / denomenator)
+
+
 host_comm_header = Header(env.HOST_COMM_HEADER,
     enums=[
         'USB_CMD',
@@ -54,7 +75,8 @@ host_comm_header = Header(env.HOST_COMM_HEADER,
         'ENERGY_BREAKPOINT_IMPL',
         'CMP_REF',
         'STREAM',
-        'RF_EVENT'
+        'RF_EVENT',
+        'PARAM'
     ],
     numeric_macros=[
         'UART_IDENTIFIER_USB'
@@ -147,6 +169,14 @@ class WispMonitor:
                 "WATCHPOINTS": self.decode_watchpoint_event,
         }
 
+        self.param_serializers = {
+                "TEST_PARAM": serialize_uint16,
+        }
+
+        self.param_deserializers = {
+                "TEST_PARAM": deserialize_uint16,
+        }
+
         def clk_source_freq(source):
             # Cutting corners a bit: assume that ACLK is sourced either from XT1 or REFO
             if source == 'ACLK' or re.match(r'T.SSEL__ACLK', source):
@@ -184,8 +214,25 @@ class WispMonitor:
     def destroy(self):
         self.serial.close()
 
-    def set_param(self, param, value):
+    def set_local_param(self, param, value):
         self.params[param] = value
+        return value
+
+    def set_remote_param(self, param, value):
+        param = param.upper()
+        param_id = host_comm_header.enums['PARAM'][param]
+        cmd_data = [param_id & 0xff, (param_id>> 8) & 0xff] + self.param_serializers[param](value)
+        self.sendCmd(host_comm_header.enums['USB_CMD']['SET_PARAM'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['PARAM'])
+        return self.param_deserializers[param](reply["value"])
+
+    def get_remote_param(self, param):
+        param = param.upper()
+        param_id = host_comm_header.enums['PARAM'][param]
+        cmd_data = [param_id & 0xff, (param_id>> 8) & 0xff]
+        self.sendCmd(host_comm_header.enums['USB_CMD']['GET_PARAM'], data=cmd_data)
+        reply = self.receive_reply(host_comm_header.enums['USB_RSP']['PARAM'])
+        return self.param_deserializers[param](reply["value"])
     
     def buildRxPkt(self, buf):
         """Parses packet header and returns whether it is ready or not"""
@@ -302,6 +349,13 @@ class WispMonitor:
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['ECHO']:
                 pkt["value"] = self.rxPkt.data[0]
+
+            elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['PARAM']:
+                offset = 0
+                param_id = (self.rxPkt.data[1] << 8) | self.rxPkt.data[0]
+                offset += 2
+                pkt["param"] = key_lookup(host_comm_header.enums['PARAM'], param_id)
+                pkt["value"] = self.rxPkt.data[offset:]
 
             elif self.rxPkt.descriptor == host_comm_header.enums['USB_RSP']['STREAM_EVENTS']:
                 FIELD_LEN_STREAMS = 1

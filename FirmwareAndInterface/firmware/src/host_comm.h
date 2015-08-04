@@ -65,6 +65,8 @@ typedef enum {
     USB_CMD_DMA_ECHO                        = 0x41, //!< send message to USB UART using DMA
     USB_CMD_ENABLE_TARGET_UART              = 0x42, //!< prepare UART to accept messages from target
     USB_CMD_WATCHPOINT                      = 0x43, //!< enable/disable a watchpoint
+    USB_CMD_SET_PARAM                       = 0x44, //!< set a parameter value
+    USB_CMD_GET_PARAM                       = 0x45, //!< get a parameter value
 } usb_cmd_t;
 
 /**
@@ -90,6 +92,7 @@ typedef enum {
     USB_RSP_ECHO                            = 0x11, //!< response to test commands
     USB_RSP_STDIO                           = 0x12, //!< printf data from target
     USB_RSP_WATCHPOINT                      = 0x13, //!< watchpoint event info
+    USB_RSP_PARAM                           = 0x14, //!< configurable parameter value
 } usb_rsp_t;
 
 
@@ -105,6 +108,10 @@ typedef enum {
 } return_code_t;
 
 /** @} End UART_PROTOCOL */
+
+typedef enum {
+    PARAM_TEST                              = 0,
+} param_t;
 
 /**
  * @brief Specifies the type of breakpoint among ones supported

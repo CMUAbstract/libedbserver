@@ -45,6 +45,7 @@ OBJECTS = \
 	rfid/rfid_decoder.o \
 	adc12/adc12.o \
 	mspware/pmm.o \
+	params.o \
 
 all: $(EXEC)
 

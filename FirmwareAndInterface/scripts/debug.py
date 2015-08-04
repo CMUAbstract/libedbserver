@@ -213,8 +213,17 @@ def cmd_decho(mon, value):
 def cmd_replay(mon, file):
     mon.load_replay_log(file)
 
-def cmd_set(mon, parm, value):
-    mon.set_param(parm, value)
+def cmd_lset(mon, param, value):
+    print mon.set_local_param(param, value)
+
+def cmd_lget(mon, param):
+    print mon.get_local_param(param)
+
+def cmd_rset(mon, param, value):
+    print mon.set_remote_param(param, value)
+
+def cmd_rget(mon, param):
+    print mon.get_remote_param(param)
 
 def cmd_uart(mon, op):
     enable = "enable".startswith(op)
