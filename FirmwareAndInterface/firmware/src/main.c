@@ -522,8 +522,6 @@ static void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
 
 static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
-    float saved_vcap;
-
     interrupt_context.type = int_type;
     interrupt_context.id = 0;
 
@@ -531,15 +529,6 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 
     if (!(flags & DEBUG_MODE_NESTED)) {
         interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-
-        // TODO: This is very bad. It's a workaround for the discharge cycle being
-        // much longer with energy guards then without. It appears we are
-        // 'restoring' too much energy. Let's do this gravitational constant thing
-        // to experiment and figure out where the discrepancy is coming from.
-        saved_vcap = (float)interrupt_context.saved_vcap;
-        saved_vcap *= param_saved_vcap_adjust;
-        interrupt_context.saved_vcap = saved_vcap;
-
     } else {
         interrupt_context.saved_debug_mode_flags = debug_mode_flags;
     }

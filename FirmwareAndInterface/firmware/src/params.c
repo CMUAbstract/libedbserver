@@ -1,7 +1,6 @@
 #include "params.h"
 
 uint16_t param_test = 0xbeef;
-float param_saved_vcap_adjust = 0.98;
 
 static unsigned serialize_uint16(uint8_t *buf, uint16_t value)
 {
@@ -47,9 +46,6 @@ unsigned set_param(param_t param, uint8_t *buf)
     switch (param) {
         case PARAM_TEST:
             return deserialize_uint16(&param_test, buf);
-        case PARAM_SAVED_VCAP_ADJUST: {
-            return deserialize_frac(&param_saved_vcap_adjust, buf);
-        }
         default:
             return 0;
     }
@@ -60,8 +56,6 @@ unsigned get_param(param_t param, uint8_t *buf)
     switch (param) {
         case PARAM_TEST:
             return serialize_uint16(buf, param_test);
-        case PARAM_SAVED_VCAP_ADJUST:
-            return serialize_frac(buf, param_saved_vcap_adjust);
         default:
             return 0;
     }
