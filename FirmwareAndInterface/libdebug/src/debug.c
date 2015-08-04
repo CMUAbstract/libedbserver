@@ -257,6 +257,16 @@ void resume_application()
 
     set_state(STATE_SUSPENDED); // sleep and wait for debugger to restore energy
 
+    mask_debugger_signal();
+
+    // Disable interrupts before unmasking debugger signal to make sure
+    // we are asleep (at end of this function) before ISR runs. Otherwise,
+    // the race completely derails the sequence to enter-exit debug mode.
+    // Furthermore, to prevent a signal from the debugger arriving while
+    // we are trying to request debug mode, disable interrupts at the
+    // very beginning of this function.
+    __disable_interrupt();
+
     // debugger is in DEBUG state, so our signal needs to contain
     // the information about whether we are exiting the debug mode
     // (as we are here) or whether we are requesting a nested debug
@@ -264,6 +274,9 @@ void resume_application()
     signal_debugger_with_data(SIG_CMD_EXIT); // tell debugger we have shutdown UART
 
     unmask_debugger_signal();
+
+    // go to sleep, enable interrupts, and wait for signal from debugger
+    __bis_SR_register(DEBUG_MODE_REQUEST_WAIT_STATE_BITS | GIE);
 }
 
 uintptr_t mem_addr_from_bytes(uint8_t *buf)
