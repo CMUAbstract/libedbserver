@@ -1,7 +1,6 @@
 #include "params.h"
 
 uint16_t param_test = 0xbeef;
-float param_saved_vcap_adjust = 0.98;
 
 static unsigned serialize_uint16(uint8_t *buf, uint16_t value)
 {
@@ -19,6 +18,7 @@ static unsigned deserialize_uint16(uint16_t *value, uint8_t *buf)
     return sizeof(unsigned);
 }
 
+#if 0 // comment out while unused
 static unsigned serialize_frac(uint8_t *buf, float frac)
 {
     unsigned denomenator = 10000;
@@ -41,15 +41,13 @@ static unsigned deserialize_frac(float *frac, uint8_t *buf)
     *frac = numerator / denomenator;
     return len;
 }
+#endif
 
 unsigned set_param(param_t param, uint8_t *buf)
 {
     switch (param) {
         case PARAM_TEST:
             return deserialize_uint16(&param_test, buf);
-        case PARAM_SAVED_VCAP_ADJUST: {
-            return deserialize_frac(&param_saved_vcap_adjust, buf);
-        }
         default:
             return 0;
     }
@@ -60,8 +58,6 @@ unsigned get_param(param_t param, uint8_t *buf)
     switch (param) {
         case PARAM_TEST:
             return serialize_uint16(buf, param_test);
-        case PARAM_SAVED_VCAP_ADJUST:
-            return serialize_frac(buf, param_saved_vcap_adjust);
         default:
             return 0;
     }
