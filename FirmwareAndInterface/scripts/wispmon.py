@@ -171,12 +171,10 @@ class WispMonitor:
 
         self.param_serializers = {
                 "TEST_PARAM": serialize_uint16,
-                "SAVED_VCAP_ADJUST": serialize_frac
         }
 
         self.param_deserializers = {
                 "TEST_PARAM": deserialize_uint16,
-                "SAVED_VCAP_ADJUST": deserialize_frac
         }
 
         def clk_source_freq(source):
