@@ -18,6 +18,7 @@ static unsigned deserialize_uint16(uint16_t *value, uint8_t *buf)
     return sizeof(unsigned);
 }
 
+#if 0 // comment out while unused
 static unsigned serialize_frac(uint8_t *buf, float frac)
 {
     unsigned denomenator = 10000;
@@ -40,6 +41,7 @@ static unsigned deserialize_frac(float *frac, uint8_t *buf)
     *frac = numerator / denomenator;
     return len;
 }
+#endif
 
 unsigned set_param(param_t param, uint8_t *buf)
 {
