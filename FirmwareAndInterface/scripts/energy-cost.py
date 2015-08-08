@@ -90,6 +90,7 @@ for i, file in enumerate(args.events_file):
     #pl.hist(s, cumulative=True, normed=1, histtype='step',
             #bins=bins, color='black', maker=args.markers[i])
 
+pl.grid(True)
 
 #ax.set_xlim(xmax=xmax)
 
