@@ -36,6 +36,8 @@ parser.add_argument('--channel-format', type=comma_list, default=['analog', 'dig
     help='format in which to draw the channel data (analog,digital,digital-edges)')
 parser.add_argument('--vcap-channel', default='CH1',
     help='channels with Vcap data (for cleaning up noise on digital channels)')
+parser.add_argument('--digital-noise-threshold', type=float, default=1.82,
+    help='threshold on Vcap beyond which data on digital channels is invalid')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
 parser.add_argument('--digital-offset', type=float, default=1.5,
@@ -48,10 +50,13 @@ parser.add_argument('--label-horizontal-margin', type=float, default=5,
     help='space between edge and label (in ms)')
 parser.add_argument('--label-vertical-margin', type=float, default=0.05,
     help='space between the plotted line and the label (in V)')
+parser.add_argument('--assert-plot-workaround', action='store_true',
+    help='workaround for the assert null-deref use case: ' +
+    'inconsistent time scale for the assert plot ' +
+    '(cannot completely fix it in data)')
 args = parser.parse_args()
 
 SCOPE_HEADER_ROWS = 20
-DIGITAL_NOISE_VCAP_THRESHOLD = 1.82
 Y_RANGE_MAX = 2.8
 
 Y_RANGE = [args.digital_offset - args.digital_margin, Y_RANGE_MAX]
@@ -82,14 +87,19 @@ if len(digital_channels) > 0:
     for dpos, d in datasets.iteritems():
         vcap_chan = d[args.vcap_channel]
         for idx, chan in enumerate(digital_channels):
-            d[chan][vcap_chan < DIGITAL_NOISE_VCAP_THRESHOLD] = 0
+            d[chan][vcap_chan < args.digital_noise_threshold] = 0
 
 for dpos, d in datasets.iteritems():
     d['TIME'] = (d['TIME'] + (-min(d['TIME']))) * 1000 # to positive ms
 
+
+if args.assert_plot_workaround:
+    datasets['se']['TIME'] += 20
+
 if args.x_range is not None:
     for dpos, d in datasets.iteritems():
         datasets[dpos] = d[(args.x_range[0] <= d['TIME']) & (d['TIME'] <= args.x_range[1])]
+
 
 fig, axes = pl.subplots(nrows=2, ncols=2)
 
@@ -191,7 +201,7 @@ for i, d in enumerate(datasets.values()):
             if chan in digital_channels:
                 label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
                 print "dig_height=", digital_height, "time=", label_x
-                label_y = digital_height
+                label_y = digital_height + args.label_vertical_margin
                 digital_height += args.digital_height + args.digital_margin
             else: # analog label right above the start of the waveform
                 label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
