@@ -27,6 +27,10 @@ parser.add_argument('--channels', type=comma_list, default=['CH1', 'D1'],
     help='channels to include into the plot')
 parser.add_argument('--labels', type=comma_list, default=['Vcap', 'Loop'],
     help='labels for the channels')
+parser.add_argument('--channel-format', type=comma_list, default=['analog', 'digital'],
+    help='format in which to draw the channel data (analog,digital,digital-edges)')
+parser.add_argument('--vcap-channel', default='CH1',
+    help='channels with Vcap data (for cleaning up noise on digital channels)')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
 parser.add_argument('--digital-offset', type=float, default=1.5,
@@ -42,8 +46,10 @@ parser.add_argument('--label-vertical-margin', type=float, default=0.05,
 args = parser.parse_args()
 
 SCOPE_HEADER_ROWS = 20
+DIGITAL_NOISE_VCAP_THRESHOLD = 1.82
+Y_RANGE_MAX = 2.8
 
-Y_RANGE = [args.digital_offset - args.digital_margin, 2.8]
+Y_RANGE = [args.digital_offset - args.digital_margin, Y_RANGE_MAX]
 
 columns = ['TIME'] + args.channels
 
@@ -61,17 +67,23 @@ datasets['sw'] = d[columns]
 d = pd.read_csv(args.se_data_file, skiprows=SCOPE_HEADER_ROWS)
 datasets['se'] = d[columns]
 
+analog_channels = filter(lambda c: c.startswith('CH'), args.channels)
 digital_channels = filter(lambda c: c.startswith('D'), args.channels)
 
+# remove noise from digital channels that starts happening
+# once we get close to the digital threshold (couldn't get
+# the scope to eliminate it by raising the threshold).
+if len(digital_channels) > 0:
+    for dpos, d in datasets.iteritems():
+        vcap_chan = d[args.vcap_channel]
+        for idx, chan in enumerate(digital_channels):
+            d[chan][vcap_chan < DIGITAL_NOISE_VCAP_THRESHOLD] = 0
+
 for dpos, d in datasets.iteritems():
-    height = args.digital_margin
-    for idx, chan in enumerate(digital_channels):
-        d[chan] = args.digital_offset + height + d[chan] * args.digital_height
-        height += args.digital_height + args.digital_margin
+    d['TIME'] = (d['TIME'] + (-min(d['TIME']))) * 1000 # to positive ms
 
 if args.x_range is not None:
     for dpos, d in datasets.iteritems():
-        d['TIME'] = (d['TIME'] + (-min(d['TIME']))) * 1000 # to positive ms
         datasets[dpos] = d[(args.x_range[0] <= d['TIME']) & (d['TIME'] <= args.x_range[1])]
 
 fig, axes = pl.subplots(nrows=2, ncols=2)
@@ -79,8 +91,54 @@ fig, axes = pl.subplots(nrows=2, ncols=2)
 x = 0
 y = 0
 for i, d in enumerate(datasets.values()):
+
+    ax = axes[x, y]
+    digital_height = args.digital_margin + args.digital_offset
     for j, chan in enumerate(args.channels):
-        axes[x, y].plot(d['TIME'], d[chan], color='black')
+        chan_data = d[chan].copy()
+
+        ax.axhline(digital_height, 0, 1, linestyle='dotted', color='gray')
+
+        chan_format = args.channel_format[j]
+
+        if chan_format == "analog":
+            ax.plot(d['TIME'], chan_data, color='black')
+        elif chan_format == "digital":
+            
+            # move to the right position in the plot and mask out non-edges (need float's nan for that)
+            digital_data_display = chan_data.copy() * 1.0
+            digital_data_display[chan_data == 1] = digital_height
+            digital_data_display[chan_data == 0] = float('nan')
+
+            ax.plot(d['TIME'], digital_data_display, color='black', lw=4)
+
+            digital_height += args.digital_height + args.digital_margin
+
+        elif chan_format == "digital-edges":
+            # detect edges
+            digital_data_prev = chan_data.iloc[0:-1]
+            digital_data_next = chan_data.iloc[1:]
+            digital_data_prev.index = range(len(digital_data_prev))
+            digital_data_next.index = range(len(digital_data_prev))
+
+            # get ones for edges and zeroes for non-edges
+            digital_data_edges = digital_data_prev.copy()
+            digital_data_edges[((digital_data_prev != 0) | (digital_data_next != 1))] = 0
+            digital_data_edges[((digital_data_prev == 0) & (digital_data_next == 1))] = 1
+
+            # filter to include every k'th edge
+            INCLUDE_EVERY = 2
+            digital_data_cumsum = pd.Series(np.cumsum(digital_data_edges))
+            digital_data_edges[digital_data_cumsum % INCLUDE_EVERY != 0] = 0
+
+            # move to the right position in the plot and mask out non-edges (need float's nan for that)
+            digital_data_display = digital_data_edges.copy() * 1.0
+            digital_data_display[digital_data_edges == 1] = digital_height
+            digital_data_display[digital_data_edges == 0] = float('nan')
+
+            ax.scatter(d['TIME'][0:-1], digital_data_display, color='black', marker='o')
+
+            digital_height += args.digital_height + args.digital_margin
     y += 1
     if y % 2 == 0:
         y = 0
@@ -95,6 +153,7 @@ for i, d in enumerate(datasets.values()):
     for idx, chan in enumerate(args.channels):
         if chan in digital_channels:
             label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
+            print "dig_height=", digital_height, "time=", label_x
             label_y = digital_height
             digital_height += args.digital_height + args.digital_margin
         else: # analog label right above the start of the waveform
