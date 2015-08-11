@@ -40,18 +40,16 @@ parser.add_argument('--digital-noise-threshold', type=float, default=1.82,
     help='threshold on Vcap beyond which data on digital channels is invalid')
 parser.add_argument('--brown-out-threshold', type=float, default=1.8,
     help='voltage at which MCU powers off due to detecting brown out')
-parser.add_argument('--tethered-level', type=float, default=2.75,
+parser.add_argument('--tethered-level', type=float,
     help='voltage of the continuous power supply provided by the debugger')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
-parser.add_argument('--y-range', type=float_comma_list, default=[float('nan'), 3.00],
+parser.add_argument('--y-range', type=float_comma_list, default=[1.00, 3.00],
     help='voltage axis range (in V)')
 parser.add_argument('--digital-offset', type=float, default=1.5,
     help='vertical position of the digital channels (in Volts)')
 parser.add_argument('--digital-height', type=float, default=0.25,
     help='height of each digital channel (in Volts)')
-parser.add_argument('--digital-margin', type=float, default=0.05,
-    help='space between two digital channels (in Volts)')
 parser.add_argument('--label-horizontal-margin', type=float, default=5,
     help='space between edge and label (in ms)')
 parser.add_argument('--label-vertical-margin', type=float, default=0.05,
@@ -63,8 +61,6 @@ parser.add_argument('--assert-plot-workaround', action='store_true',
 args = parser.parse_args()
 
 SCOPE_HEADER_ROWS = 20
-
-Y_RANGE = [args.digital_offset - args.digital_margin, args.y_range[1]]
 
 columns = ['TIME'] + args.channels
 
@@ -114,9 +110,14 @@ else:
     figsize = None
 pl.figure(num=1, figsize=figsize, dpi=100)
 
+display_data = {}
+for k in datasets:
+    display_data[k] = {}
+
 x = 0
 y = 0
-for i, d in enumerate(datasets.values()):
+for i, k in enumerate(datasets.keys()):
+    d = datasets[k]
 
     ax = axes[x, y]
     ax.tick_params(right=False)
@@ -127,9 +128,10 @@ for i, d in enumerate(datasets.values()):
         ax.spines['left'].set_visible(False)
 
     ax.axhline(args.brown_out_threshold, color='black', linestyle='dashed')
-    ax.axhline(args.tethered_level, color='black', linestyle='dashed')
+    if args.tethered_level is not None:
+        ax.axhline(args.tethered_level, color='black', linestyle='dashed')
 
-    digital_height = args.digital_margin + args.digital_offset
+    digital_height = args.digital_offset
     for j, chan in enumerate(args.channels):
         chan_data = d[chan].copy()
 
@@ -138,18 +140,22 @@ for i, d in enumerate(datasets.values()):
         chan_format = args.channel_format[j]
 
         if chan_format == "analog":
-            ax.plot(d['TIME'], chan_data, color='black')
+            time_array = d['TIME']
+            display_data[k][chan] = (time_array, chan_data)
+            ax.plot(time_array, chan_data, color='black')
 
         elif chan_format == "digital":
+            time_array = d['TIME']
             
             # move to the right position in the plot and mask out non-edges (need float's nan for that)
             digital_data_display = chan_data.copy() * 1.0
             digital_data_display[chan_data == 1] = digital_height
             digital_data_display[chan_data == 0] = float('nan')
 
-            ax.plot(d['TIME'], digital_data_display, color='black', lw=4)
+            display_data[k][chan] = (time_array, digital_data_display)
+            ax.plot(time_array, digital_data_display, color='black', lw=4)
 
-            digital_height += args.digital_height + args.digital_margin
+            digital_height += args.digital_height
 
         elif chan_format == "digital-edges":
             # detect edges
@@ -174,9 +180,10 @@ for i, d in enumerate(datasets.values()):
             digital_data_display[digital_data_edges == 1] = digital_height
             digital_data_display[digital_data_edges == 0] = float('nan')
 
+            display_data[k][chan] = (time_array, digital_data_display)
             ax.scatter(time_array, digital_data_display, color='black', marker='o')
 
-            digital_height += args.digital_height + args.digital_margin
+            digital_height += args.digital_height
 
     ax.set_xlim(args.x_range)
 
@@ -197,20 +204,20 @@ for i, d in enumerate(datasets.values()):
         y = 0
         x += 1
 
-# Place labels
+# Place labels and annotation
 x = 0
 y = 0
 for i, d in enumerate(datasets.values()):
 
     # Don't label the 'west' side, to show continuity
     if y == 0:
-        digital_height = args.digital_offset + args.digital_margin
+        digital_height = args.digital_offset
         label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
         for idx, chan in enumerate(args.channels):
             if chan in digital_channels:
                 print "dig_height=", digital_height, "time=", label_x
                 label_y = digital_height + args.label_vertical_margin
-                digital_height += args.digital_height + args.digital_margin
+                digital_height += args.digital_height
             else: # analog label right above the start of the waveform
                 label_y = d[chan].iloc[0] + args.label_vertical_margin
             axes[x, y].text(label_x, label_y, args.labels[idx], ha='left', va='bottom')
@@ -219,7 +226,8 @@ for i, d in enumerate(datasets.values()):
         axes[x,y].text(label_x, args.brown_out_threshold, 'V brownout', ha='left', va='bottom')
 
         # thethered power line
-        axes[x,y].text(label_x, args.tethered_level, 'V tethered', ha='left', va='bottom')
+        if args.tethered_level is not None:
+            axes[x,y].text(label_x, args.tethered_level, 'V tethered', ha='left', va='bottom')
 
     y += 1
     if y % 2 == 0:
@@ -266,10 +274,10 @@ for x in [0, 1]:
     ax_overlay.text(text_pos[0], text_pos[1], '...', ha='center', va='center', fontsize='24')
 
 
-axes[0, 0].set_ylim(Y_RANGE)
-axes[0, 1].set_ylim(Y_RANGE)
-axes[1, 0].set_ylim(Y_RANGE)
-axes[1, 1].set_ylim(Y_RANGE)
+axes[0, 0].set_ylim(args.y_range)
+axes[0, 1].set_ylim(args.y_range)
+axes[1, 0].set_ylim(args.y_range)
+axes[1, 1].set_ylim(args.y_range)
 
 #axes[0, 0].set_xticks(np.arange(datasets['nw']['TIME'].min(), datasets['nw']['TIME'].max(), 10.0))
 #axes[0, 1].set_xticks(np.arange(datasets['ne']['TIME'].min(), datasets['ne']['TIME'].max(), 10.0))
