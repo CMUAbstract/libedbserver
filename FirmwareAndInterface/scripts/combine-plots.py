@@ -44,14 +44,12 @@ parser.add_argument('--tethered-level', type=float, default=2.75,
     help='voltage of the continuous power supply provided by the debugger')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
-parser.add_argument('--y-range', type=float_comma_list, default=[float('nan'), 3.00],
+parser.add_argument('--y-range', type=float_comma_list, default=[1.00, 3.00],
     help='voltage axis range (in V)')
 parser.add_argument('--digital-offset', type=float, default=1.5,
     help='vertical position of the digital channels (in Volts)')
 parser.add_argument('--digital-height', type=float, default=0.25,
     help='height of each digital channel (in Volts)')
-parser.add_argument('--digital-margin', type=float, default=0.05,
-    help='space between two digital channels (in Volts)')
 parser.add_argument('--label-horizontal-margin', type=float, default=5,
     help='space between edge and label (in ms)')
 parser.add_argument('--label-vertical-margin', type=float, default=0.05,
@@ -63,8 +61,6 @@ parser.add_argument('--assert-plot-workaround', action='store_true',
 args = parser.parse_args()
 
 SCOPE_HEADER_ROWS = 20
-
-Y_RANGE = [args.digital_offset - args.digital_margin, args.y_range[1]]
 
 columns = ['TIME'] + args.channels
 
@@ -129,7 +125,7 @@ for i, d in enumerate(datasets.values()):
     ax.axhline(args.brown_out_threshold, color='black', linestyle='dashed')
     ax.axhline(args.tethered_level, color='black', linestyle='dashed')
 
-    digital_height = args.digital_margin + args.digital_offset
+    digital_height = args.digital_offset
     for j, chan in enumerate(args.channels):
         chan_data = d[chan].copy()
 
@@ -149,7 +145,7 @@ for i, d in enumerate(datasets.values()):
 
             ax.plot(d['TIME'], digital_data_display, color='black', lw=4)
 
-            digital_height += args.digital_height + args.digital_margin
+            digital_height += args.digital_height
 
         elif chan_format == "digital-edges":
             # detect edges
@@ -176,7 +172,7 @@ for i, d in enumerate(datasets.values()):
 
             ax.scatter(time_array, digital_data_display, color='black', marker='o')
 
-            digital_height += args.digital_height + args.digital_margin
+            digital_height += args.digital_height
 
     ax.set_xlim(args.x_range)
 
@@ -204,13 +200,13 @@ for i, d in enumerate(datasets.values()):
 
     # Don't label the 'west' side, to show continuity
     if y == 0:
-        digital_height = args.digital_offset + args.digital_margin
+        digital_height = args.digital_offset
         label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
         for idx, chan in enumerate(args.channels):
             if chan in digital_channels:
                 print "dig_height=", digital_height, "time=", label_x
                 label_y = digital_height + args.label_vertical_margin
-                digital_height += args.digital_height + args.digital_margin
+                digital_height += args.digital_height
             else: # analog label right above the start of the waveform
                 label_y = d[chan].iloc[0] + args.label_vertical_margin
             axes[x, y].text(label_x, label_y, args.labels[idx], ha='left', va='bottom')
@@ -266,10 +262,10 @@ for x in [0, 1]:
     ax_overlay.text(text_pos[0], text_pos[1], '...', ha='center', va='center', fontsize='24')
 
 
-axes[0, 0].set_ylim(Y_RANGE)
-axes[0, 1].set_ylim(Y_RANGE)
-axes[1, 0].set_ylim(Y_RANGE)
-axes[1, 1].set_ylim(Y_RANGE)
+axes[0, 0].set_ylim(args.y_range)
+axes[0, 1].set_ylim(args.y_range)
+axes[1, 0].set_ylim(args.y_range)
+axes[1, 1].set_ylim(args.y_range)
 
 #axes[0, 0].set_xticks(np.arange(datasets['nw']['TIME'].min(), datasets['nw']['TIME'].max(), 10.0))
 #axes[0, 1].set_xticks(np.arange(datasets['ne']['TIME'].min(), datasets['ne']['TIME'].max(), 10.0))
