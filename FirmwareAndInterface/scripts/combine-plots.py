@@ -40,8 +40,12 @@ parser.add_argument('--digital-noise-threshold', type=float, default=1.82,
     help='threshold on Vcap beyond which data on digital channels is invalid')
 parser.add_argument('--brown-out-threshold', type=float, default=1.8,
     help='voltage at which MCU powers off due to detecting brown out')
+parser.add_argument('--tethered-level', type=float, default=2.75,
+    help='voltage of the continuous power supply provided by the debugger')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
+parser.add_argument('--y-range', type=float_comma_list, default=[float('nan'), 3.00],
+    help='voltage axis range (in V)')
 parser.add_argument('--digital-offset', type=float, default=1.5,
     help='vertical position of the digital channels (in Volts)')
 parser.add_argument('--digital-height', type=float, default=0.25,
@@ -59,9 +63,8 @@ parser.add_argument('--assert-plot-workaround', action='store_true',
 args = parser.parse_args()
 
 SCOPE_HEADER_ROWS = 20
-Y_RANGE_MAX = 2.8
 
-Y_RANGE = [args.digital_offset - args.digital_margin, Y_RANGE_MAX]
+Y_RANGE = [args.digital_offset - args.digital_margin, args.y_range[1]]
 
 columns = ['TIME'] + args.channels
 
@@ -124,6 +127,7 @@ for i, d in enumerate(datasets.values()):
         ax.spines['left'].set_visible(False)
 
     ax.axhline(args.brown_out_threshold, color='black', linestyle='dashed')
+    ax.axhline(args.tethered_level, color='black', linestyle='dashed')
 
     digital_height = args.digital_margin + args.digital_offset
     for j, chan in enumerate(args.channels):
@@ -213,6 +217,9 @@ for i, d in enumerate(datasets.values()):
 
         # brown-out threshold line
         axes[x,y].text(label_x, args.brown_out_threshold, 'V brownout', ha='left', va='bottom')
+
+        # thethered power line
+        axes[x,y].text(label_x, args.tethered_level, 'V tethered', ha='left', va='bottom')
 
     y += 1
     if y % 2 == 0:
