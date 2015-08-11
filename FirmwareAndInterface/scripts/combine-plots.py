@@ -8,10 +8,18 @@ from matplotlib import lines
 
 from collections import OrderedDict
 
+class Event:
+    def __init__(self, s):
+        self.dataset, self.x, self.idx = s.split(':')
+        self.x = float(self.x)
+        self.idx = int(self.idx)
+
 def comma_list(s):
     return s.split(",")
 def float_comma_list(s):
     return map(float, s.split(","))
+def event_comma_list(s):
+    return map(Event, s.split(","))
 
 parser = argparse.ArgumentParser()
 parser.add_argument('nw_data_file',
@@ -42,6 +50,8 @@ parser.add_argument('--brown-out-threshold', type=float, default=1.8,
     help='voltage at which MCU powers off due to detecting brown out')
 parser.add_argument('--tethered-level', type=float,
     help='voltage of the continuous power supply provided by the debugger')
+parser.add_argument('--annotated-events', type=event_comma_list, default=[],
+    help='list of events to annotate (comma separated, event format: "dataset:x:idx"')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
 parser.add_argument('--y-range', type=float_comma_list, default=[1.00, 3.00],
@@ -50,6 +60,8 @@ parser.add_argument('--digital-offset', type=float, default=1.5,
     help='vertical position of the digital channels (in Volts)')
 parser.add_argument('--digital-height', type=float, default=0.25,
     help='height of each digital channel (in Volts)')
+parser.add_argument('--annotated-event-offset', type=float, default=1.10,
+    help='y-axis position of the annotated event markers (in V)')
 parser.add_argument('--label-horizontal-margin', type=float, default=5,
     help='space between edge and label (in ms)')
 parser.add_argument('--label-vertical-margin', type=float, default=0.05,
@@ -207,7 +219,9 @@ for i, k in enumerate(datasets.keys()):
 # Place labels and annotation
 x = 0
 y = 0
-for i, d in enumerate(datasets.values()):
+for i, k in enumerate(datasets.keys()):
+
+    d = datasets[k]
 
     # Don't label the 'west' side, to show continuity
     if y == 0:
@@ -228,6 +242,21 @@ for i, d in enumerate(datasets.values()):
         # thethered power line
         if args.tethered_level is not None:
             axes[x,y].text(label_x, args.tethered_level, 'V tethered', ha='left', va='bottom')
+
+    # annotations
+    for event in args.annotated_events:
+        if event.dataset == k:
+            # Note: the axes coord system is messed up, probably due to margin/subplot fiddling
+            ex_data, ey_data = event.x, args.annotated_event_offset
+            ex_display, ey_display = axes[x,y].transData.transform((ex_data, ey_data))
+            ex_axes, ey_axes = axes[x,y].transAxes.inverted().transform((ex_display, ey_display))
+
+            axes[x,y].add_artist(pl.Circle((ex_axes, ey_axes), .035,
+                                 transform=axes[x,y].transAxes,
+                                 facecolor='none'))
+            axes[x,y].text(ex_axes, ey_axes, event.idx, transform=axes[x,y].transAxes,
+                            fontsize='8',
+                           ha='center', va='center')
 
     y += 1
     if y % 2 == 0:
