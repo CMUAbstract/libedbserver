@@ -38,6 +38,8 @@ parser.add_argument('--vcap-channel', default='CH1',
     help='channels with Vcap data (for cleaning up noise on digital channels)')
 parser.add_argument('--digital-noise-threshold', type=float, default=1.82,
     help='threshold on Vcap beyond which data on digital channels is invalid')
+parser.add_argument('--brown-out-threshold', type=float, default=1.8,
+    help='voltage at which MCU powers off due to detecting brown out')
 parser.add_argument('--x-range', type=float_comma_list,
     help='time range to include (in ms)')
 parser.add_argument('--digital-offset', type=float, default=1.5,
@@ -121,6 +123,8 @@ for i, d in enumerate(datasets.values()):
     else:
         ax.spines['left'].set_visible(False)
 
+    ax.axhline(args.brown_out_threshold, color='black', linestyle='dashed')
+
     digital_height = args.digital_margin + args.digital_offset
     for j, chan in enumerate(args.channels):
         chan_data = d[chan].copy()
@@ -197,16 +201,19 @@ for i, d in enumerate(datasets.values()):
     # Don't label the 'west' side, to show continuity
     if y == 0:
         digital_height = args.digital_offset + args.digital_margin
+        label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
         for idx, chan in enumerate(args.channels):
             if chan in digital_channels:
-                label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
                 print "dig_height=", digital_height, "time=", label_x
                 label_y = digital_height + args.label_vertical_margin
                 digital_height += args.digital_height + args.digital_margin
             else: # analog label right above the start of the waveform
-                label_x = d['TIME'].iloc[0] + args.label_horizontal_margin
                 label_y = d[chan].iloc[0] + args.label_vertical_margin
             axes[x, y].text(label_x, label_y, args.labels[idx], ha='left', va='bottom')
+
+        # brown-out threshold line
+        axes[x,y].text(label_x, args.brown_out_threshold, 'V brownout', ha='left', va='bottom')
+
     y += 1
     if y % 2 == 0:
         y = 0
