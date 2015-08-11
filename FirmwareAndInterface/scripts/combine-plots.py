@@ -4,7 +4,7 @@ import argparse
 import pandas as pd
 import pylab as pl
 import numpy as np
-from matplotlib import lines
+from matplotlib import lines, patches
 
 from collections import OrderedDict
 
@@ -250,8 +250,9 @@ for i, k in enumerate(datasets.keys()):
             ex_data, ey_data = event.x, args.annotated_event_offset
             ex_display, ey_display = axes[x,y].transData.transform((ex_data, ey_data))
             ex_axes, ey_axes = axes[x,y].transAxes.inverted().transform((ex_display, ey_display))
+            circle_width, circle_height = 0.05, .06 # correct for axis breakage to get a circle
 
-            axes[x,y].add_artist(pl.Circle((ex_axes, ey_axes), .035,
+            axes[x,y].add_artist(patches.Ellipse((ex_axes, ey_axes), circle_width, circle_heigth,
                                  transform=axes[x,y].transAxes,
                                  facecolor='none'))
             axes[x,y].text(ex_axes, ey_axes, event.idx, transform=axes[x,y].transAxes,
