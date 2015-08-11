@@ -252,7 +252,7 @@ for i, k in enumerate(datasets.keys()):
             ex_axes, ey_axes = axes[x,y].transAxes.inverted().transform((ex_display, ey_display))
             circle_width, circle_height = 0.05, .06 # correct for axis breakage to get a circle
 
-            axes[x,y].add_artist(patches.Ellipse((ex_axes, ey_axes), circle_width, circle_heigth,
+            axes[x,y].add_artist(patches.Ellipse((ex_axes, ey_axes), circle_width, circle_height,
                                  transform=axes[x,y].transAxes,
                                  facecolor='none'))
             axes[x,y].text(ex_axes, ey_axes, event.idx, transform=axes[x,y].transAxes,
