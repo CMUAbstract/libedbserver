@@ -116,7 +116,12 @@ zoomed_annot_axes.add_line(left_line)
 zoomed_annot_axes.add_line(right_line)
 
 #plt.tight_layout()
-plt.subplots_adjust(hspace=0.25) # to give some space between full and zoomed rf axes
+#plt.subplots_adjust(hspace=0.25) # to give some space between full and zoomed rf axes
+
+if args.output is not None:
+    pl.subplots_adjust(left=0, right=1, top=1, bottom=0, wspace=0.15, hspace=0.2)
+else:
+    pl.subplots_adjust(wspace=0.15, hspace=0.2) # give some space between full and zoomed rf axes
 
 if args.output is not None:
     pl.savefig(args.output, bbox_inches='tight')
