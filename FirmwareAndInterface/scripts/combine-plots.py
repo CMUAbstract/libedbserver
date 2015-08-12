@@ -244,7 +244,12 @@ for i, k in enumerate(datasets.keys()):
             axes[x,y].text(label_x, args.tethered_level, 'V tethered', ha='left', va='bottom')
 
     # annotations
+    ex_datas = {}
+    ex_axess = {}
+    print  "events =", args.annotated_events
     for event in args.annotated_events:
+        print event.dataset,k
+
         if event.dataset == k:
             # Note: the axes coord system is messed up, probably due to margin/subplot fiddling
             ex_data, ey_data = event.x, args.annotated_event_offset
@@ -259,6 +264,45 @@ for i, k in enumerate(datasets.keys()):
                             fontsize='8',
                            ha='center', va='center')
 
+            print "event.idx=", event.idx
+            ex_datas[event.idx] = ex_data
+            ex_axess[event.idx] = ex_axes
+
+            # For assert plot
+            #cm = pl.get_cmap('gray')
+            cm = pl.get_cmap('RdPu')
+#            axes[x,y].axvspan(60.0, 100.0,
+#                              0.4, 1.0,
+#                              color=cm(0.1))
+#
+#            ## tethered power label
+#            axes[x,y].text(ex_axes + 0.15, ey_axes + 0.825, "Tethered power",
+#                           transform=axes[x,y].transAxes,
+#                            fontsize='12',
+#                           ha='left', va='center')
+#
+
+            # For instrumentation
+            if event.idx == 2 or event.idx == 4:
+                axes[x,y].axvspan(ex_datas[event.idx - 1], ex_datas[event.idx],
+                                  0.4, 1.0,
+                                  #color=cm(0.8))
+                                  color=cm(0.1))
+
+            print ex_datas
+            if event.idx == 2:
+                # tethered power label
+                l_x = float(ex_datas[event.idx] + ex_datas[event.idx - 1])  / 2
+                l_x_ax = float(ex_axess[event.idx] + ex_axess[event.idx - 1])  / 2
+                axes[x,y].text(l_x + 10, 2.80,
+                               "Tethered\npower", fontsize='10', ha='center', va='center')
+                axes[x,y].arrow(l_x_ax + 0.07, 0.9, -0.04, 0,
+                                transform=axes[x,y].transAxes)
+                               
+            if event.idx == 4:
+                # tethered power label
+                axes[x,y].text(float(ex_datas[event.idx] + ex_datas[event.idx - 1]) / 2, 2.85,
+                               "Tethered\npower", fontsize='10', ha='center', va='center')
     y += 1
     if y % 2 == 0:
         y = 0
