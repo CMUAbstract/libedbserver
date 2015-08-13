@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <libdebug/target_comm.h>
+#include <libedb/target_comm.h>
 
 #include "pmm.h" // must be before pin_assign.h since the latter undefs
 #include "pin_assign.h"

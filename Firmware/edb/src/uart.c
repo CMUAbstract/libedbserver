@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <msp430.h>
 
-#include <libdebug/target_comm.h>
+#include <libedb/target_comm.h>
 
 #include "host_comm.h"
 #include "minmax.h"

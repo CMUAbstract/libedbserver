@@ -6,7 +6,7 @@ CC      = $(PREFIX)gcc
 GDB     = $(PREFIX)gdb
 
 SRC_DIR := ../src
-LIBDEBUG_ROOT := ../../libdebug
+LIBEDB_ROOT := ../../libedb
 
 CFLAGS = \
 	-mmcu=$(DEVICE) \
@@ -16,7 +16,7 @@ CFLAGS = \
 	-pedantic \
 	-Wall \
 	-I $(TOOLCHAIN_ROOT)/include \
-	-I $(LIBDEBUG_ROOT)/src/include \
+	-I $(LIBEDB_ROOT)/src/include \
 	-I $(SRC_DIR) \
 	-I $(SRC_DIR)/adc12 \
 	-I $(SRC_DIR)/gpio \
