@@ -146,7 +146,9 @@ typedef enum {
  * @brief   Assigns a permanent index to each ADC channels
  *
  * @details This maps a application's name for an ADC channel to an index
- *          understandable to the ADC12 driver in adc12.c.
+ *          understandable to the ADC driver in adc.c.
+ *
+ *          NOTE: Must match order of stream_info in adc.c.
  */
 typedef enum {
     ADC_CHAN_INDEX_VCAP                     = 0,

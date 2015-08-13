@@ -24,7 +24,7 @@
 #include "pmm.h" // must be before pin_assign.h since the latter undefs
 #include "pin_assign.h"
 #include "host_comm.h"
-#include "adc12.h"
+#include "adc.h"
 #include "uart.h"
 #include "i2c.h"
 #include "pwm.h"
@@ -50,7 +50,7 @@
 #define LOG_VINJ					0x10 //!< Logging Vinj
 /** @} End LOG_DEFINES */
 
-#define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC12_MAX_CHANNELS * sizeof(uint16_t))
+#define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC_MAX_CHANNELS * sizeof(uint16_t))
 #define HOST_MSG_BUF_SIZE     32 // buffer for UART messages (to host) for main loop
 #define TARGET_MSG_BUF_SIZE   16 // buffer for UART messages (to target) for main loop
 
@@ -201,20 +201,6 @@ static watchpoint_event_t *watchpoint_events_bufs[NUM_WATCHPOINT_BUFFERS] = {
 static unsigned watchpoint_events_count[NUM_WATCHPOINT_BUFFERS];
 static watchpoint_event_t *watchpoint_events_buf;
 static unsigned watchpoint_events_buf_idx;
-
-static adc12_t adc12 = {
-    .config = {
-        .channel_masks = { // map permanent software indexes to hardware ADC channels
-            ADC_CHAN_VCAP,
-            ADC_CHAN_VBOOST,
-            ADC_CHAN_VREG,
-            ADC_CHAN_VRECT,
-            ADC_CHAN_VINJ,
-        },
-        .num_channels = 0, // maintained at runtime
-        .sampling_period = CONFIG_ADC_SAMPLING_PERIOD,
-    },
-};
 
 static inline void clock_setup()
 {
@@ -527,7 +513,7 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
     set_state(STATE_ENTERING);
 
     if (!(flags & DEBUG_MODE_NESTED)) {
-        interrupt_context.saved_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        interrupt_context.saved_vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
     } else {
         interrupt_context.saved_debug_mode_flags = debug_mode_flags;
     }
@@ -646,7 +632,7 @@ static inline void append_watchpoint_event(unsigned index)
 
     watchpoint_event->timestamp = TIMELOG_CURRENT_TIME;
     watchpoint_event->index = index;
-    watchpoint_event->vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
 
     if (watchpoint_events_count[watchpoint_events_buf_idx] == NUM_WATCHPOINT_EVENTS_BUFFERED) {
         // swap to the other buffer in the double-buffer pair
@@ -684,7 +670,7 @@ static void interrupt_target()
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
-        cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+        cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
     } while (cur_vreg < MCU_ON_THRES);
 
     __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
@@ -895,7 +881,7 @@ static uint16_t charge_adc(uint16_t target)
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
-        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        cur_voltage = ADC_read(ADC_CHAN_INDEX_VCAP);
     } while (cur_voltage < target);
 
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
@@ -917,7 +903,7 @@ static uint16_t discharge_adc(uint16_t target)
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
-        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        cur_voltage = ADC_read(ADC_CHAN_INDEX_VCAP);
     } while (cur_voltage > target);
 
     GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
@@ -1017,7 +1003,7 @@ static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
 			__delay_cycles(21922); // delay for 1ms
 		}
 
-		result = ADC12_read(&adc12, adc_chan_index);
+		result = ADC_read(adc_chan_index);
 		compare = uint16Compare(result, target, threshold);
 		if(compare < 0) {
 			// result < target
@@ -1255,10 +1241,10 @@ static void break_at_vcap_level_adc(uint16_t level)
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
 
-    cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
     if (cur_vreg < MCU_ON_THRES) { // MCU is off, wait for MCU to turn on
         do {
-            cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+            cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
         } while (cur_vreg < MCU_ON_THRES);
         // TODO: MCU boot delay
         __delay_cycles(35000);
@@ -1266,7 +1252,7 @@ static void break_at_vcap_level_adc(uint16_t level)
     } // else: MCU is already on, go on to check Vcap right away
 
     do {
-        cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+        cur_vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
     } while (cur_vcap > level);
 
     enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
@@ -1306,7 +1292,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_SENSE:
         {
             adc_chan_index_t chan_idx = (adc_chan_index_t)pkt->data[0];
-            adc12Result = ADC12_read(&adc12, chan_idx);
+            adc12Result = ADC_read(chan_idx);
             send_voltage(adc12Result);
             break;
         }
@@ -1345,21 +1331,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_BEGIN: {
         uint16_t streams = pkt->data[0];
-        adc12.config.sampling_period = (pkt->data[2] << 8) | pkt->data[1];
+        unsigned sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 
         streams_bitmask = streams;
         adc_streams_bitmask = streams & ADC_STREAMS;
 
-        if (streams & STREAM_VCAP)
-            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VCAP);
-        if (streams & STREAM_VBOOST)
-            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VBOOST);
-        if (streams & STREAM_VREG)
-            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VREG);
-        if (streams & STREAM_VRECT)
-            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VRECT);
-        if (streams & STREAM_VINJ)
-            ADC12_addChannel(&adc12, ADC_CHAN_INDEX_VINJ);
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
             RFID_start_event_stream();
@@ -1368,9 +1344,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
             enable_watchpoints();
 
         // actions common to all adc streams
-        if (adc12.config.num_channels > 0) {
+        if (streams & ADC_STREAMS) {
             main_loop_flags |= FLAG_LOGGING; // for main loop
-            ADC12_setup(&adc12, adc_streams_bitmask);
+            ADC_start(adc_streams_bitmask, sampling_period);
         }
         break;
     }
@@ -1381,16 +1357,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         adc_streams_bitmask &= ~(streams & ADC_STREAMS);
         streams_bitmask = 0;
 
-        if (streams & STREAM_VCAP)
-            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VCAP);
-        if (streams & STREAM_VBOOST)
-            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VBOOST);
-        if (streams & STREAM_VREG)
-            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VREG);
-        if (streams & STREAM_VRECT)
-            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VRECT);
-        if (streams & STREAM_VINJ)
-            ADC12_removeChannel(&adc12, ADC_CHAN_INDEX_VINJ);
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
             RFID_stop_event_stream();
@@ -1399,8 +1365,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
             disable_watchpoints();
 
         // actions common to all adc streams
-        if (adc12.config.num_channels == 0) {
-            ADC12_stop();
+        if (streams & ADC_STREAMS) {
+            ADC_stop();
             main_loop_flags &= ~FLAG_LOGGING; // for main loop
         }
         break;
@@ -1699,8 +1665,6 @@ int main(void)
     RFID_init();
 #endif
 
-    ADC12_init(&adc12);
-
     init_watchpoint_event_bufs();
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
@@ -1737,11 +1701,10 @@ int main(void)
             send_voltage(interrupt_context.restored_vcap);
         }
 
-        if((main_loop_flags & FLAG_ADC12_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
+        if((main_loop_flags & FLAG_ADC_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
             // ADC12 has completed conversion on all active channels
-
-            ADC12_send_samples_to_host(&adc12);
-            main_loop_flags &= ~FLAG_ADC12_COMPLETE;
+            ADC_send_samples_to_host();
+            main_loop_flags &= ~FLAG_ADC_COMPLETE;
         }
 
         if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op

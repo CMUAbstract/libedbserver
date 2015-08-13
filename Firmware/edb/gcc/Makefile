@@ -43,7 +43,7 @@ OBJECTS = \
 	timeLog.o \
 	rfid/rfid.o \
 	rfid/rfid_decoder.o \
-	adc12.o \
+	adc.o \
 	mspware/pmm.o \
 	params.o \
 

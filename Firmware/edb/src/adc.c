@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <msp430.h>
-#include "adc12.h"
+#include "adc.h"
 #include "timeLog.h"
 #include "pin_assign.h"
 #include "main_loop.h"
@@ -17,11 +17,13 @@
 #include "config.h"
 #include "error.h"
 
+#define ADC_MAX_CHANNELS  5
+
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_BUFFERED_SAMPLES                        32
 
 #define SAMPLE_TIMESTAMPS_SIZE (NUM_BUFFERED_SAMPLES * sizeof(uint16_t))
-#define SAMPLE_VOLTAGES_SIZE   (NUM_BUFFERED_SAMPLES * ADC12_MAX_CHANNELS * sizeof(uint16_t))
+#define SAMPLE_VOLTAGES_SIZE   (NUM_BUFFERED_SAMPLES * ADC_MAX_CHANNELS * sizeof(uint16_t))
 
 // Buffer layout:
 //
@@ -43,7 +45,24 @@
 #define SAMPLE_TIMESTAMPS_OFFSET  (UART_MSG_HEADER_SIZE + STREAM_DATA_MSG_HEADER_LEN)
 #define SAMPLE_VOLTAGES_OFFSET  (SAMPLE_TIMESTAMPS_OFFSET + SAMPLE_TIMESTAMPS_SIZE)
 
-static adc12_t *_pAdc12;
+typedef struct {
+    unsigned stream; // stream bitmask value
+    uint8_t chan; // hw channel id
+} adc_stream_t;
+
+/* @brief Map between index, stream bit, and hw chan id
+ * @details NOTE: order must match adc_chan_index_t in host_comm.h
+ *          NOTE: size must match ADC_MAX_CHANNELS
+ */
+static adc_stream_t stream_info[] = {
+    { STREAM_VCAP,   ADC_CHAN_VCAP   },
+    { STREAM_VBOOST, ADC_CHAN_VBOOST },
+    { STREAM_VREG,   ADC_CHAN_VREG   },
+    { STREAM_VRECT,  ADC_CHAN_VRECT  },
+    { STREAM_VINJ,   ADC_CHAN_VINJ   },
+};
+
+static unsigned num_channels;
 
 static uint8_t sample_msg_bufs[NUM_BUFFERS][SAMPLES_MSG_BUF_SIZE];
 
@@ -64,22 +83,12 @@ static volatile unsigned sample_buf_idx;
 static uint16_t *sample_timestamps_buf;
 static uint16_t *sample_voltages_buf;
 
-void ADC12_init(adc12_t *adc12)
-{
-    uint16_t i;
-
-    // init indices in the adc12.config.channels and adc12.results arrays
-    for (i = 0; i < ADC12_MAX_CHANNELS; ++i)
-        adc12->indexes[i] = -1;
-}
-
-void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
+void ADC_start(uint16_t streams, unsigned sampling_period)
 {
     unsigned i;
     unsigned offset;
     uint8_t *header;
-
-    _pAdc12 = adc12;
+    volatile uint8_t *ctl_reg;
 
     ADC12CTL0 &= ~ADC12ENC; // disable conversion so we can set control bits
 
@@ -89,23 +98,21 @@ void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
     // use sampling timer, sequence of channels, repeat-conversion, trigger from Timer B CCR0
     ADC12CTL1 = ADC12SHP + ADC12CONSEQ_1 + ADC12SHS_2;
 
-    // set ADC memory control registers
-    volatile uint8_t *adc12mctl_registers[5] = { &ADC12MCTL0,
-                                                 &ADC12MCTL1,
-                                                 &ADC12MCTL2,
-                                                 &ADC12MCTL3,
-                                                 &ADC12MCTL4 };
-    for(i = 0; i < _pAdc12->config.num_channels; i++) {
-        uint16_t chan_index = adc12->config.channels[i];
-        *(adc12mctl_registers[i]) = adc12->config.channel_masks[chan_index];
+    // set ADC memory control registers and count channels
+    num_channels = 0;
+    ctl_reg = &ADC12MCTL0;
+    for (i = 0; i < ADC_MAX_CHANNELS; ++i) {
+        if (streams & stream_info[i].stream) {
+            *(ctl_reg++) = stream_info[i].chan;
+            num_channels++;
+        }
     }
-    unsigned last_channel_index = _pAdc12->config.num_channels - 1;
-    *(adc12mctl_registers[last_channel_index]) |= ADC12EOS;
+    *(--ctl_reg) |= ADC12EOS;
 
     ADC12IFG = 0; // clear int flags
-    ADC12IE = (0x0001 << last_channel_index); // enable interupt on last sample
+    ADC12IE = (0x0001 << (num_channels - 1)); // enable interupt on last sample
 
-    TB0CCR0 = adc12->config.sampling_period;
+    TB0CCR0 = sampling_period;
     TB0CCTL0 = OUTMOD_3; // set/reset output mode
     TB0CTL = TIMER_B_CLK_SOURCE_BITS(CONFIG_ADC_TIMER_SOURCE_NAME) |
              TIMER_DIV_BITS(CONFIG_ADC_TIMER_DIV) |
@@ -114,7 +121,7 @@ void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
     for (i = 0; i < NUM_BUFFERS; ++i) {
         header = &sample_msg_bufs[i][UART_MSG_HEADER_SIZE];
         offset = 0;
-        header[offset++] = streams_bitmask;
+        header[offset++] = streams;
         header[offset++] = 0; // filled in num events once buffer is ready
 
         num_samples[i] = 0;
@@ -127,7 +134,7 @@ void ADC12_setup(adc12_t *adc12, uint16_t streams_bitmask)
     ADC12CTL0 |= ADC12ENC; // launch: wait for trigger
 }
 
-void ADC12_send_samples_to_host(adc12_t *adc12)
+void ADC_send_samples_to_host()
 {
     unsigned ready_buf_idx = sample_buf_idx ^ 1; // the other one in the double-buffer pair
 
@@ -145,7 +152,7 @@ void ADC12_send_samples_to_host(adc12_t *adc12)
              * size of the timestamp section (i.e. timestamps section is fixed-width,
              * and only the (trailing) voltage section is variable-length). */
             SAMPLE_TIMESTAMPS_SIZE +
-            num_samples[ready_buf_idx] * sizeof(uint16_t) * adc12->config.num_channels,
+            num_samples[ready_buf_idx] * sizeof(uint16_t) * num_channels,
             (uint8_t *)&sample_msg_bufs[ready_buf_idx][0]);
 
     UART_end_transmission();
@@ -153,72 +160,29 @@ void ADC12_send_samples_to_host(adc12_t *adc12)
     num_samples[ready_buf_idx] = 0; // mark buffer as free
 }
 
-uint16_t ADC12_read(adc12_t *adc12, unsigned chan_index)
+uint16_t ADC_read(unsigned chan_index)
 {
     ADC12CTL0 &= ~ADC12ENC; // disable ADC
 
     ADC12CTL0 = ADC12SHT0_2 + ADC12ON; // sampling time, ADC12 on
     ADC12CTL1 = ADC12SHP + ADC12CONSEQ_0; // use sampling timer, single-channel, single-conversion
-    ADC12MCTL0 = adc12->config.channel_masks[chan_index]; // set ADC memory control register
+    ADC12MCTL0 = stream_info[chan_index].chan; // set ADC memory control register
     ADC12IE = 0; // disable interrupt
 
     ADC12CTL0 |= ADC12ENC; // enable ADC
 
-    ADC12_trigger(); // start conversion
+    // Trigger
+    ADC12CTL0 &= ~ADC12SC;  // 'start conversion' bit must be toggled
+    ADC12CTL0 |= ADC12SC; // start conversion
+
     while (ADC12CTL1 & ADC12BUSY); // wait for conversion to complete
     return ADC12MEM0;
 }
 
-void ADC12_addChannel(adc12_t *adc12, unsigned chan_index)
-{
-    // the results index corresponds to the index in the channels array
-
-    adc12->config.channels[adc12->config.num_channels] = chan_index;
-    adc12->indexes[chan_index] = adc12->config.num_channels++;
-}
-
-void ADC12_removeChannel(adc12_t *adc12, unsigned chan_index)
-{
-    // note that chan_index is also the corresponding
-    // index in the channels array
-
-    // the channel is present in the configuration
-    adc12->config.num_channels--;
-
-    if(adc12->indexes[chan_index] != adc12->config.num_channels) {
-        // We're removing this channel, but it wasn't the last channel
-        // configured.  We need to move the other channels in the channels
-        // array so there are no missing channels in the array.
-        unsigned i;
-        for(i = adc12->indexes[chan_index] + 1; i < adc12->config.num_channels + 1; i++) {
-            adc12->config.channels[i - 1] = adc12->config.channels[i];
-        }
-
-        // update the results array indices
-        for (i = 0; i < ADC12_MAX_CHANNELS; ++i) {
-            if(adc12->indexes[i] >= adc12->config.num_channels)
-                adc12->indexes[i]--;
-        }
-    }
-
-    adc12->indexes[chan_index] = -1; // remove the channel
-}
-
-void ADC12_trigger()
-{
-    ADC12CTL0 &= ~ADC12SC;  // 'start conversion' bit must be toggled
-    ADC12CTL0 |= ADC12SC; // start conversion
-}
-
-void ADC12_stop()
+void ADC_stop()
 {
     ADC12CTL0 &= ~(ADC12SC | ADC12ENC);  // stop conversion and disable ADC
     while (ADC12CTL1 & ADC12BUSY); // conversion stops at end of sequence
-}
-
-uint16_t ADC12_getSample(adc12_t *adc12, uint16_t chan_index)
-{
-    return adc12->results[adc12->indexes[chan_index]];
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -292,7 +256,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 
         voltage_sample_offset = 0;
 
-        main_loop_flags |= FLAG_ADC12_COMPLETE;
+        main_loop_flags |= FLAG_ADC_COMPLETE;
     }
 
     ADC12CTL0 |= ADC12ENC;
@@ -309,7 +273,7 @@ void __attribute__ ((interrupt(TIMER0_B1_VECTOR))) UNHANDLED_ISR_TIMER0_B1(void)
 #endif
 {
     _pAdc12->results[0] = 0xbeef;
-    main_loop_flags |= FLAG_ADC12_COMPLETE;
+    main_loop_flags |= FLAG_ADC_COMPLETE;
     TB0CCTL1 &= ~CCIFG;
 }
 #endif

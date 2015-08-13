@@ -6,7 +6,7 @@
  * @{
  */
 typedef enum {
-    FLAG_ADC12_COMPLETE         = 0x0001, //!< ADC12 has completed conversion
+    FLAG_ADC_COMPLETE           = 0x0001, //!< ADC has completed conversion
     FLAG_UART_USB_RX            = 0x0002, //!< Bytes received on the USB UART
     FLAG_UART_USB_TX            = 0x0004, //!< Bytes transmitted on the USB UART
     FLAG_UART_WISP_RX           = 0x0008, //!< Bytes received on the WISP UART
