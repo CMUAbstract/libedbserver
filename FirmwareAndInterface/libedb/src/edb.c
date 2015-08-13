@@ -10,7 +10,7 @@
 #include <stdbool.h>
 #include <wisp-base.h>
 
-#include "debug.h"
+#include "edb.h"
 #include "pin_assign.h"
 #include "target_comm.h"
 
@@ -71,7 +71,7 @@ static state_t state = STATE_OFF;
 static uint16_t debug_flags = 0;
 static interrupt_context_t interrupt_context;
 
-volatile uint16_t __fram _libdebug_internal_breakpoints = 0x00;
+volatile uint16_t __fram _libedb_internal_breakpoints = 0x00;
 
 static uint16_t *wisp_sp; // stack pointer on debug entry
 
@@ -380,9 +380,9 @@ static void execute_cmd(cmd_t *cmd)
             bool enable = cmd->data[1];
 
             if (enable)
-                _libdebug_internal_breakpoints |= 1 << index;
+                _libedb_internal_breakpoints |= 1 << index;
             else
-                _libdebug_internal_breakpoints &= ~(1 << index);
+                _libedb_internal_breakpoints &= ~(1 << index);
 
             msg_len = 0;
             tx_buf[msg_len++] = UART_IDENTIFIER_WISP;

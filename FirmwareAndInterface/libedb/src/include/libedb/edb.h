@@ -92,7 +92,7 @@
 /**
  * @brief Bitmask that stores the enabled/disabled state of internal breakpoints
  */
-extern volatile uint16_t _libdebug_internal_breakpoints;
+extern volatile uint16_t _libedb_internal_breakpoints;
 
 void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned features);
 
@@ -123,7 +123,7 @@ void request_debug_mode(interrupt_type_t int_type, unsigned id, unsigned feature
  *          bit-width of the mask, which could easily be increased.
  */
 #define INTERNAL_BREAKPOINT(idx) \
-    if (_libdebug_internal_breakpoints & (1 << idx)) \
+    if (_libedb_internal_breakpoints & (1 << idx)) \
         request_debug_mode(INTERRUPT_TYPE_BREAKPOINT, idx, DEBUG_MODE_FULL_FEATURES)
 
 #ifndef CONFIG_ENABLE_PASSIVE_BREAKPOINTS
@@ -185,7 +185,7 @@ void debug_setup();
 void resume_application();
 
 void UART_init(); // defined by wisp-base
-void UART_teardown(); // defined by libdebug
+void UART_teardown(); // defined by libedb
 
 #define PRINTF(...) do { \
         request_debug_mode(INTERRUPT_TYPE_ENERGY_GUARD, 0, DEBUG_MODE_WITH_UART); \

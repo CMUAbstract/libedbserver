@@ -8,7 +8,6 @@ CC      = $(PREFIX)gcc
 GDB     = $(PREFIX)gdb
 
 SRC_DIR := ../src
-LIBDEBUG_ROOT := ../../libdebug
 WISP_BASE_ROOT := $(DEV_ROOT)/wisp5/CCS/wisp-base
 
 CFLAGS = \
@@ -21,14 +20,14 @@ CFLAGS = \
 	-I $(TOOLCHAIN_ROOT)/include \
 	-I $(WISP_BASE_ROOT) \
 	-I $(SRC_DIR) \
-	-I $(SRC_DIR)/include/libdebug \
+	-I $(SRC_DIR)/include/libedb \
 
 VPATH = $(SRC_DIR)
 
-BINARY = libdebug.a
+BINARY = libedb.a
 
 OBJECTS = \
-	debug.o \
+	edb.o \
 	io.o \
 	printf.o \
 

@@ -13,7 +13,7 @@ WISP_BASE_ROOT := $(DEV_ROOT)/wisp5/CCS/wisp-base
 
 SRC_ROOT = ../src
 
-LIB = libdebug.lib
+LIB = libedb.lib
 
 COMMON_FLAGS = \
 	-g \
@@ -40,7 +40,7 @@ CFLAGS = \
 	--include_path="$(PLATFORM_ROOT)/include" \
 	--include_path="$(WISP_BASE_ROOT)" \
 	--include_path="$(SRC_ROOT)" \
-	--include_path="$(SRC_ROOT)/include/libdebug" \
+	--include_path="$(SRC_ROOT)/include/libedb" \
 
 ASFLAGS = $(CFLAGS)
 
@@ -50,7 +50,7 @@ VPATH += $(SRC_ROOT)
 # Specify the source files list explicitly avoiding wildcards, in order to make
 # sure the build (esp. linker) doesn't pick up stray files
 C_SRCS = \
-	debug.c \
+	edb.c \
 
 ASM_SRCS = \
 
