@@ -52,6 +52,7 @@ OBJECTS = \
 	host_comm_impl.o \
 	target_comm_impl.o \
 	tether.o \
+	clock.o \
 
 all: $(EXEC)
 

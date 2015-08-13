@@ -92,6 +92,7 @@ C_SRCS = \
 	host_comm_impl.c \
 	target_comm_impl.c \
 	tether.c \
+	clock.c \
 
 ASM_SRCS = \
 
