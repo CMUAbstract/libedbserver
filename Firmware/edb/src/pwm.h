@@ -1,10 +1,3 @@
-/*******************************************************************************
- * @file
- * @date        21 March 2015
- * @author      Graham Harvey
- * @brief       Definitions and prototypes for PWM on the WISP debugger.
- ******************************************************************************/
-
 #ifndef PWM_H
 #define PWM_H
 

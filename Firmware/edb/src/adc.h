@@ -1,11 +1,3 @@
-/*******************************************************************************
- * @file
- * @date            21 March 2015
- * @author          Graham Harvey
- * @brief           Definitions and prototypes for using the 12-bit ADC
- *                  with the WISP debugger.
- ******************************************************************************/
-
 #ifndef ADC_H
 #define ADC_H
 

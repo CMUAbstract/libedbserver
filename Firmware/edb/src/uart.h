@@ -1,10 +1,3 @@
-/******************************************************************************
- * @file
- * @date    28 April 2015
- * @author  Graham Harvey
- * @brief   Definitions and prototypes for using UARTs with the WISP monitor.
- *****************************************************************************/
-
 #ifndef UART_H
 #define UART_H
 

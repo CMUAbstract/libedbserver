@@ -1,10 +1,3 @@
-/******************************************************************************
- * @file
- * @date    2 March 2015
- * @author  Graham Harvey
- * @brief   Functions for using UARTs with the WISP monitor.
- *****************************************************************************/
-
 #include <stdint.h>
 #include <msp430.h>
 

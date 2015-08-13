@@ -1,19 +1,3 @@
-/**
- * @file
- * @author  Graham Harvey
- * @date    13 May 2015
- * @brief   Main function for the WISP monitor.
- * @details The MSP430 on the WISP monitor has UART interrupts enabled to interface
- *          to a computer through USB.  The main loop checks flags that are set in
- *          the interrupt service routines.  This allows execution to continue
- *          without blocking to wait for peripherals.  The 12-bit ADC in use has
- *          several channels that allow four different voltages to be sampled on
- *          the WISP. These are named Vcap, Vboost, Vreg, and Vrect.  The monitor
- *          can get a single sample or log repeated samples of any of those.  It
- *          can also inject power to keep one of those voltages at a level defined
- *          by the user.  However, current is always injected on Vcap.
- */
-
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>

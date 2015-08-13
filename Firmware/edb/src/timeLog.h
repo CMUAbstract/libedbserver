@@ -1,10 +1,3 @@
-/*******************************************************************************
- * @file
- * @date        14 April 2015
- * @author      Graham Harvey
- * @brief       Prototypes and definitions for WISP monitor time logging.
- ******************************************************************************/
-
 #ifndef TIMELOG_H
 #define TIMELOG_H
 

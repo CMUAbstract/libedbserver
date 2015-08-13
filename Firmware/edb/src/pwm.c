@@ -1,10 +1,3 @@
-/*******************************************************************************
- * @file
- * @date        21 March 2015
- * @author      Graham Harvey
- * @brief       Functions for WISP power monitoring.
- ******************************************************************************/
-
 #include <msp430.h>
 #include <stdint.h>
 #include "pin_assign.h"

@@ -1,10 +1,3 @@
-/*******************************************************************************
- * @file
- * @date            28 April 2015
- * @author          Graham Harvey
- * @brief           Functions for using the 12-bit ADC with the WISP monitor.
- ******************************************************************************/
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <msp430.h>
