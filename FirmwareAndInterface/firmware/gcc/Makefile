@@ -37,13 +37,13 @@ OBJECTS = \
 	catchall.o \
 	main.o \
 	error.o \
-	uart/uart.o \
-	i2c/i2c.o \
-	timers/pwm.o \
-	timers/timeLog.o \
+	uart.o \
+	i2c.o \
+	pwm.o \
+	timeLog.o \
 	rfid/rfid.o \
 	rfid/rfid_decoder.o \
-	adc12/adc12.o \
+	adc12.o \
 	mspware/pmm.o \
 	params.o \
 

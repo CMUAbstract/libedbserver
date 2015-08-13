@@ -14,7 +14,7 @@ FLASHER := LD_LIBRARY_PATH=$(FLASHER_ROOT) $(FLASHER_ROOT)/MSP430Flasher
 LIBDEBUG_ROOT := ../../libdebug
 
 SRC_ROOT = ../src
-LD_SCRIPT = $(SRC_ROOT)/lnk_msp430f5340.cmd
+LD_SCRIPT = lnk_msp430f5340.cmd
 
 EXEC = monitor
 
@@ -79,13 +79,13 @@ C_SRCS = \
 	mspware/pmm.c \
 	main.c \
 	error.c \
-	uart/uart.c \
-	i2c/i2c.c \
-	timers/pwm.c \
-	timers/timeLog.c \
+	uart.c \
+	i2c.c \
+	pwm.c \
+	timeLog.c \
 	rfid/rfid.c \
 	rfid/rfid_decoder.c \
-	adc12/adc12.c \
+	adc12.c \
 
 ASM_SRCS = \
 
