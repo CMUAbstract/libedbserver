@@ -31,7 +31,7 @@ LFLAGS = -L $(TOOLCHAIN_ROOT)/include
 
 VPATH = $(SRC_DIR)
 
-EXEC = monitor
+EXEC = edb
 
 OBJECTS = \
 	catchall.o \

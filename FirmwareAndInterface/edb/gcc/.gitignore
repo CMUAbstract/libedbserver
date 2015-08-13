@@ -1,0 +1,6 @@
+*.o
+*.d
+*.asm
+edb
+
+rfid/

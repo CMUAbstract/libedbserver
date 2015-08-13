@@ -16,7 +16,7 @@ LIBDEBUG_ROOT := ../../libdebug
 SRC_ROOT = ../src
 LD_SCRIPT = lnk_msp430f5340.cmd
 
-EXEC = monitor
+EXEC = edb
 
 COMMON_FLAGS = \
 	-g \
