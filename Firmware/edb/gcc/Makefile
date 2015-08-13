@@ -46,6 +46,8 @@ OBJECTS = \
 	adc.o \
 	mspware/pmm.o \
 	params.o \
+	charge.o \
+	comparator.o \
 
 all: $(EXEC)
 

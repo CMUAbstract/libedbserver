@@ -36,6 +36,8 @@
 #include "error.h"
 #include "main_loop.h"
 #include "params.h"
+#include "charge.h"
+#include "comparator.h"
 
 
 /**
@@ -66,12 +68,6 @@
 
 #define MAX_WATCHPOINTS          NUM_CODEPOINT_VALUES
 
-#define COMP_NEG_CHAN_INNER(idx) CBIMSEL_ ## idx
-#define COMP_NEG_CHAN(idx) COMP_NEG_CHAN_INNER(idx)
-
-#define COMP_PORT_DIS_INNER(idx) CBPD ## idx
-#define COMP_PORT_DIS(idx) COMP_PORT_DIS_INNER(idx)
-
 #define DCO_FREQ_RANGE_BITS_INNER(r) DCORSEL_ ## r;
 #define DCO_FREQ_RANGE_BITS(r) DCO_FREQ_RANGE_BITS_INNER(r)
 
@@ -95,24 +91,6 @@ typedef enum {
     STATE_SERIAL_ECHO, // for testing purposes only
 } state_t;
 
-/**
- * @brief State of async charge/discharge operation
- */
-typedef enum {
-    CMP_OP_NONE = 0,
-    CMP_OP_CHARGE,
-    CMP_OP_DISCHARGE,
-    CMP_OP_ENERGY_BREAKPOINT,
-    CMP_OP_CODE_ENERGY_BREAKPOINT,
-    CMP_OP_RESET_STATE_ON_BOOT,
-} comparator_op_t;
-
-typedef enum {
-    CMP_EDGE_ANY,
-    CMP_EDGE_FALLING,
-    CMP_EDGE_RISING,
-} comparator_edge_t;
-
 typedef struct {
     interrupt_type_t type;
     unsigned id;
@@ -130,7 +108,6 @@ typedef struct {
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
 static state_t state = STATE_IDLE;
-static comparator_op_t comparator_op = CMP_OP_NONE;
 static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
 static int sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
 
@@ -546,67 +523,6 @@ static void reset_state()
     unmask_target_signal();
 }
 
-static void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
-                           comparator_edge_t edge)
-{
-    comparator_op = op;
-
-    // ref0 = ref1 = target = Vref / 2^32 * target_volts
-    switch (ref) {
-        case CMP_REF_VCC:
-            CBCTL2 = CBRS_1;
-            break;
-        case CMP_REF_VREF_2_5:
-            CBCTL2 = CBREFL_3 | CBRS_2; // Vref = 2.5V and Vref to resistor ladder
-            break;
-        case CMP_REF_VREF_2_0:
-            CBCTL2 = CBREFL_2 | CBRS_2; // Vref = 2.0V and Vref to resistor ladder
-            break;
-        case CMP_REF_VREF_1_5:
-            CBCTL2 = CBREFL_1 | CBRS_2; // Vref = 1.5V and Vref to resistor ladder
-            break;
-        default:
-            error(ERROR_INVALID_VALUE);
-            break;
-    }
-    CBCTL2 |= (target << 8) | target;
-
-    CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
-    CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
-    CBCTL1 |= CBF | CBFDLY_3;
-
-    CBINT &= ~CBIE; // disable CompB interrupt
-
-    CBCTL1 |= CBON;               // turn on ComparatorB
-
-    switch (edge) {
-        case CMP_EDGE_FALLING:
-            CBCTL1 |= CBIES;
-            break;
-        case CMP_EDGE_RISING:
-            CBCTL1 &= ~CBIES;
-            break;
-        case CMP_EDGE_ANY: // determine direction that would change current output
-            if (CBCTL1 & CBOUT)
-                CBCTL1 |= CBIES;
-            else
-                CBCTL1 &= ~CBIES;
-            break;
-        default:
-            error(ERROR_INVALID_VALUE);
-            break;
-    }
-
-    CBINT &= ~(CBIFG | CBIIFG);   // clear any errant interrupts
-    CBINT |= CBIE;                // enable CompB interrupt
-}
-
-static void disarm_comparator()
-{
-    CBINT &= ~CBIE; // disable interrupt
-    CBCTL1 &= ~CBON; // turn off
-}
-
 static void init_watchpoint_event_bufs()
 {
     unsigned i, offset;
@@ -857,164 +773,6 @@ static void disable_watchpoints()
 {
     GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
 }
-
-/**
- * @brief	Charge WISP capacitor to the specified voltage level using ADC
- * @param	target			Target voltage level to charge to (in ADC units)
- * @return  final actual measured voltage level (ADC units)
- */
-static uint16_t charge_adc(uint16_t target)
-{
-    uint16_t cur_voltage;
-
-    // Output Vcc level to Vcap (through R1) */
-
-    // Configure the pin
-    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
-    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
-    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
-
-    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
-
-    // Wait for the cap to charge to that voltage
-
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-    do {
-        cur_voltage = ADC_read(ADC_CHAN_INDEX_VCAP);
-    } while (cur_voltage < target);
-
-    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
-
-    return cur_voltage;
-}
-
-/**
- * @brief	Discharge WISP capacitor to the specified voltage level using ADC
- * @param	target			Target voltage level to discharge to (in ADC units)
- * @return  final actual measured voltage level (ADC units)
- */
-static uint16_t discharge_adc(uint16_t target)
-{
-    uint16_t cur_voltage;
-
-    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
-
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-    do {
-        cur_voltage = ADC_read(ADC_CHAN_INDEX_VCAP);
-    } while (cur_voltage > target);
-
-    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
-
-    return cur_voltage;
-}
-
-/**
- * @brief	Charge WISP capacitor to the specified voltage level using comparator
- * @param	target			Target voltage level to charge to (as comparator ref value)
- * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
- * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
- */
-static void charge_cmp(uint16_t target, comparator_ref_t ref)
-{
-    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING);
-
-    // Configure the pin
-    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
-    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
-    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
-
-    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
-
-    // expect comparator interrupt
-}
-
-/**
- * @brief	Discharge WISP capacitor to the specified voltage level using comparator
- * @param	target			Target voltage level to discharge to (as comparator ref value)
- * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
- * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
- */
-static void discharge_cmp(uint16_t target, comparator_ref_t ref)
-{
-    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING);
-
-    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
-
-    // expect comparator interrupt
-}
-
-#ifdef CONFIG_PWM_CHARGING
-
-/**
- * @brief	Compare two unsigned 16-bit numbers.
- * @param	n1	One number
- * @param	n2	Another number
- * @param	threshold	minimum difference between n1 and n2 to consider them different.
- * @retval	1	n1 > n2 + threshold
- * @retval	0	n1 and n2 are within threshold of one another
- * @retval	-1	n1 < n2 - threshold
- */
-static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
-	if(n1 < n2 - threshold && n2 >= threshold) {
-		return -1;
-	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
-		return 1;
-	}
-	return 0;
-}
-
-/**
- * @brief	Block until setting the voltage read at channel to the ADC reading target.
- * @param	adc_chan_index  Permanent index statically assigned to the ADC channel
- * @param	target			Target ADC reading when the voltage is set, from 0 to 4095
- */
-static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
-{
-	uint16_t result;
-    int compare;
-	unsigned threshold = 1;
-
-	// Here, we want to choose a starting PWM duty cycle close to, but not above,
-	// what the correct one will be.  We want it to be close because we will test
-	// each duty cycle, increasing one cycle at a time, until we reach the right
-	// one.  In my experiment with the oscilloscope, the WISP cap took about 60ms
-	// to charge, so I'll give it 80ms for the first charge and 10ms for each
-	// charge following.
-
-	// We know the ADC target, so let's give the PWM duty cycle our best guess.
-	// target (adc) * PWM_period (SMCLK cycles) / 2^12 (adc) = approx. PWM_duty_cycle (SMCLK cycles)
-	// Subtract 40 from this to start.
-	uint32_t duty_cycle = (uint32_t) target * (uint32_t) TB0CCR0 / 4096;
-	TB0CCR1 = MAX((uint16_t) duty_cycle - 40, 0);
-	PWM_start();
-
-	// 70ms wait time
-	unsigned i;
-	for(i = 0; i < 40; i++) {
-		__delay_cycles(21922); // delay for 1ms
-	}
-
-	do {
-		// 10ms wait time
-		for(i = 0; i < 40; i++) {
-			__delay_cycles(21922); // delay for 1ms
-		}
-
-		result = ADC_read(adc_chan_index);
-		compare = uint16Compare(result, target, threshold);
-		if(compare < 0) {
-			// result < target
-			PWM_INCREASE_DUTY_CYCLE;
-		} else if(compare > 0) {
-			// result > target
-			PWM_DECREASE_DUTY_CYCLE;
-		}
-	} while(compare != 0);
-}
-#endif
 
 
 static void finish_enter_debug_mode()
