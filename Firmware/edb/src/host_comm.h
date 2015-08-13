@@ -1,6 +1,8 @@
 #ifndef HOST_COMM_H
 #define HOST_COMM_H
 
+#include <stdint.h>
+
 /**
  * @defgroup    UART_PROTOCOL  UART interface
  * @brief       UART usage

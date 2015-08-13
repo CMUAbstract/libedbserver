@@ -48,6 +48,10 @@ OBJECTS = \
 	params.o \
 	charge.o \
 	comparator.o \
+	codepoint.o \
+	host_comm_impl.o \
+	target_comm_impl.o \
+	tether.o \
 
 all: $(EXEC)
 

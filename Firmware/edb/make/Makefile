@@ -88,6 +88,10 @@ C_SRCS = \
 	adc12.c \
 	charge.c \
 	comparator.c \
+	codepoint.c \
+	host_comm_impl.c \
+	target_comm_impl.c \
+	tether.c \
 
 ASM_SRCS = \
 
