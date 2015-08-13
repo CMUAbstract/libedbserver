@@ -32,7 +32,6 @@
 #include "rfid.h"
 #include "rfid_decoder.h"
 #include "minmax.h"
-#include "main.h"
 #include "config.h"
 #include "error.h"
 #include "main_loop.h"
@@ -873,6 +872,165 @@ static void disable_watchpoints()
     GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
 }
 
+/**
+ * @brief	Charge WISP capacitor to the specified voltage level using ADC
+ * @param	target			Target voltage level to charge to (in ADC units)
+ * @return  final actual measured voltage level (ADC units)
+ */
+static uint16_t charge_adc(uint16_t target)
+{
+    uint16_t cur_voltage;
+
+    // Output Vcc level to Vcap (through R1) */
+
+    // Configure the pin
+    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
+
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
+
+    // Wait for the cap to charge to that voltage
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } while (cur_voltage < target);
+
+    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
+
+    return cur_voltage;
+}
+
+/**
+ * @brief	Discharge WISP capacitor to the specified voltage level using ADC
+ * @param	target			Target voltage level to discharge to (in ADC units)
+ * @return  final actual measured voltage level (ADC units)
+ */
+static uint16_t discharge_adc(uint16_t target)
+{
+    uint16_t cur_voltage;
+
+    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+    do {
+        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } while (cur_voltage > target);
+
+    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
+
+    return cur_voltage;
+}
+
+/**
+ * @brief	Charge WISP capacitor to the specified voltage level using comparator
+ * @param	target			Target voltage level to charge to (as comparator ref value)
+ * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
+ * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
+ */
+static void charge_cmp(uint16_t target, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING);
+
+    // Configure the pin
+    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
+    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
+    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
+
+    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
+
+    // expect comparator interrupt
+}
+
+/**
+ * @brief	Discharge WISP capacitor to the specified voltage level using comparator
+ * @param	target			Target voltage level to discharge to (as comparator ref value)
+ * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
+ * @details The 5-bit reference value is calculated as: target = 2.5 / 2^32 * target_volts
+ */
+static void discharge_cmp(uint16_t target, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING);
+
+    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
+
+    // expect comparator interrupt
+}
+
+#ifdef CONFIG_PWM_CHARGING
+
+/**
+ * @brief	Compare two unsigned 16-bit numbers.
+ * @param	n1	One number
+ * @param	n2	Another number
+ * @param	threshold	minimum difference between n1 and n2 to consider them different.
+ * @retval	1	n1 > n2 + threshold
+ * @retval	0	n1 and n2 are within threshold of one another
+ * @retval	-1	n1 < n2 - threshold
+ */
+static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
+	if(n1 < n2 - threshold && n2 >= threshold) {
+		return -1;
+	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
+		return 1;
+	}
+	return 0;
+}
+
+/**
+ * @brief	Block until setting the voltage read at channel to the ADC reading target.
+ * @param	adc_chan_index  Permanent index statically assigned to the ADC channel
+ * @param	target			Target ADC reading when the voltage is set, from 0 to 4095
+ */
+static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
+{
+	uint16_t result;
+    int compare;
+	unsigned threshold = 1;
+
+	// Here, we want to choose a starting PWM duty cycle close to, but not above,
+	// what the correct one will be.  We want it to be close because we will test
+	// each duty cycle, increasing one cycle at a time, until we reach the right
+	// one.  In my experiment with the oscilloscope, the WISP cap took about 60ms
+	// to charge, so I'll give it 80ms for the first charge and 10ms for each
+	// charge following.
+
+	// We know the ADC target, so let's give the PWM duty cycle our best guess.
+	// target (adc) * PWM_period (SMCLK cycles) / 2^12 (adc) = approx. PWM_duty_cycle (SMCLK cycles)
+	// Subtract 40 from this to start.
+	uint32_t duty_cycle = (uint32_t) target * (uint32_t) TB0CCR0 / 4096;
+	TB0CCR1 = MAX((uint16_t) duty_cycle - 40, 0);
+	PWM_start();
+
+	// 70ms wait time
+	unsigned i;
+	for(i = 0; i < 40; i++) {
+		__delay_cycles(21922); // delay for 1ms
+	}
+
+	do {
+		// 10ms wait time
+		for(i = 0; i < 40; i++) {
+			__delay_cycles(21922); // delay for 1ms
+		}
+
+		result = ADC12_read(&adc12, adc_chan_index);
+		compare = uint16Compare(result, target, threshold);
+		if(compare < 0) {
+			// result < target
+			PWM_INCREASE_DUTY_CYCLE;
+		} else if(compare > 0) {
+			// result > target
+			PWM_DECREASE_DUTY_CYCLE;
+		}
+	} while(compare != 0);
+}
+#endif
+
+
 static void finish_enter_debug_mode()
 {
     // WISP has entered debug main loop
@@ -1085,147 +1243,45 @@ static inline void pin_setup()
     unmask_target_signal();
 }
 
-int main(void)
+/**
+ * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
+ * @param   level   Vcap level to interrupt at
+ * @details Implemented by continuously sampling Vcap using the ADC
+ */
+static void break_at_vcap_level_adc(uint16_t level)
 {
-    uint32_t count = 0;
+    uint16_t cur_vcap, cur_vreg;
 
-    // Stop watchdog timer to prevent time out reset
-    WDTCTL = WDTPW + WDTHOLD;
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
 
-    pin_setup();
+    cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+    if (cur_vreg < MCU_ON_THRES) { // MCU is off, wait for MCU to turn on
+        do {
+            cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
+        } while (cur_vreg < MCU_ON_THRES);
+        // TODO: MCU boot delay
+        __delay_cycles(35000);
+        __delay_cycles(35000);
+    } // else: MCU is already on, go on to check Vcap right away
 
-    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    do {
+        cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
+    } while (cur_vcap > level);
 
-    clock_setup(); // set up unified clock system
+    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
+}
 
-#ifdef CONFIG_CLOCK_TEST_MODE
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-    BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
-#endif
-
-#ifdef CONFIG_PWM_CHARGING
-    PWM_setup(1024-1, 512); // dummy default values
-#endif
-
-    UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
-
-#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-    RFID_init();
-#endif
-
-    ADC12_init(&adc12);
-
-    init_watchpoint_event_bufs();
-
-#ifdef CONFIG_RESET_STATE_ON_BOOT
-    arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
-                   CMP_REF_VREF_2_5, CMP_EDGE_RISING);
-#endif
-
-    TimeLog_request(1);
-
-    __enable_interrupt();                   // enable all interrupts
-
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
-
-    while(1) {
-
-        if (main_loop_flags & FLAG_INTERRUPTED) {
-            main_loop_flags &= ~FLAG_INTERRUPTED;
-
-            if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
-                debug_mode_flags & DEBUG_MODE_WITH_UART)
-                get_target_interrupt_context(&interrupt_context);
-            // do it here: reply marks completion of enter sequence
-            send_interrupt_context(&interrupt_context);
-        }
-
-        if (main_loop_flags & FLAG_WATCHPOINT_READY) {
-            main_loop_flags &= ~FLAG_WATCHPOINT_READY;
-            send_watchpoint_events();
-        }
-
-        if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
-            main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
-
-            send_voltage(interrupt_context.restored_vcap);
-        }
-
-        if((main_loop_flags & FLAG_ADC12_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
-            // ADC12 has completed conversion on all active channels
-
-            ADC12_send_samples_to_host(&adc12);
-            main_loop_flags &= ~FLAG_ADC12_COMPLETE;
-        }
-
-        if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
-            main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
-            send_return_code(RETURN_CODE_SUCCESS);
-        }
-
-        if(main_loop_flags & FLAG_UART_USB_RX) {
-            // we've received a byte from USB
-            if(UART_buildRxPkt(UART_INTERFACE_USB, &usbRxPkt) == 0) {
-                // packet is complete
-                executeUSBCmd(&usbRxPkt);
-            }
-
-            // check if we're done for now
-            UART_DISABLE_USB_RX; // disable interrupt so new bytes don't come in
-            if(UART_RxBufEmpty(UART_INTERFACE_USB)) {
-                main_loop_flags &= ~FLAG_UART_USB_RX; // clear USB Rx flag
-            }
-            UART_ENABLE_USB_RX; // enable interrupt
-        }
-
-/*
-        if(main_loop_flags & FLAG_UART_USB_TX) {
-            // USB UART Tx byte
-            main_loop_flags &= ~FLAG_UART_USB_TX;
-        }
-*/
-
-        if(main_loop_flags & FLAG_UART_WISP_RX) {
-            // we've received a byte over UART from the WISP
-            if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
-                switch (wispRxPkt.descriptor) {
-                    case WISP_RSP_STDIO:
-                        forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
-                        break;
-                    default:
-                        ASSERT(ASSERT_UNEXPECTED_TARGET_PKT, false);
-                }
-            	wispRxPkt.processed = 1;
-            }
-
-            if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
-            	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
-            }
-        }
-
-/*
-        if(main_loop_flags & FLAG_UART_WISP_TX) {
-            // WISP UART Tx byte
-            main_loop_flags &= ~FLAG_UART_WISP_TX;
-        }
-*/
-
-#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-        if(main_loop_flags & FLAG_RF_DATA) {
-        	main_loop_flags &= ~FLAG_RF_DATA;
-            RFID_send_rf_events_to_host();
-        }
-#endif
-
-        // This LED toggle is unnecessary, and probably a huge waste of processing time.
-        // The LED blinking will slow down when the monitor is performing more tasks.
-        if (++count == 0xffff) {
-            if (state == STATE_IDLE)
-                GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
-            count = 0;
-        }
-
-    }
+/**
+ * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
+ * @param   level   Vcap level to interrupt at
+ * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
+ * @details Implemented by monitoring Vcap using the analog comparator
+ */
+static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
+{
+    arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
+    // expect comparator interrupt
 }
 
 /**
@@ -1614,166 +1670,150 @@ static void executeUSBCmd(uartPkt_t *pkt)
     pkt->processed = 1;
 }
 
-static uint16_t charge_adc(uint16_t target)
+
+int main(void)
 {
-    uint16_t cur_voltage;
+    uint32_t count = 0;
 
-    // Output Vcc level to Vcap (through R1) */
+    // Stop watchdog timer to prevent time out reset
+    WDTCTL = WDTPW + WDTHOLD;
 
-    // Configure the pin
-    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
-    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
-    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
+    pin_setup();
 
-    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
+    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
 
-    // Wait for the cap to charge to that voltage
+    clock_setup(); // set up unified clock system
 
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-    do {
-        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-    } while (cur_voltage < target);
-
-    GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
-
-    return cur_voltage;
-}
-
-static uint16_t discharge_adc(uint16_t target)
-{
-    uint16_t cur_voltage;
-
-    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
-
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-    do {
-        cur_voltage = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-    } while (cur_voltage > target);
-
-    GPIO(PORT_DISCHARGE, DIR) &= ~BIT(PIN_DISCHARGE); // close the discharge "valve"
-
-    return cur_voltage;
-}
-
-static void charge_cmp(uint16_t target, comparator_ref_t ref)
-{
-    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING);
-
-    // Configure the pin
-    GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
-    GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE); // I/O function
-    GPIO(PORT_CHARGE, DIR) |= BIT(PIN_CHARGE); // I/O function output
-
-    GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // turn on the power supply
-
-    // expect comparator interrupt
-}
-
-static void discharge_cmp(uint16_t target, comparator_ref_t ref)
-{
-    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING);
-
-    GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
-
-    // expect comparator interrupt
-}
-
-#ifdef CONFIG_PWM_CHARGING
-
-/**
- * @brief	Compare two unsigned 16-bit numbers.
- * @param	n1	One number
- * @param	n2	Another number
- * @param	threshold	minimum difference between n1 and n2 to consider them different.
- * @retval	1	n1 > n2 + threshold
- * @retval	0	n1 and n2 are within threshold of one another
- * @retval	-1	n1 < n2 - threshold
- */
-static int uint16Compare(uint16_t n1, uint16_t n2, uint16_t threshold) {
-	if(n1 < n2 - threshold && n2 >= threshold) {
-		return -1;
-	} else if(n1 > n2 + threshold && n2 + threshold <= 0xFFFF) {
-		return 1;
-	}
-	return 0;
-}
-
-static void setWispVoltage_block(unsigned adc_chan_index, uint16_t target)
-{
-	uint16_t result;
-    int compare;
-	unsigned threshold = 1;
-
-	// Here, we want to choose a starting PWM duty cycle close to, but not above,
-	// what the correct one will be.  We want it to be close because we will test
-	// each duty cycle, increasing one cycle at a time, until we reach the right
-	// one.  In my experiment with the oscilloscope, the WISP cap took about 60ms
-	// to charge, so I'll give it 80ms for the first charge and 10ms for each
-	// charge following.
-
-	// We know the ADC target, so let's give the PWM duty cycle our best guess.
-	// target (adc) * PWM_period (SMCLK cycles) / 2^12 (adc) = approx. PWM_duty_cycle (SMCLK cycles)
-	// Subtract 40 from this to start.
-	uint32_t duty_cycle = (uint32_t) target * (uint32_t) TB0CCR0 / 4096;
-	TB0CCR1 = MAX((uint16_t) duty_cycle - 40, 0);
-	PWM_start();
-
-	// 70ms wait time
-	unsigned i;
-	for(i = 0; i < 40; i++) {
-		__delay_cycles(21922); // delay for 1ms
-	}
-
-	do {
-		// 10ms wait time
-		for(i = 0; i < 40; i++) {
-			__delay_cycles(21922); // delay for 1ms
-		}
-
-		result = ADC12_read(&adc12, adc_chan_index);
-		compare = uint16Compare(result, target, threshold);
-		if(compare < 0) {
-			// result < target
-			PWM_INCREASE_DUTY_CYCLE;
-		} else if(compare > 0) {
-			// result > target
-			PWM_DECREASE_DUTY_CYCLE;
-		}
-	} while(compare != 0);
-}
+#ifdef CONFIG_CLOCK_TEST_MODE
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
 #endif
 
-static void break_at_vcap_level_adc(uint16_t level)
-{
-    uint16_t cur_vcap, cur_vreg;
+#ifdef CONFIG_PWM_CHARGING
+    PWM_setup(1024-1, 512); // dummy default values
+#endif
 
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
+    UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
 
-    cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
-    if (cur_vreg < MCU_ON_THRES) { // MCU is off, wait for MCU to turn on
-        do {
-            cur_vreg = ADC12_read(&adc12, ADC_CHAN_INDEX_VREG);
-        } while (cur_vreg < MCU_ON_THRES);
-        // TODO: MCU boot delay
-        __delay_cycles(35000);
-        __delay_cycles(35000);
-    } // else: MCU is already on, go on to check Vcap right away
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+    RFID_init();
+#endif
 
-    do {
-        cur_vcap = ADC12_read(&adc12, ADC_CHAN_INDEX_VCAP);
-    } while (cur_vcap > level);
+    ADC12_init(&adc12);
 
-    enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
+    init_watchpoint_event_bufs();
+
+#ifdef CONFIG_RESET_STATE_ON_BOOT
+    arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
+                   CMP_REF_VREF_2_5, CMP_EDGE_RISING);
+#endif
+
+    TimeLog_request(1);
+
+    __enable_interrupt();                   // enable all interrupts
+
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+
+    while(1) {
+
+        if (main_loop_flags & FLAG_INTERRUPTED) {
+            main_loop_flags &= ~FLAG_INTERRUPTED;
+
+            if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
+                debug_mode_flags & DEBUG_MODE_WITH_UART)
+                get_target_interrupt_context(&interrupt_context);
+            // do it here: reply marks completion of enter sequence
+            send_interrupt_context(&interrupt_context);
+        }
+
+        if (main_loop_flags & FLAG_WATCHPOINT_READY) {
+            main_loop_flags &= ~FLAG_WATCHPOINT_READY;
+            send_watchpoint_events();
+        }
+
+        if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
+            main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
+
+            send_voltage(interrupt_context.restored_vcap);
+        }
+
+        if((main_loop_flags & FLAG_ADC12_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
+            // ADC12 has completed conversion on all active channels
+
+            ADC12_send_samples_to_host(&adc12);
+            main_loop_flags &= ~FLAG_ADC12_COMPLETE;
+        }
+
+        if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
+            main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
+            send_return_code(RETURN_CODE_SUCCESS);
+        }
+
+        if(main_loop_flags & FLAG_UART_USB_RX) {
+            // we've received a byte from USB
+            if(UART_buildRxPkt(UART_INTERFACE_USB, &usbRxPkt) == 0) {
+                // packet is complete
+                executeUSBCmd(&usbRxPkt);
+            }
+
+            // check if we're done for now
+            UART_DISABLE_USB_RX; // disable interrupt so new bytes don't come in
+            if(UART_RxBufEmpty(UART_INTERFACE_USB)) {
+                main_loop_flags &= ~FLAG_UART_USB_RX; // clear USB Rx flag
+            }
+            UART_ENABLE_USB_RX; // enable interrupt
+        }
+
+/*
+        if(main_loop_flags & FLAG_UART_USB_TX) {
+            // USB UART Tx byte
+            main_loop_flags &= ~FLAG_UART_USB_TX;
+        }
+*/
+
+        if(main_loop_flags & FLAG_UART_WISP_RX) {
+            // we've received a byte over UART from the WISP
+            if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
+                switch (wispRxPkt.descriptor) {
+                    case WISP_RSP_STDIO:
+                        forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
+                        break;
+                    default:
+                        ASSERT(ASSERT_UNEXPECTED_TARGET_PKT, false);
+                }
+            	wispRxPkt.processed = 1;
+            }
+
+            if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
+            	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
+            }
+        }
+
+/*
+        if(main_loop_flags & FLAG_UART_WISP_TX) {
+            // WISP UART Tx byte
+            main_loop_flags &= ~FLAG_UART_WISP_TX;
+        }
+*/
+
+#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+        if(main_loop_flags & FLAG_RF_DATA) {
+        	main_loop_flags &= ~FLAG_RF_DATA;
+            RFID_send_rf_events_to_host();
+        }
+#endif
+
+        // This LED toggle is unnecessary, and probably a huge waste of processing time.
+        // The LED blinking will slow down when the monitor is performing more tasks.
+        if (++count == 0xffff) {
+            if (state == STATE_IDLE)
+                GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+            count = 0;
+        }
+
+    }
 }
 
-static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
-{
-    arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
-    // expect comparator interrupt
-}
 
 // Port 1 ISR
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
