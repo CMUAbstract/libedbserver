@@ -11,7 +11,7 @@
 #include "error.h"
 #include "uart.h"
 #include "adc.h"
-#include "timeLog.h"
+#include "systick.h"
 #include "main_loop.h"
 #include "tether.h"
 
@@ -255,7 +255,7 @@ void append_watchpoint_event(unsigned index)
     watchpoint_event_t *watchpoint_event =
         &watchpoint_events_buf[watchpoint_events_count[watchpoint_events_buf_idx]++];
 
-    watchpoint_event->timestamp = TIMELOG_CURRENT_TIME;
+    watchpoint_event->timestamp = SYSTICK_CURRENT_TIME;
     watchpoint_event->index = index;
     watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
 

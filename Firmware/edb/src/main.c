@@ -13,7 +13,7 @@
 #include "uart.h"
 #include "i2c.h"
 #include "pwm.h"
-#include "timeLog.h"
+#include "systick.h"
 #include "rfid.h"
 #include "rfid_decoder.h"
 #include "minmax.h"
@@ -854,7 +854,7 @@ int main(void)
                    CMP_REF_VREF_2_5, CMP_EDGE_RISING);
 #endif
 
-    TimeLog_request(1);
+    systick_start();
 
     __enable_interrupt();                   // enable all interrupts
 

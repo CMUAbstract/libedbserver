@@ -82,7 +82,7 @@ C_SRCS = \
 	uart.c \
 	i2c.c \
 	pwm.c \
-	timeLog.c \
+	systick.c \
 	rfid/rfid.c \
 	rfid/rfid_decoder.c \
 	adc12.c \

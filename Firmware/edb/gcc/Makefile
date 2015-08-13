@@ -40,7 +40,7 @@ OBJECTS = \
 	uart.o \
 	i2c.o \
 	pwm.o \
-	timeLog.o \
+	systick.o \
 	rfid/rfid.o \
 	rfid/rfid_decoder.o \
 	adc.o \

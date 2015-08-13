@@ -8,7 +8,7 @@
 
 #include "config.h"
 #include "pin_assign.h"
-#include "timeLog.h"
+#include "systick.h"
 #include "uart.h"
 #include "host_comm.h"
 #include "error.h"
@@ -98,7 +98,7 @@ static void append_event(rf_event_type_t id)
 
     // We could take the timestamp a few cycles earlier (in the ISR/callbacks),
     // but it's hardly worth the sacrifice in code conciseness.
-    rf_event->timestamp = TIMELOG_CURRENT_TIME;
+    rf_event->timestamp = SYSTICK_CURRENT_TIME;
     rf_event->id = id;
 
     rf_events_count[rf_events_buf_idx]++;
