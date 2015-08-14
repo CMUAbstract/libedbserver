@@ -30,6 +30,7 @@ uint16_t internal_breakpoints = 0;
 uint16_t code_energy_breakpoints = 0;
 
 uint16_t watchpoints = 0;
+static uint16_t watchpoints_vcap_snapshot = 0;
 
 // See libedb/edb.h for description
 #define NUM_CODEPOINT_VALUES     ((1 << NUM_CODEPOINT_PINS) - 1)
@@ -194,7 +195,7 @@ void toggle_breakpoint(breakpoint_type_t type, unsigned index,
     send_return_code(rc);
 }
 
-void toggle_watchpoint(unsigned index, bool enable)
+void toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
 {
     unsigned rc = RETURN_CODE_SUCCESS;
 
@@ -211,8 +212,10 @@ void toggle_watchpoint(unsigned index, bool enable)
             goto out;
         }
         watchpoints |= 1 << index;
+        watchpoints_vcap_snapshot |= ((uint16_t)vcap_snapshot) << index;
     } else {
         watchpoints &= ~(1 << index);
+        watchpoints_vcap_snapshot &= ~(((uint16_t)vcap_snapshot) << index);
     }
 
 out:
@@ -257,7 +260,10 @@ void append_watchpoint_event(unsigned index)
 
     watchpoint_event->timestamp = SYSTICK_CURRENT_TIME;
     watchpoint_event->index = index;
-    watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+    if (watchpoints_vcap_snapshot & (1 << index))
+        watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+    else // TODO: don't stream vcap at all if snapshot is not enabled
+        watchpoint_event->vcap = 0;
 
     if (watchpoint_events_count[watchpoint_events_buf_idx] == NUM_WATCHPOINT_EVENTS_BUFFERED) {
         // swap to the other buffer in the double-buffer pair

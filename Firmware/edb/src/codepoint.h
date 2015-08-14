@@ -19,7 +19,7 @@ void set_external_breakpoint_pin_state(uint16_t bitmask, bool state);
 void toggle_breakpoint(breakpoint_type_t type, unsigned index,
                               uint16_t energy_level, comparator_ref_t cmp_ref,
                               bool enable);
-void toggle_watchpoint(unsigned index, bool enable);
+void toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot);
 
 void enable_watchpoints();
 void disable_watchpoints();

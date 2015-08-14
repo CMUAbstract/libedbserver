@@ -730,8 +730,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_WATCHPOINT:
     {
         unsigned index = pkt->data[0];
-        bool enable = (bool)pkt->data[1];
-        toggle_watchpoint(index, enable);
+        bool enable = (bool)(pkt->data[1] & (1 << 0));
+        bool vcap_snapshot = (bool)(pkt->data[1] & (1 << 1));
+        toggle_watchpoint(index, enable, vcap_snapshot);
         break;
     }
 
