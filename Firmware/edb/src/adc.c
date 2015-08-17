@@ -15,7 +15,7 @@
 #define NUM_BUFFERS                                  2 // double-buffer pair
 #define NUM_BUFFERED_SAMPLES                        32
 
-#define SAMPLE_TIMESTAMPS_SIZE (NUM_BUFFERED_SAMPLES * sizeof(uint16_t))
+#define SAMPLE_TIMESTAMPS_SIZE (NUM_BUFFERED_SAMPLES * sizeof(uint32_t))
 #define SAMPLE_VOLTAGES_SIZE   (NUM_BUFFERED_SAMPLES * ADC_MAX_CHANNELS * sizeof(uint16_t))
 
 // Buffer layout:
@@ -60,9 +60,9 @@ static unsigned num_channels;
 static uint8_t sample_msg_bufs[NUM_BUFFERS][SAMPLES_MSG_BUF_SIZE];
 
 // Can't have a struct type because the number of channels per 'sample' (sequence) varies
-static uint16_t * const sample_timestamps_bufs[NUM_BUFFERS] = {
-    (uint16_t *)&sample_msg_bufs[0][SAMPLE_TIMESTAMPS_OFFSET],
-    (uint16_t *)&sample_msg_bufs[1][SAMPLE_TIMESTAMPS_OFFSET],
+static uint32_t * const sample_timestamps_bufs[NUM_BUFFERS] = {
+    (uint32_t *)&sample_msg_bufs[0][SAMPLE_TIMESTAMPS_OFFSET],
+    (uint32_t *)&sample_msg_bufs[1][SAMPLE_TIMESTAMPS_OFFSET],
 };
 static uint16_t * const sample_voltages_bufs[NUM_BUFFERS] = {
     (uint16_t *)&sample_msg_bufs[0][SAMPLE_VOLTAGES_OFFSET],
@@ -73,7 +73,7 @@ static unsigned num_samples[NUM_BUFFERS];
 static unsigned voltage_sample_offset;
 // volatile because main uses it to get the index of the ready buffer
 static volatile unsigned sample_buf_idx;
-static uint16_t *sample_timestamps_buf;
+static uint32_t *sample_timestamps_buf;
 static uint16_t *sample_voltages_buf;
 
 void ADC_start(uint16_t streams, unsigned sampling_period)
@@ -187,7 +187,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    uint16_t timestamp = SYSTICK_CURRENT_TIME;
+    uint32_t timestamp = SYSTICK_CURRENT_TIME;
     unsigned current_num_samples = num_samples[sample_buf_idx];
 
     ASSERT(ASSERT_ADC_BUFFER_OVERFLOW, current_num_samples < NUM_BUFFERED_SAMPLES);

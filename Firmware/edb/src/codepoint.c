@@ -18,7 +18,7 @@
 #include "codepoint.h"
 
 typedef struct {
-    unsigned timestamp;
+    uint32_t timestamp;
     unsigned index;
     unsigned vcap;
 } watchpoint_event_t;
