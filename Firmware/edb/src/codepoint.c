@@ -222,19 +222,6 @@ out:
     send_return_code(rc);
 }
 
-void enable_watchpoints()
-{
-    // enable rising-edge interrupt on codepoint pins (harmless to do every time)
-    GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
-    GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
-    GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
-}
-
-void disable_watchpoints()
-{
-    GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
-}
-
 void init_watchpoint_event_bufs()
 {
     unsigned i, offset;
@@ -292,4 +279,19 @@ void send_watchpoint_events()
     UART_end_transmission();
 
     watchpoint_events_count[ready_events_buf_idx] = 0; // mark buffer as free
+}
+
+void enable_watchpoints()
+{
+    init_watchpoint_event_bufs(); // need to clear count
+
+    // enable rising-edge interrupt on codepoint pins (harmless to do every time)
+    GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
+}
+
+void disable_watchpoints()
+{
+    GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
 }
