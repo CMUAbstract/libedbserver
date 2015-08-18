@@ -1,4 +1,5 @@
 #include <msp430.h>
+#include <string.h>
 
 #include <libedb/target_comm.h>
 
@@ -236,8 +237,13 @@ void init_watchpoint_event_bufs()
         header[offset++] = STREAM_WATCHPOINTS;
         header[offset++] = 0; // padding
         ASSERT(ASSERT_INVALID_STREAM_BUF_HEADER, offset == STREAM_DATA_MSG_HEADER_LEN);
+
+        // Just for easier diagnostics of problems in the data stream
+        memset(watchpoint_events_bufs[i], 0,
+               NUM_WATCHPOINT_EVENTS_BUFFERED * sizeof(watchpoint_event_t));
     }
-    watchpoint_events_buf = watchpoint_events_bufs[0];
+    watchpoint_events_buf_idx = 0;
+    watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
 }
 
 void append_watchpoint_event(unsigned index)
@@ -288,10 +294,13 @@ void enable_watchpoints()
     // enable rising-edge interrupt on codepoint pins (harmless to do every time)
     GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, IFG) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
 }
 
 void disable_watchpoints()
 {
     GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
+
+    main_loop_flags &= ~FLAG_WATCHPOINT_READY;
 }
