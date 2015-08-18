@@ -24,5 +24,6 @@ extern uint32_t ticks;
  */
 void systick_start();
 void systick_stop();
+void systick_reset();
 
 #endif // SYSTICK_H

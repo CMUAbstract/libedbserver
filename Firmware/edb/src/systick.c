@@ -25,6 +25,11 @@ void systick_stop()
 	TA2CTL = 0; // stop timer
 }
 
+void systick_reset()
+{
+    TA2CTL |= TACLR;
+}
+
 #ifdef CONFIG_SYSTICK_32BIT
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER2_A1_VECTOR

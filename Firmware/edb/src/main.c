@@ -543,6 +543,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
         streams_bitmask = streams;
         adc_streams_bitmask = streams & ADC_STREAMS;
 
+        systick_reset(); // to avoid timestamp wrap-around in middle of stream
+
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
             RFID_start_event_stream();
