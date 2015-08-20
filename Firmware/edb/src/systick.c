@@ -28,6 +28,7 @@ void systick_stop()
 void systick_reset()
 {
     TA2CTL |= TACLR;
+    ticks = 0;
 }
 
 #ifdef CONFIG_SYSTICK_32BIT
