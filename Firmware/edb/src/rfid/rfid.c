@@ -48,7 +48,7 @@
 #define STARTING_EVENT_BUF_IDX 0
 
 typedef struct {
-    uint16_t timestamp;
+    uint32_t timestamp;
     rf_event_type_t id;
 } rf_event_t;
 
