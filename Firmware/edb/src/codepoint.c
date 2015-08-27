@@ -29,6 +29,7 @@ uint16_t passive_breakpoints = 0;
 uint16_t external_breakpoints = 0;
 uint16_t internal_breakpoints = 0;
 uint16_t code_energy_breakpoints = 0;
+static bool boot_breakpoint = false;
 
 uint16_t watchpoints = 0;
 static uint16_t watchpoints_vcap_snapshot = 0;
@@ -186,6 +187,21 @@ void toggle_breakpoint(breakpoint_type_t type, unsigned index,
                 if (!external_breakpoints) {
                     GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
                 }
+            }
+
+            break;
+        case BREAKPOINT_TYPE_BOOT:
+
+            if (enable) {
+                // Boot breakpoint is identified by all codepoint pins high
+                // Note that this is not one of valid values for external bkpts (1 bit only).
+                set_external_breakpoint_pin_state(NUM_CODEPOINT_VALUES, true);
+                GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
+                boot_breakpoint = true;
+            } else {
+                boot_breakpoint = false;
+                set_external_breakpoint_pin_state(NUM_CODEPOINT_VALUES, false);
+                GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
             }
 
             break;

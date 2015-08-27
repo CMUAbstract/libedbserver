@@ -126,6 +126,7 @@ typedef enum {
     BREAKPOINT_TYPE_PASSIVE                 = 0,
     BREAKPOINT_TYPE_INTERNAL                = 1,
     BREAKPOINT_TYPE_EXTERNAL                = 2,
+    BREAKPOINT_TYPE_BOOT                    = 3,
 } breakpoint_type_t;
 
 /**
