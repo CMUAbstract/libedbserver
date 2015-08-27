@@ -973,7 +973,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #error Compiler not supported!
 #endif
 {
-    unsigned pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
+    uint8_t pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
 
 	switch(__even_in_range(P1IV, 16))
 	{
