@@ -224,7 +224,7 @@ void toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
     if (enable) {
         // watchpoints and passive and exteranl bkpts cannot be used simultaneously since
         // they reuse the codepoint pins in opposite directions
-        if (external_breakpoints | passive_breakpoints) {
+        if (boot_breakpoint | external_breakpoints | passive_breakpoints) {
             rc = RETURN_CODE_UNSUPPORTED;
             goto out;
         }
