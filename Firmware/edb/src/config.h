@@ -9,7 +9,8 @@
 #define CONFIG_REFO_FREQ 32768ull
 
 #define MCU_ON_THRES 2730ull /* 2.0 V */ // int(math.ceil(voltage * 4096 / self.VDD))
-#define MCU_BOOT_LATENCY_MS 3ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
+#define MCU_BOOT_LATENCY_MS 5ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
+                                 // 3 ms for 4 MHz, 5 ms for 8 Mhz (there's a fixed time component)
 
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
