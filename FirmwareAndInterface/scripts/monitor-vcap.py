@@ -22,7 +22,7 @@ args = parser.parse_args()
 mon = wispmon.WispMonitor()
 
 if args.out is not None:
-    fp = open(LOG_FILE, 'w')
+    fp = open(args.out, 'w')
 else:
     fp = sys.stdout
 
