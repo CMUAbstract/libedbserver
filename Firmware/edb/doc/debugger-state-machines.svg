@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/PR-SVG-20010719/DTD/svg10.dtd">
+<svg width="73cm" height="34cm" viewBox="198 78 1443 663" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g>
+    <rect style="fill: #ffffff" x="200" y="80" width="1440" height="660"/>
+    <rect style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #ffffff" x="200" y="80" width="1440" height="660"/>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="502.067" cy="410.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" cx="502.067" cy="410.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="502.067" y="415.356">
+      <tspan x="502.067" y="415.356">RUN</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="502.067" cy="230.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" cx="502.067" cy="230.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="502.067" y="235.356">
+      <tspan x="502.067" y="235.356">OFF</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="322.067" cy="610.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 4; stroke: #000000" cx="322.067" cy="610.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="322.067" y="615.356">
+      <tspan x="322.067" y="615.356">DEBUG</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="702.067" cy="610.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" cx="702.067" cy="610.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="702.067" y="615.356">
+      <tspan x="702.067" y="615.356">RESTORE</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="1122.07" cy="410.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" cx="1122.07" cy="410.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="1122.07" y="415.356">
+      <tspan x="1122.07" y="415.356">INTERRUPT</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="1222.07" cy="230.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" cx="1222.07" cy="230.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="1222.07" y="235.356">
+      <tspan x="1222.07" y="235.356">IDLE</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="1002.07" cy="610.534" rx="62.0673" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 4; stroke: #000000" cx="1002.07" cy="610.534" rx="62.0673" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="1002.07" y="615.356">
+      <tspan x="1002.07" y="615.356">DEBUG</tspan>
+    </text>
+  </g>
+  <g>
+    <ellipse style="fill: #ffffff" cx="1420" cy="610.534" rx="60" ry="50.5336"/>
+    <ellipse style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" cx="1420" cy="610.534" rx="60" ry="50.5336"/>
+    <text font-size="15.8044" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:normal" x="1420" y="615.356">
+      <tspan x="1420" y="615.356">RESTORE</tspan>
+    </text>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="551" y="316">
+    <tspan x="551" y="316">Vcap &gt; 2.6 V (?)</tspan>
+    <tspan x="551" y="332">Vreg &gt; 2.2 V</tspan>
+  </text>
+  <g>
+    <path style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" d="M 471.495,283.997 A 52.846,52.846 0 0 0 480,360"/>
+    <polygon style="fill: #000000" points="476.593,278.645 472.074,288.872 470.814,283.425 465.7,281.166 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="476.593,278.645 472.074,288.872 470.814,283.425 465.7,281.166 "/>
+  </g>
+  <g>
+    <path style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" d="M 530.541,355.412 A 69.5088,69.5088 0 0 0 520,280"/>
+    <polygon style="fill: #000000" points="527.045,361.976 528.343,350.871 531.155,355.702 536.708,356.35 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="527.045,361.976 528.343,350.871 531.155,355.702 536.708,356.35 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="365" y="322">
+    <tspan x="365" y="322">Vreg &lt; 1.8 V</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="458.18" y1="446.266" x2="371.632" y2="566.89"/>
+    <polygon style="fill: #000000" points="367.26,572.983 369.027,561.943 371.632,566.89 377.152,567.773 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="367.26,572.983 369.027,561.943 371.632,566.89 377.152,567.773 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="240" y="480">
+    <tspan x="240" y="480">1. initialize UART, fast clock</tspan>
+    <tspan x="240" y="496">2. enter debug mode loop</tspan>
+    <tspan x="240" y="512">3. signal debugger</tspan>
+  </text>
+  <text font-size="20.32" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:700" x="500" y="140">
+    <tspan x="500" y="140">Target Device</tspan>
+  </text>
+  <text font-size="20.32" style="fill: #000000;text-anchor:middle;font-family:sans-serif;font-style:normal;font-weight:700" x="1220" y="140">
+    <tspan x="1220" y="140">Debugger Device</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="384.134" y1="610.534" x2="630.264" y2="610.534"/>
+    <polygon style="fill: #000000" points="637.764,610.534 627.764,615.534 630.264,610.534 627.764,605.534 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="637.764,610.534 627.764,615.534 630.264,610.534 627.764,605.534 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="420" y="640">
+    <tspan x="420" y="640">EXIT cmd from debugger</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="420" y="680">
+    <tspan x="420" y="680">1. shutdown UART, restore clock</tspan>
+    <tspan x="420" y="696">2. signal debugger</tspan>
+    <tspan x="420" y="712">3. go to sleep</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="240" y="460">
+    <tspan x="240" y="460">signal from debugger</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="678.316" y1="563.846" x2="553.235" y2="452.732"/>
+    <polygon style="fill: #000000" points="547.628,447.751 558.425,450.654 553.235,452.732 551.783,458.13 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="547.628,447.751 558.425,450.654 553.235,452.732 551.783,458.13 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="620" y="480">
+    <tspan x="620" y="480">signal from debugger</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="620" y="500">
+    <tspan x="620" y="500">1. return to application</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="1198.32" y1="277.22" x2="1150.87" y2="355.52"/>
+    <polygon style="fill: #000000" points="1146.98,361.934 1147.89,350.79 1150.87,355.52 1156.44,355.973 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1146.98,361.934 1147.89,350.79 1150.87,355.52 1156.44,355.973 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="982" y="280">
+    <tspan x="982" y="280">BREAK cmd from user</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="967" y="300">
+    <tspan x="967" y="300">1. save energy level (Vcap)</tspan>
+    <tspan x="967" y="316">2. signal target</tspan>
+    <tspan x="967" y="332">3. continuous power to target</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="1098.32" y1="457.22" x2="1025.9" y2="552.256"/>
+    <polygon style="fill: #000000" points="1021.36,558.221 1023.44,547.237 1025.9,552.256 1031.39,553.298 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1021.36,558.221 1023.44,547.237 1025.9,552.256 1031.39,553.298 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="880" y="460">
+    <tspan x="880" y="460">signal from target</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="880" y="480">
+    <tspan x="880" y="480">1. enable UART to target</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="1066.13" y1="610.534" x2="1350.26" y2="610.534"/>
+    <polygon style="fill: #000000" points="1357.76,610.534 1347.76,615.534 1350.26,610.534 1347.76,605.534 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1357.76,610.534 1347.76,615.534 1350.26,610.534 1347.76,605.534 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="1100" y="640">
+    <tspan x="1100" y="640">CONTINUE cmd from user</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="1100" y="660">
+    <tspan x="1100" y="660">1. send EXIT cmd to target</tspan>
+  </text>
+  <g>
+    <line style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" x1="1420" y1="560" x2="1270.48" y2="274.888"/>
+    <polygon style="fill: #000000" points="1266.99,268.246 1276.07,274.78 1270.48,274.888 1267.21,279.425 "/>
+    <polygon style="fill: none; fill-opacity:0; stroke-width: 2; stroke: #000000" points="1266.99,268.246 1276.07,274.78 1270.48,274.888 1267.21,279.425 "/>
+  </g>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:italic;font-weight:normal" x="1360" y="360">
+    <tspan x="1360" y="360">signal from target</tspan>
+  </text>
+  <text font-size="12.8" style="fill: #000000;text-anchor:start;font-family:sans-serif;font-style:normal;font-weight:normal" x="1360" y="380">
+    <tspan x="1360" y="380">1. disable UART to target</tspan>
+    <tspan x="1360" y="396">2. turn off continuous power to target</tspan>
+    <tspan x="1360" y="412">3. signal target</tspan>
+  </text>
+</svg>

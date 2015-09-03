@@ -1,2 +1,0 @@
-This project is a simple example of adding debugging functionality to the WISP5 firmware.  This is the simpleAckDemo project with some debugging abilities added.
-The main function needs to execute DEBUG_SETUP, and debugging mode will be set up.

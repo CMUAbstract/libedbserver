@@ -1,9 +1,0 @@
-.*.swp
-.*.swo
-
-*.out
-*.obj
-*.d
-*.hex
-
-*.pyc
