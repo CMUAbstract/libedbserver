@@ -1,4 +1,4 @@
-TOOLCHAIN_ROOT := /usr0/home/acolin/ti/msp430-gcc
+include ../../../Makefile.env
 
 DEVICE  = msp430f5340
 PREFIX = $(TOOLCHAIN_ROOT)/bin/msp430-elf-
@@ -6,7 +6,6 @@ CC      = $(PREFIX)gcc
 GDB     = $(PREFIX)gdb
 
 SRC_DIR := ../src
-LIBEDB_ROOT := ../../libedb
 
 CFLAGS = \
 	-mmcu=$(DEVICE) \

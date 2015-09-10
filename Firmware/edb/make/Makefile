@@ -1,17 +1,11 @@
-TI_ROOT := /usr0/home/acolin/ti
-CCS_ROOT := $(TI_ROOT)/ccsv6
-CG_TOOL_ROOT := $(CCS_ROOT)/tools/compiler/ti-cgt-msp430_4.4.3
+include ../../../Makefile.env
+
 CG_TOOL_BIN := $(CG_TOOL_ROOT)/bin
-FLASHER_ROOT := $(TI_ROOT)/MSP430Flasher_1.3.4
-PLATFORM_ROOT := $(CCS_ROOT)/ccs_base/msp430
 AS = $(CG_TOOL_BIN)/cl430
 CC = $(CG_TOOL_BIN)/cl430
 LD = $(CG_TOOL_BIN)/cl430
 HEX = $(CG_TOOL_BIN)/hex430
 FLASHER := LD_LIBRARY_PATH=$(FLASHER_ROOT) $(FLASHER_ROOT)/MSP430Flasher
-
-# Debugger shares headers with libdebug since it communicates with the target
-LIBDEBUG_ROOT := ../../libdebug
 
 SRC_ROOT = ../src
 LD_SCRIPT = lnk_msp430f5340.cmd
@@ -41,7 +35,7 @@ CFLAGS = \
 	--preproc_with_compile \
 	--include_path="$(CG_TOOL_ROOT)/include" \
 	--include_path="$(PLATFORM_ROOT)/include" \
-	--include_path="$(LIBDEBUG_ROOT)/src/include" \
+	--include_path="$(LIBEDB_ROOT)/src/include" \
 	--include_path="$(SRC_ROOT)" \
 	--include_path="$(SRC_ROOT)/mspware" \
 	--include_path="$(SRC_ROOT)/adc12" \
