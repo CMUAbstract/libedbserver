@@ -74,7 +74,7 @@ clean:
 	rm -f $(OBJECTS) $(OBJECTS:.o=.d) $(EXEC)
 
 flash: $(EXEC)
-	LD_LIBRARY_PATH=$(TOOLCHAIN_ROOT)/bin mspdebug -v $(FET_VOLTAGE) tilib "prog $(EXEC)"
+	LD_LIBRARY_PATH=$(FETLIB_ROOT) mspdebug -v $(FET_VOLTAGE) tilib "prog $(EXEC)"
 
 debug: $(EXEC)
 	$(GDB) $(EXEC)
