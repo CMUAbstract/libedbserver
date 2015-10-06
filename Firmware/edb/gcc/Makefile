@@ -5,6 +5,12 @@ PREFIX = $(TOOLCHAIN_ROOT)/bin/msp430-elf-
 CC      = $(PREFIX)gcc
 GDB     = $(PREFIX)gdb
 
+# At 3.3v the EDB board randomly crashes (see comments in edb/src/config.h for
+# details). With old MSP430-FET UIF (gray), running at 3.0v is a workaround.
+# With new MSP430-FET (black) running at 2.8v is a workaround (claim not
+# rigurously tested).
+FET_VOLTAGE = 2800
+
 SRC_DIR := ../src
 
 CFLAGS = \
@@ -68,7 +74,7 @@ clean:
 	rm -f $(OBJECTS) $(OBJECTS:.o=.d) $(EXEC)
 
 flash: $(EXEC)
-	mspdebug tilib "prog $(EXEC)"
+	LD_LIBRARY_PATH=$(TOOLCHAIN_ROOT)/bin mspdebug -v $(FET_VOLTAGE) tilib "prog $(EXEC)"
 
 debug: $(EXEC)
 	$(GDB) $(EXEC)
