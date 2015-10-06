@@ -76,5 +76,8 @@ clean:
 flash: $(EXEC)
 	LD_LIBRARY_PATH=$(FETLIB_ROOT) mspdebug -v $(FET_VOLTAGE) tilib "prog $(EXEC)"
 
+power:
+	LD_LIBRARY_PATH=$(FETLIB_ROOT) mspdebug -v $(FET_VOLTAGE) tilib "exit"
+
 debug: $(EXEC)
 	$(GDB) $(EXEC)
