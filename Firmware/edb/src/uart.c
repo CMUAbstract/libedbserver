@@ -334,8 +334,7 @@ void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *b
 {
     unsigned len;
 
-    ASSERT(ASSERT_UART_TX_BUSY, (host_uart_status & UART_STATUS_TX_BUSY) == 0x0);
-
+    while (host_uart_status & UART_STATUS_TX_BUSY);
     host_uart_status |= UART_STATUS_TX_BUSY;
 
     DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN; // should already be disabled, but just in case
