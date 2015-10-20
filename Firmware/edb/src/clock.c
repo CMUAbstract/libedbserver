@@ -34,7 +34,8 @@ void clock_setup()
     SVSMLCTL &= ~(SVSLE | SVMLE);
     PMMRIE &= ~(SVMHVLRPE | SVSHPE | SVMLVLRPE | SVSLPE);
     PMMCTL0_H = 0x00;
-#elif defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY)
+#endif
+#if defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY)
     __delay_cycles(65535);
     __delay_cycles(65535);
     __delay_cycles(65535);
@@ -44,7 +45,8 @@ void clock_setup()
     __delay_cycles(65535);
     __delay_cycles(65535);
     __delay_cycles(65535);
-#else
+#endif
+#if !(defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM) || defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY))
 #error No workaround for startup voltage problem: see CONFIG_STARTUP_VOLTAGE_WORKAROUND_*
 #endif
 
