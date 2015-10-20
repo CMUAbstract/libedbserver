@@ -112,17 +112,12 @@
  *          particular, there are multiple errata about it, including a false
  *          overvoltage even if voltage ramps up too quickly.
  *
- *          The delay workaround is recommended over disabling PMM, since PMM
- *          is nice to have to detect brownout -- we do want it if it works
- *          correctly. It is plausible that there is a true fix that involves
- *          configuration of PMM.
- *
  *          NOTE: Unfortunately, these workarounds do not get rid of the same kind
  *                of crash that happens with debugger attached (either CCSv6 or
  *                mspdebug).
  */
-// #define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM
-#define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY
+#define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM
+// #define CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY
 
 // #define CONFIG_CLOCK_TEST_MODE // enter a blinker loop after configuring clocks
 // #define CONFIG_ROUTE_ACLK_TO_PIN // must "unplug" op amp buffers by disconnecting JP1
