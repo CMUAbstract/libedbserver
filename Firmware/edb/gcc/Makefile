@@ -9,7 +9,7 @@ GDB     = $(PREFIX)gdb
 # details). With old MSP430-FET UIF (gray), running at 3.0v is a workaround.
 # With new MSP430-FET (black) running at 2.8v is a workaround (claim not
 # rigurously tested).
-FET_VOLTAGE = 2800
+FET_VOLTAGE = 3000
 
 SRC_DIR := ../src
 
