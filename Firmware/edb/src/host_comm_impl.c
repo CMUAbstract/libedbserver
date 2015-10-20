@@ -12,7 +12,7 @@
 
 #include "host_comm_impl.h"
 
-#define HOST_MSG_BUF_SIZE     32 // buffer for UART messages (to host) for main loop
+#define HOST_MSG_BUF_SIZE       64 // buffer for UART messages (to host) for main loop
 
 /**
  * @brief Message payload pointer in a buffer for messages to host
