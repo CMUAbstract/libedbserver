@@ -1,6 +1,8 @@
 #ifndef UART_H
 #define UART_H
 
+#include <libedb/target_comm.h>
+
 /**
  * @defgroup    UART_INTERFACES UART interfaces
  * @brief       Available UART interfaces
@@ -26,6 +28,11 @@
 #define UART_BUF_MAX_LEN                        64
 #define UART_BUF_MAX_LEN_WITH_TAIL				(UART_BUF_MAX_LEN + 1) //!< Add a byte because the tail should never point to a full byte
 #define UART_PKT_MAX_DATA_LEN                   (UART_BUF_MAX_LEN - UART_MSG_HEADER_SIZE)
+
+// TODO: factor out a uart protocol header (even a whole library)
+#if UART_PKT_MAX_DATA_LEN < STDIO_PAYLOAD_SIZE
+#error UART buffer too small for std io messages from target
+#endif
 
 // Must be aligned because we want pointers *within* the buffer to payload field
 #if UART_MSG_HEADER_SIZE & 0x1 == 0x1
