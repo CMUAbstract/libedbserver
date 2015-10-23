@@ -926,8 +926,6 @@ int main(void)
                     case WISP_RSP_STDIO:
                         forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
                         break;
-                    default:
-                        ASSERT(ASSERT_UNEXPECTED_TARGET_PKT, false);
                 }
             	wispRxPkt.processed = 1;
             }

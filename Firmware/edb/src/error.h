@@ -33,7 +33,6 @@ typedef enum {
     ASSERT_ADC_BUFFER_OVERFLOW                    = 13,
     ASSERT_ADC_FAULT                              = 14,
     ASSERT_INVALID_SIG_CMD                        = 15,
-    ASSERT_UNEXPECTED_TARGET_PKT                  = 16,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely
