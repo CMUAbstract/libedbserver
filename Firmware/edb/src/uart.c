@@ -267,8 +267,11 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
         case CONSTRUCT_STATE_DATA:
             if(minUartBufLen >= pkt->length) {
                 // copy the data
-                // TODO: make non-fatal
-                ASSERT(ASSERT_UART_ERROR_RX_PKT_OVERFLOW, pkt->length < UART_PKT_MAX_DATA_LEN);
+                if (pkt->length > UART_PKT_MAX_DATA_LEN) {
+                    pkt->processed = 1; // reset packet processed state
+                    state = CONSTRUCT_STATE_IDENTIFIER;
+                    return 1;
+                }
                 uartBuf_copyFrom(uartBuf, pkt->data, pkt->length);
                 // no need to update the minUartBufLen, since packet construction is complete
                 // mark this packet as unprocessed
