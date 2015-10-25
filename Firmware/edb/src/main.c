@@ -47,6 +47,7 @@ volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check
 
 static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
 static int sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
+static bool target_powered = false; // user requested continuous power
 
 static unsigned sig_serial_echo_value = 0;
 static state_t saved_sig_serial_echo_state;
@@ -257,8 +258,10 @@ static void finish_exit_debug_mode()
         main_loop_flags |= FLAG_EXITED_DEBUG_MODE;
 
     if (!(debug_mode_flags & DEBUG_MODE_NESTED)) {
-        continuous_power_off();
-        interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap);
+        if (!target_powered) {
+            continuous_power_off();
+            interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap);
+        }
         set_state(STATE_IDLE);
     } else { // nested: go back to the outer debug mode
         debug_mode_flags = interrupt_context.saved_debug_mode_flags;
@@ -296,7 +299,7 @@ static void handle_target_signal()
 
                 // clear the bits we are about to read from target
                 debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
-                if (!(debug_mode_flags & DEBUG_MODE_NESTED))
+                if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
                     continuous_power_on();
             } else if (sig_serial_bit_index >= 0) {
                 debug_mode_flags |= 1 << sig_serial_bit_index;
@@ -710,10 +713,13 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_CONT_POWER:
     {
         bool power_on = (bool)pkt->data[0];
-        if (power_on)
+        if (power_on) {
             continuous_power_on();
-        else
+            target_powered = true;
+        } else {
             continuous_power_off();
+            target_powered = false;
+        }
         send_return_code(RETURN_CODE_SUCCESS);
         break;
     }
