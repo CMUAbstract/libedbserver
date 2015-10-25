@@ -270,6 +270,9 @@ static void finish_exit_debug_mode()
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
 
+    // Give the target enough time to start waiting for our signal
+    __delay_cycles(CONFIG_EXIT_DEBUG_MODE_LATENCY_CYCLES);
+
     signal_target(); // tell target to continue execution
     unmask_target_signal(); // target may request to enter active debug mode
 }
