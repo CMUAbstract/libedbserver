@@ -866,6 +866,8 @@ int main(void)
                    CMP_REF_VREF_2_5, CMP_EDGE_RISING);
 #endif
 
+    reset_state();
+
     systick_start();
 
     __enable_interrupt();                   // enable all interrupts
