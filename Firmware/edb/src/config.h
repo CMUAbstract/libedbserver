@@ -218,7 +218,7 @@
  *
  *          TODO: this should be enablable by a persistent option
  */
-#define CONFIG_RESET_STATE_ON_BOOT
+// #define CONFIG_RESET_STATE_ON_BOOT
 
 // The rest essentially defines the register settings that carry out the above
 
