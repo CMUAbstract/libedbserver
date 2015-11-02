@@ -249,8 +249,11 @@ static void finish_enter_debug_mode()
 static void finish_exit_debug_mode()
 {
     // WISP has shutdown UART and is asleep waiting for int to resume
+#if 0 // TODO: this breaks edb after a few printfs, the only danger of not tearing UART down
+      // is energy interference due to the pins being high, but hopefully this is negligible
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_teardown(UART_INTERFACE_WISP);
+#endif
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
         I2C_teardown();
 
