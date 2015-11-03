@@ -5,7 +5,7 @@
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROGRAM.TI MSP430 USB1/MSP430" value="${build_artifact:monitor}"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.TI MSP430 USB1/MSP430" value="monitor"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_TARGET_CONFIG" value="${target_config_active_default:monitor}"/>
-<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TI MSP430 USB1/MSP430" value="/usr0/home/acolin/dev/tud/FirmwareAndInterface/firmware/ccs/Debug/monitor.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.TI MSP430 USB1/MSP430" value="/home/acolin/rs/src/top-up-debugger/Firmware/edb/ccs/Debug__GNU/monitor.out"/>
 <mapAttribute key="com.ti.ccstudio.debug.ui.displayFormats">
 <mapEntry key="TI MSP430 USB1/MSP430@##separator##@0" value="16-Bit Hex - C Style"/>
 </mapAttribute>

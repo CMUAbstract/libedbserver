@@ -26,6 +26,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>adc.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/adc.c</locationURI>
+		</link>
+		<link>
 			<name>adc12</name>
 			<type>2</type>
 			<locationURI>$%7BSRC_LOC%7D/adc12</locationURI>
@@ -34,6 +39,26 @@
 			<name>catchall.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/src/catchall.c</locationURI>
+		</link>
+		<link>
+			<name>charge.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/charge.c</locationURI>
+		</link>
+		<link>
+			<name>clock.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/clock.c</locationURI>
+		</link>
+		<link>
+			<name>codepoint.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/codepoint.c</locationURI>
+		</link>
+		<link>
+			<name>comparator.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/comparator.c</locationURI>
 		</link>
 		<link>
 			<name>error.c</name>
@@ -46,14 +71,14 @@
 			<locationURI>$%7BSRC_LOC%7D/gpio</locationURI>
 		</link>
 		<link>
-			<name>i2c.c</name>
+			<name>host_comm_impl.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/src/i2c/i2c.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/src/host_comm_impl.c</locationURI>
 		</link>
 		<link>
-			<name>lnk_msp430f5340.cmd</name>
+			<name>i2c.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/src/lnk_msp430f5340.cmd</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/src/i2c.c</locationURI>
 		</link>
 		<link>
 			<name>main.c</name>
@@ -71,9 +96,44 @@
 			<locationURI>PARENT-1-PROJECT_LOC/src/monitor.h</locationURI>
 		</link>
 		<link>
+			<name>params.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/params.c</locationURI>
+		</link>
+		<link>
 			<name>pmm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/src/mspware/pmm.c</locationURI>
+		</link>
+		<link>
+			<name>pwm.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/pwm.c</locationURI>
+		</link>
+		<link>
+			<name>rfid.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/rfid/rfid.c</locationURI>
+		</link>
+		<link>
+			<name>rfid_decoder.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/rfid/rfid_decoder.c</locationURI>
+		</link>
+		<link>
+			<name>systick.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/systick.c</locationURI>
+		</link>
+		<link>
+			<name>target_comm_impl.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/target_comm_impl.c</locationURI>
+		</link>
+		<link>
+			<name>tether.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/tether.c</locationURI>
 		</link>
 		<link>
 			<name>timers</name>
@@ -84,6 +144,11 @@
 			<name>uart</name>
 			<type>2</type>
 			<locationURI>$%7BSRC_LOC%7D/uart</locationURI>
+		</link>
+		<link>
+			<name>uart.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/uart.c</locationURI>
 		</link>
 		<link>
 			<name>ucs</name>
