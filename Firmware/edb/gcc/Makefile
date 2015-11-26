@@ -58,6 +58,7 @@ OBJECTS = \
 	target_comm_impl.o \
 	tether.o \
 	clock.o \
+	profile.o \
 
 all: $(EXEC)
 

@@ -27,6 +27,7 @@
 #include "tether.h"
 #include "interrupt.h"
 #include "clock.h"
+#include "profile.h"
 
 
 /**
@@ -61,6 +62,7 @@ static uint16_t streams_bitmask; // currently enabled streams
 
 static uartPkt_t usbRxPkt = { .processed = 1 };
 
+static profile_t energy_profile;
 
 static void set_state(state_t new_state)
 {
@@ -868,7 +870,13 @@ int main(void)
     RFID_init();
 #endif
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
     init_watchpoint_event_bufs();
+#endif
+
+#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+    profile_reset(&energy_profile);
+#endif
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
     arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
@@ -993,6 +1001,9 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 {
     uint8_t pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
 
+    // TODO: clear interrupt for *all* codepoint pins (not just the one that we
+    // are handling, since each pin is a bit of the encoded index)
+
 	switch(__even_in_range(P1IV, 16))
 	{
     case INTFLAG(PORT_RF, PIN_RF_TX):
@@ -1019,8 +1030,15 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
         // -1 to convert from one-based to zero-based index
         unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
-        if (watchpoints & (1 << index))
+        if (watchpoints & (1 << index)) {
+#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+            uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+            profile_event(&energy_profile, index, vcap);
+#endif
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
             append_watchpoint_event(index);
+#endif
+        }
 
 #elif defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS)
         if (!passive_breakpoints) {

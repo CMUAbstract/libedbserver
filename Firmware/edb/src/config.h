@@ -220,6 +220,18 @@
  */
 // #define CONFIG_RESET_STATE_ON_BOOT
 
+/*
+ * @brief Enable ability to deliver watchpoint events to host via 'stream' cmd
+ */
+// #define CONFIG_ENABLE_WATCHPOINT_STREAM
+
+/*
+ * @brief Collect an energy profile using watchpoints
+ * @details An energy profile is a distribution of energy at each watchpoint event,
+ * where the distribution is given by the count in each quantized energy level.
+ */
+#define CONFIG_ENABLE_ENERGY_PROFILE
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44
