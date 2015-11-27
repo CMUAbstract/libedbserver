@@ -11,6 +11,8 @@
 #include "pin_assign.h"
 #include "error.h"
 
+// TODO: Some of these should be under config.h ifdefs
+
 // #define INT_HANDLED_RTC
 // #define INT_HANDLED_PORT2
 #define INT_HANDLED_TIMER2_A1
