@@ -1,11 +1,30 @@
+#include <msp430.h>
 #include <string.h>
 
 #include "config.h"
+#include "pin_assign.h"
+
 #include "profile.h"
 
 void profile_reset(profile_t *profile)
 {
     memset(profile, 0, sizeof(profile_t));
+}
+
+void profile_start_send_timer()
+{
+    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCR) =
+        CONFIG_SEND_ENERGY_PROFILE_INTERVAL;
+    TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) |= TACLR | TASSEL__ACLK;
+    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
+    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) |= CCIE;
+
+    TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) |= MC__UP; // start
+}
+
+void profile_stop_send_timer()
+{
+    TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) = 0;
 }
 
 void profile_event(profile_t *profile, unsigned index, uint16_t vcap)

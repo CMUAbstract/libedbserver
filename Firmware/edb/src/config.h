@@ -232,6 +232,8 @@
  */
 #define CONFIG_ENABLE_ENERGY_PROFILE
 
+#define CONFIG_SEND_ENERGY_PROFILE_INTERVAL 0xffff // time source fixed at ACLK
+
 // The rest essentially defines the register settings that carry out the above
 
 // See MSP430F5340 datasheet p44

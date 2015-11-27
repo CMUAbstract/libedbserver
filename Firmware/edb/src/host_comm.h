@@ -95,6 +95,7 @@ typedef enum {
     USB_RSP_STDIO                           = 0x12, //!< printf data from target
     USB_RSP_WATCHPOINT                      = 0x13, //!< watchpoint event info
     USB_RSP_PARAM                           = 0x14, //!< configurable parameter value
+    USB_RSP_ENERGY_PROFILE                  = 0x15, //!< collected energy profile
 } usb_rsp_t;
 
 

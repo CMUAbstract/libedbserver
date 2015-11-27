@@ -876,6 +876,7 @@ int main(void)
 
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE
     profile_reset(&energy_profile);
+    profile_start_send_timer();
 #endif
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
@@ -961,6 +962,13 @@ int main(void)
             if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
             	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
             }
+        }
+
+        if (main_loop_flags & FLAG_SEND_ENERGY_PROFILE) {
+            // TODO: for now we send the profile to host, in sprite this would
+            // be a call to the radio module
+            send_energy_profile(&energy_profile);
+            main_loop_flags &= ~FLAG_SEND_ENERGY_PROFILE;
         }
 
 /*
@@ -1141,6 +1149,22 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
     TIMER_CC(TIMER_SIG_SERIAL_DECODE, TMRCC_SIG_SERIAL, CCTL) &= ~CCIFG;
 }
 #endif // CONFIG_ENABLE_DEBUG_MODE
+
+#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=TIMER0_A0_VECTOR
+__interrupt void TIMER0_A0_ISR (void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+#endif
+{
+    main_loop_flags |= FLAG_SEND_ENERGY_PROFILE;
+    // TODO: clear the sleep on exit flag
+    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
+}
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=UNMI_VECTOR

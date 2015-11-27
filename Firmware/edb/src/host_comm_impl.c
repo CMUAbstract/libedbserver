@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <msp430.h>
 
@@ -89,6 +90,17 @@ void send_echo(uint8_t value)
     UART_begin_transmission();
     host_msg_payload[payload_len++] = value;
     send_msg_to_host(USB_RSP_ECHO, payload_len);
+}
+
+void send_energy_profile(profile_t *profile)
+{
+    unsigned payload_len = 0;
+    UART_begin_transmission();
+
+    memcpy(host_msg_payload, profile, sizeof(profile_t));
+    payload_len += sizeof(profile_t);
+
+    send_msg_to_host(USB_RSP_ENERGY_PROFILE, payload_len);
 }
 
 void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)
