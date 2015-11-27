@@ -62,7 +62,7 @@ static uint16_t streams_bitmask; // currently enabled streams
 
 static uartPkt_t usbRxPkt = { .processed = 1 };
 
-static profile_t energy_profile;
+static payload_t payload; // EDB+App data sent to host/ground
 
 static void set_state(state_t new_state)
 {
@@ -875,7 +875,7 @@ int main(void)
 #endif
 
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE
-    profile_reset(&energy_profile);
+    profile_reset(&payload.energy_profile);
     profile_start_send_timer();
 #endif
 
@@ -955,6 +955,10 @@ int main(void)
                     case WISP_RSP_STDIO:
                         forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
                         break;
+                    case WISP_RSP_APP_OUTPUT:
+                        ASSERT(ASSERT_APP_OUTPUT_BUF_OVERFLOW, wispRxPkt.length == APP_OUTPUT_SIZE);
+                        memcpy(payload.app_output, wispRxPkt.data, wispRxPkt.length);
+                        break;
                 }
             	wispRxPkt.processed = 1;
             }
@@ -964,11 +968,11 @@ int main(void)
             }
         }
 
-        if (main_loop_flags & FLAG_SEND_ENERGY_PROFILE) {
+        if (main_loop_flags & FLAG_SEND_PAYLOAD) {
             // TODO: for now we send the profile to host, in sprite this would
             // be a call to the radio module
-            send_energy_profile(&energy_profile);
-            main_loop_flags &= ~FLAG_SEND_ENERGY_PROFILE;
+            send_payload(&payload);
+            main_loop_flags &= ~FLAG_SEND_PAYLOAD;
         }
 
 /*
@@ -1041,7 +1045,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         if (watchpoints & (1 << index)) {
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE
             uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-            profile_event(&energy_profile, index, vcap);
+            profile_event(&payload.energy_profile, index, vcap);
 #endif
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
             append_watchpoint_event(index);
@@ -1161,7 +1165,7 @@ void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
 #endif
 #endif
 {
-    main_loop_flags |= FLAG_SEND_ENERGY_PROFILE;
+    main_loop_flags |= FLAG_SEND_PAYLOAD;
     // TODO: clear the sleep on exit flag
     TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
 }

@@ -92,13 +92,17 @@ void send_echo(uint8_t value)
     send_msg_to_host(USB_RSP_ECHO, payload_len);
 }
 
-void send_energy_profile(profile_t *profile)
+void send_payload(payload_t *payload)
 {
+    // The '*payload*' variables here refer to the payload of the message that
+    // is being sent to host.  The argument 'payload' is just happens to be
+    // also called payload.
+
     unsigned payload_len = 0;
     UART_begin_transmission();
 
-    memcpy(host_msg_payload, profile, sizeof(profile_t));
-    payload_len += sizeof(profile_t);
+    memcpy(host_msg_payload, payload, sizeof(payload_t));
+    payload_len += sizeof(payload_t);
 
     send_msg_to_host(USB_RSP_ENERGY_PROFILE, payload_len);
 }
