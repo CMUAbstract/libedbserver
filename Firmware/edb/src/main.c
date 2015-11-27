@@ -834,6 +834,18 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
     }
 
+    case USB_CMD_PERIODIC_PAYLOAD: {
+        bool enable = pkt->data[0];
+
+        if (enable) {
+            profile_start_send_timer();
+        } else {
+            profile_stop_send_timer();
+        }
+
+        break;
+    }
+
     default:
         break;
     }
@@ -876,7 +888,6 @@ int main(void)
 
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE
     profile_reset(&payload.energy_profile);
-    profile_start_send_timer();
 #endif
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
