@@ -1,6 +1,8 @@
 #ifndef MAIN_LOOP_H
 #define MAIN_LOOP_H
 
+#include <stdint.h>
+
 /**
  * @brief       Flags to set in a bit mask to check in the main loop
  * @{
