@@ -59,6 +59,7 @@ OBJECTS = \
 	tether.o \
 	clock.o \
 	profile.o \
+	payload.o \
 
 all: $(EXEC)
 

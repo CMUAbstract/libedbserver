@@ -20,8 +20,6 @@ typedef struct {
 } profile_t;
 
 void profile_reset(profile_t *profile);
-void profile_start_send_timer();
-void profile_stop_send_timer();
 void profile_event(profile_t *profile, unsigned index, uint16_t vcap);
 
 #endif // PROFILE_H

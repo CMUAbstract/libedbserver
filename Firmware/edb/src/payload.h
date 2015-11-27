@@ -13,4 +13,7 @@ typedef struct {
     uint8_t app_output[APP_OUTPUT_SIZE];
 } payload_t;
 
+void payload_start_send_timer();
+void payload_stop_send_timer();
+
 #endif // PAYLOAD_H

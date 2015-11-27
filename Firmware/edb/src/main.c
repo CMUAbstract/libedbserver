@@ -28,6 +28,7 @@
 #include "interrupt.h"
 #include "clock.h"
 #include "profile.h"
+#include "payload.h"
 
 
 /**
@@ -838,9 +839,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
         bool enable = pkt->data[0];
 
         if (enable) {
-            profile_start_send_timer();
+            payload_start_send_timer();
         } else {
-            profile_stop_send_timer();
+            payload_stop_send_timer();
         }
 
         break;
@@ -1164,22 +1165,6 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
     TIMER_CC(TIMER_SIG_SERIAL_DECODE, TMRCC_SIG_SERIAL, CCTL) &= ~CCIFG;
 }
 #endif // CONFIG_ENABLE_DEBUG_MODE
-
-#ifdef CONFIG_ENABLE_ENERGY_PROFILE
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER0_A0_VECTOR
-__interrupt void TIMER0_A0_ISR (void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-#endif
-{
-    main_loop_flags |= FLAG_SEND_PAYLOAD;
-    // TODO: clear the sleep on exit flag
-    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
-}
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=UNMI_VECTOR
