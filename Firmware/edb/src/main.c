@@ -837,13 +837,12 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_PERIODIC_PAYLOAD: {
         bool enable = pkt->data[0];
-
         if (enable) {
             payload_start_send_timer();
         } else {
             payload_stop_send_timer();
         }
-
+        send_return_code(RETURN_CODE_SUCCESS);
         break;
     }
 
