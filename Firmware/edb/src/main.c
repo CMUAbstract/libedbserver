@@ -1030,14 +1030,14 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 
 	switch(__even_in_range(P1IV, 16))
 	{
-    case INTFLAG(PORT_RF, PIN_RF_TX):
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+    case INTFLAG(PORT_RF, PIN_RF_TX):
 #ifdef CONFIG_ENABLE_RF_TX_DECODING
         rfid_decoder_tx_pin_isr();
 #endif // CONFIG_ENABLE_RF_TX_DECODING
         GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
-#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         break;
+#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();
 		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
