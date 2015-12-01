@@ -12,7 +12,6 @@
 #include "adc.h"
 #include "uart.h"
 #include "i2c.h"
-#include "pwm.h"
 #include "systick.h"
 #include "rfid.h"
 #include "rfid_decoder.h"
@@ -29,6 +28,10 @@
 #include "clock.h"
 #include "profile.h"
 #include "payload.h"
+
+#ifdef CONFIG_PWM_CHARGING
+#include "pwm.h"
+#endif
 
 
 /**

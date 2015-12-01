@@ -5,8 +5,6 @@
 
 #include "pwm.h"
 
-#ifdef CONFIG_PWM_CHARGING
-
 // TODO: abstract away timer index (TB*): move it to pin_assign.h like all others
 
 void PWM_setup(uint16_t period, uint16_t duty_cycle)
@@ -42,6 +40,4 @@ void PWM_set_duty_cycle(uint16_t duty_cycle)
     TB0CCR1 = *((uint16_t *)(pkt->data));
 }
 
-#else
-unsigned __dummy_pwm_c; // silence 'empty translation unit' warning
 #endif // CONFIG_PWM_CHARGING
