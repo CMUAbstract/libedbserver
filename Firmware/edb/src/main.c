@@ -449,8 +449,23 @@ static inline void pin_setup()
     GPIO(PORT_CONT_POWER, OUT) |= BIT(PIN_CONT_POWER);
 
     // Voltage sense pins as ADC channels
-    GPIO(PORT_VSENSE, SEL) |=
-        BIT(PIN_VCAP) | BIT(PIN_VBOOST) | BIT(PIN_VREG) | BIT(PIN_VRECT) | BIT(PIN_VINJ);
+    GPIO(PORT_VSENSE, SEL) = GPIO(PORT_VSENSE, SEL)
+#ifdef PIN_VCAP
+        | BIT(PIN_VCAP)
+#endif
+#ifdef PIN_VBOOST
+        | BIT(PIN_VBOOST)
+#endif
+#ifdef PIN_VREG
+        | BIT(PIN_VREG)
+#endif
+#ifdef PIN_VRECT
+        | BIT(PIN_VRECT)
+#endif
+#ifdef PIN_VINJ
+        | BIT(PIN_VINJ)
+#endif
+    ;
 
 #ifdef CONFIG_ROUTE_ACLK_TO_PIN
     P1SEL |= BIT0;
