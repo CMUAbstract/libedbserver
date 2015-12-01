@@ -397,12 +397,14 @@ static inline void pin_setup()
     P2OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
     P3DIR |= BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7;
     P3OUT &= ~(BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7);
+#ifdef BOARD_EDB
     P4DIR |= BIT0 | BIT3 | BIT7;
     P4OUT &= ~(BIT0 | BIT3 | BIT7);
     P5DIR |= BIT0 | BIT1 | BIT6;
     P5OUT &= ~(BIT0 | BIT1 | BIT6);
     P6DIR |= BIT0 | BIT6 | BIT7;
     P6OUT &= ~(BIT0 | BIT6 | BIT7);
+#endif
     // PJDIR |= <none>
 
     // Uncomment this if R3 is not populated since in that case pin is unconnected
