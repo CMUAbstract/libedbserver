@@ -43,9 +43,10 @@
 
 /**
  * @defgroup    PORTS   Pin assignments
- * @brief       MSP430F5340 pin assignments by logic function
  * @{
  */
+
+#ifdef BOARD_EDB
 
 #define PORT_LED                                J //!< GPIO port for LEDs
 #define PIN_LED_GREEN                           2
@@ -133,6 +134,74 @@
 #define PORT_I2C_TARGET                         4 //!< GPIO port with taps into target I2C lines
 #define PIN_I2C_TARGET_SDA                      1 //!< target I2C SDA line
 #define PIN_I2C_TARGET_SCL                      2 //!< target I2C SCL line
+
+#elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ)
+
+#define PORT_LED                                J //!< GPIO port for LEDs
+#define PIN_LED_GREEN                           2
+#define PIN_LED_RED                             3
+
+// No second UART on this board
+//#define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
+//#define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
+//#define PIN_UART_USB_RX                         4 //!< RX pin for UART to host USB
+
+#define PORT_UART_TARGET                        1  //!< GPIO port with UART connected to target device
+#define PIN_UART_TARGET_TX                      6 //!< TX pin for UART to target device
+#define PIN_UART_TARGET_RX                      5 //!< RX pin for UART to target device
+
+#define PORT_VSENSE                             2 //!< GPIO port for voltage sense lines
+#define PIN_VCAP                                4 //!< P6.1: ADC input Vcap
+
+#define PORT_CHARGE                             3 //!< GPIO port for target capacitor charge pin
+#define PIN_CHARGE                              7 //!< target capacitor charge pin
+
+#define PORT_DISCHARGE                          3 //!< GPIO port for target capacitor discharge pin
+#define PIN_DISCHARGE                           6 //!< target capacitor discharge pin
+
+#define PORT_CONT_POWER                         3 //!< GPIO port with PWM bypass power supply line
+#define PIN_CONT_POWER                          5 //!< pin for supplying continuous power
+
+#define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
+#define PIN_LS_ENABLE                           2 //!< level shifter enable pin - output low to disable
+
+#define PORT_SIG                                2 //!< GPIO port for signal line to target
+#define PIN_SIG                                 0 //!< target signal pin
+
+#define PORT_STATE                              3 //!< GPIO port for debugger state pins
+#define PIN_STATE_0                             0 //!< debugger state lsb bit
+#define PIN_STATE_1                             1 //!< debugger state msb bit
+
+#define PORT_EVENT                              3 //!< GPIO port for debugger state pins
+#define PIN_EVENT_0                             0 //!< debugger state lsb bit
+#define PIN_EVENT_1                             1 //!< debugger state msb bit
+
+#define PORT_TRIGGER                            3 //!< GPIO port for scope trigger line
+#define PIN_TRIGGER                             2 //!< scope trigger pin
+
+// Code point pins must be on same port and consecutive and in order
+// NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
+#define PORT_CODEPOINT                          1
+#define PIN_CODEPOINT_0                         0 // lsb
+#define PIN_CODEPOINT_1                         1
+#define PIN_CODEPOINT_2                         2
+#define PIN_CODEPOINT_3                         3
+#define PIN_CODEPOINT_4                         4
+#define PIN_CODEPOINT_5                         5
+#define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
+                                                 BIT(PIN_CODEPOINT_1) | \
+                                                 BIT(PIN_CODEPOINT_2) | \
+                                                 BIT(PIN_CODEPOINT_3) | \
+                                                 BIT(PIN_CODEPOINT_4) | \
+                                                 BIT(PIN_CODEPOINT_5))
+#define NUM_CODEPOINT_PINS                      6
+//#define WORKAROUND_FLIP_CODEPOINT_PINS // the hardware routing routes AUX1,AUX2 to pins out of order
+
+#define PORT_SERIAL_DECODE                      3 //!< GPIO port for serial decoder state
+#define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt
+#define PIN_SERIAL_DECODE_TIMER                 1 //!< decoder timer started, rolled over, or stopped
+
+#endif
 
 #define UART_HOST                               A0
 #define UART_TARGET                             A1
