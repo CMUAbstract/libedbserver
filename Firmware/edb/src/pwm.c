@@ -7,6 +7,8 @@
 
 #ifdef CONFIG_PWM_CHARGING
 
+// TODO: abstract away timer index (TB*): move it to pin_assign.h like all others
+
 void PWM_setup(uint16_t period, uint16_t duty_cycle)
 {
     TB0CCR0 = period;                   // PWM period
@@ -28,6 +30,16 @@ void PWM_stop()
 
     GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE);				// output low
     GPIO(PORT_CHARGE, SEL) &= ~BIT(PIN_CHARGE);              // GPIO option select
+}
+
+void PWM_set_freq(uint16_t freq)
+{
+    TB0CCR0 = freq - 1;
+}
+
+void PWM_set_duty_cycle(uint16_t duty_cycle)
+{
+    TB0CCR1 = *((uint16_t *)(pkt->data));
 }
 
 #else

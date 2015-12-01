@@ -34,6 +34,9 @@ void PWM_start();
  */
 void PWM_stop();
 
+void PWM_set_freq(uint16_t freq);
+void PWM_set_duty_cycle(uint16_t duty_cycle);
+
 /** @} End PWM */
 
 #endif // PWM_H

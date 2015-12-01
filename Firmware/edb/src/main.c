@@ -657,11 +657,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
 #endif
 
     case USB_CMD_SET_PWM_FREQUENCY:
-    	TB0CCR0 = (*((uint16_t *)(pkt->data))) - 1;
+        PWM_set_freq((*((uint16_t *)(pkt->data))) - 1);
     	break;
 
     case USB_CMD_SET_PWM_DUTY_CYCLE:
-    	TB0CCR1 = *((uint16_t *)(pkt->data));
+        PWM_set_duty_cycle(*((uint16_t *)(pkt->data)));
     	break;
 
 #ifdef CONFIG_PWM_CHARGING
