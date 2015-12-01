@@ -383,6 +383,8 @@ static void handle_target_signal()
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
+
+	GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
 }
 
 /**
@@ -1057,7 +1059,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();
-		GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
 		break;
 
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
