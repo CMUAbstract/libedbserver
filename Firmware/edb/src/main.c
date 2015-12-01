@@ -654,7 +654,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_PWM_LOW:
     	PWM_stop();
     	break;
-#endif
 
     case USB_CMD_SET_PWM_FREQUENCY:
         PWM_set_freq((*((uint16_t *)(pkt->data))) - 1);
@@ -664,7 +663,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         PWM_set_duty_cycle(*((uint16_t *)(pkt->data)));
     	break;
 
-#ifdef CONFIG_PWM_CHARGING
     case USB_CMD_PWM_HIGH:
     	PWM_stop();
         GPIO(PORT_CHARGE, OUT) |= BIT(PIN_CHARGE); // output high
