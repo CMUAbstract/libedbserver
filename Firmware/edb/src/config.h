@@ -187,14 +187,6 @@
  */
 // #define CONFIG_SCOPE_TRIGGER_SIGNAL
 
-/**
- * @brief Capacitor charge implemented by a PWM with a control loop around the duty-cycle
- * @detail The alternative is an "valve" method of raising a GPIO high and watching
- *         the voltage level with ADC or comparator and pulling the GPIO low once
- *         the target threshold is crossed.
- */
-// #define CONFIG_PWM_CHARGING
-
 // #define CONFIG_ENABLE_PASSIVE_BREAKPOINTS
 #define CONFIG_ENABLE_WATCHPOINTS
 
