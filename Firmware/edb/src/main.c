@@ -1031,6 +1031,7 @@ int main(void)
     }
 }
 
+#if PORT_RF == 1 || PORT_SIG == 1 || PORT_CODEPOINT == 1
 
 // Port 1 ISR
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -1057,10 +1058,14 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         GPIO(PORT_RF, IFG) &= ~BIT(PIN_RF_TX);
         break;
 #endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
+
+#if PORT_SIG == 1
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();
 		break;
+#endif // PORT_SIG
 
+#if PORT_CODEPOINT == 1
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
@@ -1104,11 +1109,14 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif // CONFIG_ENABLE_PASSIVE_BREAKPOINTS
         break;
     }
+#endif // PORT_CODEPOINT
 
 	default:
 		break;
 	}
 }
+
+#endif // Port 1 ISR users
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=COMP_B_VECTOR
