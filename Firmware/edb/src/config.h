@@ -155,15 +155,6 @@
 // #define CONFIG_PULL_DOWN_ON_SIG_LINE
 
 /**
- * @brief Enable code for decoding the RF protocol
- *
- * @details Currently, this is disabled because it causes spurious interrupts.
- *         TODO: setup RF pins only upon cmd to monitor RF because otherwise we
- *         get spurious interrupts on RX pin
- */
-// #define CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-
-/**
  * @brief Enable code to decode RFID transmissions from the target
  */
 // #define CONFIG_ENABLE_RF_TX_DECODING

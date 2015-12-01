@@ -17,8 +17,6 @@
 
 #include "rfid.h"
 
-#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-
 /*Buffer structure:
  *  [ empty_space | header | rf_event_t #1 | rf_event_t #2 | ... | rf_event_t #n ]
  * where len(empty_space + header) == sizeof(rf_event_t) because compiler might
@@ -192,7 +190,3 @@ void RFID_stop_event_stream()
 {
     rfid_decoder_stop();
 }
-
-#else
-unsigned __dummy_rfid_c; // silence 'empty translation unit' warning
-#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING

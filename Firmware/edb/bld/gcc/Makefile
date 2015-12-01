@@ -7,8 +7,6 @@ OBJECTS = \
 	uart.o \
 	i2c.o \
 	systick.o \
-	rfid/rfid.o \
-	rfid/rfid_decoder.o \
 	adc.o \
 	mspware/pmm.o \
 	params.o \
@@ -26,10 +24,22 @@ BOARD = sprite-edb-socket-rgz
 
 # Flags that affect which sources are included go here, not in config.h
 
+# Enable code for decoding the RF protocol
+# 		Currently, this is disabled because it causes spurious interrupts.
+#
+#       TODO: setup RF pins only upon cmd to monitor RF because otherwise we
+#       get spurious interrupts on RX pin
+#
+ifeq ($(CONFIG_ENABLE_RF_PROTOCOL_MONITORING),1)
+	CFLAGS += -DCONFIG_ENABLE_RF_PROTOCOL_MONITORING
+	OBJECTS += rfid/rfid.o rfid/rfid_decoder.o
+endif
+
 # Capacitor charge implemented by a PWM with a control loop around the duty-cycle
 # 		The alternative is an "valve" method of raising a GPIO high and watching
 #       the voltage level with ADC or comparator and pulling the GPIO low once
 #       the target threshold is crossed.
+#
 ifeq ($(CONFIG_PWM_CHARGING),1)
 	CFLAGS += -DCONFIG_PWM_CHARGING
 	OBJECTS += pwm.o

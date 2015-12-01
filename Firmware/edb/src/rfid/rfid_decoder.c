@@ -9,8 +9,6 @@
 
 #include "rfid_decoder.h"
 
-#ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-
 #define NS_TO_CYCLES(t) (t * CONFIG_DCOCLKDIV_FREQ / 1000000000UL)
 
 /** @brief States of RFID protocol decoder state machine
@@ -565,7 +563,3 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
     GPIO(PORT_RF, IE) |= BIT(PIN_RF_TX);
 }
 #endif // CONFIG_ENABLE_RF_TX_DECODING
-
-#else
-unsigned __dummy_rfid_decoder_c; // silence 'empty translation unit' warning
-#endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
