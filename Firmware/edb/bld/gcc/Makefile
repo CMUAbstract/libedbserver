@@ -25,10 +25,12 @@ BOARD = edb
 
 include $(MAKER_ROOT)/Makefile.gcc
 
+SRC_DIR = ../../src
+
 CFLAGS += \
-	-I../src \
-	-I../src/rfid \
-	-I../src/mspware \
+	-I$(SRC_DIR) \
+	-I$(SRC_DIR)/rfid \
+	-I$(SRC_DIR)/mspware \
 	-I$(LIBEDB_ROOT)/src/include \
 
-VPATH = ../src
+VPATH = $(SRC_DIR)
