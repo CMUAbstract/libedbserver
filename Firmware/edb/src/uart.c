@@ -50,7 +50,7 @@ void UART_setup(unsigned interface)
 
         UART(UART_HOST, CTL1) |= UCSWRST; // put state machine in reset
         UART(UART_HOST, CTL1) |= UCSSEL__SMCLK;
-#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+#ifdef CONFIG_ABORT_ON_HOST_UART_ERROR
         UART(UART_HOST, CTL1) |= UCRXEIE;
 #endif
 
@@ -446,7 +446,7 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     {
 #if defined(UART_HOST) && UART_HOST == 0
 
-#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+#ifdef CONFIG_ABORT_ON_HOST_UART_ERROR
         ASSERT(ASSERT_UART_FAULT,  !(UCA0STAT & UCRXERR));
 #endif
 
@@ -481,7 +481,7 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     {
 #if defined(UART_HOST) && UART_HOST == 1
 
-#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+#ifdef CONFIG_ABORT_ON_HOST_UART_ERROR
         ASSERT(ASSERT_UART_FAULT,  !(UCA1STAT & UCRXERR));
 #endif
 

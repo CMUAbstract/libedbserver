@@ -83,7 +83,8 @@
 // #define CONFIG_USB_UART_UCOS16
 // #define CONFIG_TARGET_UART_UCOS16
 
-#define CONFIG_ABORT_ON_USB_UART_ERROR // red led on, and if error is overflow, green led blinking
+#define CONFIG_ABORT_ON_HOST_UART_ERROR // red led on, and if error is overflow,
+                                        // green led blinking
 
 /**
  * @brief Abort if RFID event buffer overflows or drop the events
