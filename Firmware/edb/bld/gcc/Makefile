@@ -5,7 +5,6 @@ OBJECTS = \
 	main.o \
 	error.o \
 	uart.o \
-	i2c.o \
 	systick.o \
 	adc.o \
 	mspware/pmm.o \
@@ -33,6 +32,13 @@ BOARD = sprite-edb-socket-rgz
 ifeq ($(CONFIG_ENABLE_RF_PROTOCOL_MONITORING),1)
 	CFLAGS += -DCONFIG_ENABLE_RF_PROTOCOL_MONITORING
 	OBJECTS += rfid/rfid.o rfid/rfid_decoder.o
+endif
+
+# Enable listening and recording communication on I2C bus
+# 		TODO: this is not currently implemented
+ifeq ($(CONFIG_ENABLE_I2C_MONITORING),1)
+	CFLAGS += -DCONFIG_ENABLE_I2C_MONITORING
+	OBJECTS += i2c.o
 endif
 
 # Capacitor charge implemented by a PWM with a control loop around the duty-cycle
