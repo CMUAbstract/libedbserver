@@ -283,7 +283,6 @@ static void append_watchpoint_event(unsigned index)
         main_loop_flags |= FLAG_WATCHPOINT_READY;
     }
 }
-#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
 void send_watchpoint_events()
 {
@@ -305,6 +304,7 @@ void send_watchpoint_events()
 
     watchpoint_events_count[ready_events_buf_idx] = 0; // mark buffer as free
 }
+#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
 void enable_watchpoints()
 {
