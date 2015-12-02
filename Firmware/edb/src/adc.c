@@ -13,6 +13,8 @@
 #include "systick.h"
 #endif
 
+#define TIMER_ADC_TRIGGER CONCAT(TMRMOD_ADC_TRIGGER, TMRIDX_ADC_TRIGGER)
+
 #define ADC_MAX_CHANNELS  5
 
 #define NUM_BUFFERS                                  2 // double-buffer pair
@@ -108,11 +110,12 @@ void ADC_start(uint16_t streams, unsigned sampling_period)
     ADC12IFG = 0; // clear int flags
     ADC12IE = (0x0001 << (num_channels - 1)); // enable interupt on last sample
 
-    TB0CCR0 = sampling_period;
-    TB0CCTL0 = OUTMOD_3; // set/reset output mode
-    TB0CTL = TIMER_B_CLK_SOURCE_BITS(CONFIG_ADC_TIMER_SOURCE_NAME) |
-             TIMER_DIV_BITS(CONFIG_ADC_TIMER_DIV) |
-             MC__UP | TBCLR;
+    TIMER_CC(TIMER_ADC_TRIGGER, TMRCC_ADC_TRIGGER, CCR) = sampling_period;
+    TIMER_CC(TIMER_ADC_TRIGGER, TMRCC_ADC_TRIGGER, CCTL) = OUTMOD_3; // set/reset output mode
+    TIMER(TIMER_ADC_TRIGGER, CTL) =
+         TIMER_CLK_SOURCE_BITS(TMRMOD_ADC_TRIGGER, CONFIG_ADC_TIMER_SOURCE_NAME) |
+         TIMER_DIV_BITS(CONFIG_ADC_TIMER_DIV) |
+         MC__UP | TIMER_CLR(TMRMOD_ADC_TRIGGER);
 
     for (i = 0; i < NUM_BUFFERS; ++i) {
         header = &sample_msg_bufs[i][UART_MSG_HEADER_SIZE];

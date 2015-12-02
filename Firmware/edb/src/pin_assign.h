@@ -1,6 +1,9 @@
 #ifndef PIN_ASSIGN_H
 #define PIN_ASSIGN_H
 
+#define CONCAT_INNER(a, b) a ## b
+#define CONCAT(a, b) CONCAT_INNER(a, b)
+
 #define BIT_INNER(idx) BIT ## idx
 #define BIT(idx) BIT_INNER(idx)
 
@@ -49,8 +52,12 @@
 #define TIMER_A_DIV_EX_BITS_INNER(div) TAIDEX_ ## div
 #define TIMER_A_DIV_EX_BITS(div) TIMER_A_DIV_EX_BITS_INNER(div - 1)
 
-#define TIMER_B_CLK_SOURCE_BITS_INNER(name) TBSSEL__ ## name
-#define TIMER_B_CLK_SOURCE_BITS(name) TIMER_B_CLK_SOURCE_BITS_INNER(name)
+#define TIMER_CLK_SOURCE_BITS_INNER(mod, src) T ## mod ## SSEL__ ## src
+#define TIMER_CLK_SOURCE_BITS(mod, src) TIMER_CLK_SOURCE_BITS_INNER(mod, src)
+
+#define TIMER_CLR_INNER(mod)  T ## mod ## CLR
+#define TIMER_CLR(mod) TIMER_CLR_INNER(mod)
+
 
 // Ugly workaround to make the pretty GPIO macro work for OUT register
 // (a control bit for TAxCCTLx uses the name 'OUT')
@@ -166,6 +173,10 @@
 // NOTE: if changed, the ISR in main.c must also be changed
 #define TIMER_SEND_ENERGY_PROFILE               A0
 #define TMRCC_SEND_ENERGY_PROFILE               0 //!< timer capture-compare register index
+
+#define TMRMOD_ADC_TRIGGER                      B //!< timer module for ADC trigger in stream mode
+#define TMRIDX_ADC_TRIGGER                      0 //!< timer index for ADC trigger in stream mode
+#define TMRCC_ADC_TRIGGER                       0 //!< timer capture-compare register index
 
 /** @} End PORTS */
 
