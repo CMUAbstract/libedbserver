@@ -39,7 +39,7 @@ void UART_setup(unsigned interface)
 {
     switch(interface)
     {
-#ifdef PORT_UART_USB
+#ifdef UART_HOST
     case UART_INTERFACE_USB:
         // USCI_A0 option select
         GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
@@ -92,7 +92,7 @@ void UART_setup(unsigned interface)
         break;
 #endif // PORT_PORT_UART_USB
 
-#ifdef PORT_UART_TARGET
+#ifdef UART_TARGET
     case UART_INTERFACE_WISP:
         // USCI_A1 option select
         GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
@@ -129,7 +129,7 @@ void UART_teardown(unsigned interface)
     // Put pins into High-Z state
     switch(interface)
     {
-#ifdef PORT_UART_USB
+#ifdef UART_HOST
         case UART_INTERFACE_USB:
             UCA0IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
             UCA0CTL1 |= UCSWRST;                    // put state machine in reset
@@ -137,7 +137,7 @@ void UART_teardown(unsigned interface)
             GPIO(PORT_UART_USB, DIR) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
             break;
 #endif // PORT_UART_USB
-#ifdef PORT_UART_TARGET
+#ifdef UART_TARGET
         case UART_INTERFACE_WISP:
             UCA1IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
             UCA1CTL1 |= UCSWRST;                    // put state machine in reset
@@ -152,11 +152,11 @@ unsigned UART_RxBufEmpty(unsigned interface)
 {
     switch(interface)
     {
-#ifdef PORT_UART_USB
+#ifdef UART_HOST
     case UART_INTERFACE_USB:
         return usbRx.head == usbRx.tail;
 #endif // PORT_UART_USB
-#ifdef PORT_UART_TARGET
+#ifdef UART_TARGET
     case UART_INTERFACE_WISP:
         return wispRx.head == wispRx.tail;
 #endif
@@ -215,12 +215,12 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
 
     switch(interface)
     {
-#ifdef PORT_UART_USB
+#ifdef UART_HOST
     case UART_INTERFACE_USB:
         uartBuf = &usbRx;
         break;
 #endif // PORT_UART_USB
-#ifdef PORT_UART_TARGET
+#ifdef UART_TARGET
     case UART_INTERFACE_WISP:
         uartBuf = &wispRx;
         break;
@@ -412,7 +412,7 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     }
 }
 
-#ifdef PORT_UART_TARGET
+#ifdef UART_TARGET
 /*
  * WISP message ISR
  */
