@@ -69,11 +69,11 @@ void UART_setup(unsigned interface)
         DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN;
 
 #if DMA_HOST_UART_TX == 0
-        DMACTL0 = DMA0TSEL_17; /* USCA0 tx */
+        DMACTL0 = DMA0TSEL__USCIA0TX;
 #elif DMA_HOST_UART_TX == 1
-        DMACTL0 = DMA1TSEL_17; /* USCA0 tx */
+        DMACTL0 = DMA1TSEL__USCIA0TX;
 #elif DMA_HOST_UART_TX == 2
-        DMACTL1 = DMA2TSEL_17; /* USCA0 tx */
+        DMACTL1 = DMA2TSEL__USCIA0TX;
 #endif
 
         DMACTL4 = DMARMWDIS;
