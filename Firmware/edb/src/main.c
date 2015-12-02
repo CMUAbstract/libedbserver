@@ -522,6 +522,7 @@ static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
     // expect comparator interrupt
 }
 
+#ifdef CONFIG_HOST_UART
 /**
  * @brief       Execute a command received from the computer through the USB port
  * @param       pkt     Packet structure that contains the received message info
@@ -886,6 +887,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     pkt->processed = 1;
 }
+#endif // CONFIG_HOST_UART
 
 
 int main(void)
@@ -946,31 +948,42 @@ int main(void)
                 debug_mode_flags & DEBUG_MODE_WITH_UART)
                 get_target_interrupt_context(&interrupt_context);
             // do it here: reply marks completion of enter sequence
+#ifdef CONFIG_HOST_UART
             send_interrupt_context(&interrupt_context);
+#endif
         }
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
         if (main_loop_flags & FLAG_WATCHPOINT_READY) {
             main_loop_flags &= ~FLAG_WATCHPOINT_READY;
             send_watchpoint_events();
         }
+#endif // CONFIG_WATCHPOINT_STREAM
 
         if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
             main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
 
+#ifdef CONFIG_HOST_UART
             send_voltage(interrupt_context.restored_vcap);
+#endif
         }
 
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         if((main_loop_flags & FLAG_ADC_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
             // ADC12 has completed conversion on all active channels
             ADC_send_samples_to_host();
             main_loop_flags &= ~FLAG_ADC_COMPLETE;
         }
+#endif // CONFIG_ENABLE_VOLTAGE_STREAM
 
         if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
             main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
+#ifdef CONFIG_HOST_UART
             send_return_code(RETURN_CODE_SUCCESS);
+#endif
         }
 
+#ifdef CONFIG_HOST_UART
         if(main_loop_flags & FLAG_UART_USB_RX) {
             // we've received a byte from USB
             if(UART_buildRxPkt(UART_INTERFACE_USB, &usbRxPkt) == 0) {
@@ -985,6 +998,7 @@ int main(void)
             }
             UART_ENABLE_USB_RX; // enable interrupt
         }
+#endif // CONFIG_HOST_UART
 
 /*
         if(main_loop_flags & FLAG_UART_USB_TX) {
@@ -993,12 +1007,15 @@ int main(void)
         }
 */
 
+#ifdef CONFIG_TARGET_UART
         if(main_loop_flags & FLAG_UART_WISP_RX) {
             // we've received a byte over UART from the WISP
             if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
                 switch (wispRxPkt.descriptor) {
                     case WISP_RSP_STDIO:
+#ifdef CONFIG_HOST_UART
                         forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
+#endif
                         break;
                     case WISP_RSP_APP_OUTPUT:
                         payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
@@ -1011,6 +1028,7 @@ int main(void)
             	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
             }
         }
+#endif // CONFIG_TARGET_UART
 
         if (main_loop_flags & FLAG_SEND_PAYLOAD) {
             payload_send();
