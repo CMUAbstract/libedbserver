@@ -43,6 +43,7 @@ void UART_setup(unsigned interface)
 {
     switch(interface)
     {
+#ifdef PORT_UART_USB
     case UART_INTERFACE_USB:
         // USCI_A0 option select
         GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
@@ -93,7 +94,9 @@ void UART_setup(unsigned interface)
         UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
         UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
         break;
+#endif // PORT_PORT_UART_USB
 
+#ifdef PORT_UART_TARGET
     case UART_INTERFACE_WISP:
         // USCI_A1 option select
         GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
@@ -122,6 +125,7 @@ void UART_setup(unsigned interface)
     default:
         break;
     }
+#endif // PORT_UART_TARGET
 } // UART_setup
 
 void UART_teardown(unsigned interface)
@@ -129,18 +133,22 @@ void UART_teardown(unsigned interface)
     // Put pins into High-Z state
     switch(interface)
     {
+#ifdef PORT_UART_USB
         case UART_INTERFACE_USB:
             UCA0IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
             UCA0CTL1 |= UCSWRST;                    // put state machine in reset
             GPIO(PORT_UART_USB, SEL) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
             GPIO(PORT_UART_USB, DIR) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
             break;
+#endif // PORT_UART_USB
+#ifdef PORT_UART_TARGET
         case UART_INTERFACE_WISP:
             UCA1IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
             UCA1CTL1 |= UCSWRST;                    // put state machine in reset
             GPIO(PORT_UART_TARGET, SEL) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
             GPIO(PORT_UART_TARGET, DIR) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
             break;
+#endif // PORT_UART_TARGET
     }
 }
 
@@ -148,10 +156,14 @@ unsigned UART_RxBufEmpty(unsigned interface)
 {
     switch(interface)
     {
+#ifdef PORT_UART_USB
     case UART_INTERFACE_USB:
         return usbRx.head == usbRx.tail;
+#endif // PORT_UART_USB
+#ifdef PORT_UART_TARGET
     case UART_INTERFACE_WISP:
         return wispRx.head == wispRx.tail;
+#endif
     default:
         return 0;
     }
@@ -207,12 +219,16 @@ unsigned UART_buildRxPkt(unsigned interface, uartPkt_t *pkt)
 
     switch(interface)
     {
+#ifdef PORT_UART_USB
     case UART_INTERFACE_USB:
         uartBuf = &usbRx;
         break;
+#endif // PORT_UART_USB
+#ifdef PORT_UART_TARGET
     case UART_INTERFACE_WISP:
         uartBuf = &wispRx;
         break;
+#endif // PORT_UART_TARGET
     default:
         // unknown interface
         state = CONSTRUCT_STATE_IDENTIFIER;
@@ -400,6 +416,7 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     }
 }
 
+#ifdef PORT_UART_TARGET
 /*
  * WISP message ISR
  */
@@ -442,3 +459,4 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     default: break;
     }
 }
+#endif // PORT_UART_TARGET
