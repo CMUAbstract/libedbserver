@@ -379,6 +379,7 @@ void UART_end_transmission()
     UART_wait_for_tx_dma();
 }
 
+#ifdef UART_HOST
 /*
  * USB message ISR
  */
@@ -411,6 +412,7 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
     default: break;
     }
 }
+#endif // UART_HOST
 
 #ifdef UART_TARGET
 /*
