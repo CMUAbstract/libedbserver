@@ -1206,6 +1206,7 @@ void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
     while (1);
 }
 
+#ifdef DMA_HOST_UART_TX
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=DMA_VECTOR
 __interrupt void DMA_ISR(void)
@@ -1216,8 +1217,11 @@ void __attribute__ ((interrupt(DMA_VECTOR))) DMA_ISR (void)
 #endif
 {
     switch (__even_in_range(DMAIV, 16)) {
+#ifdef DMA_HOST_UART_TX
         case DMA_INTFLAG(DMA_HOST_UART_TX):
                host_uart_status &= ~UART_STATUS_TX_BUSY;
             break;
+#endif
     }
 }
+#endif // DMA users

@@ -19,8 +19,8 @@
 #define TIMERA_INTFLAG_INNER(id, ccridx) T ## id ## IV_ ## TACCR ## ccridx
 #define TIMERA_INTFLAG(id, ccridx) TIMERA_INTFLAG_INNER(id, ccridx)
 
-#define UART_INNER(name, reg) UC ## name ## reg
-#define UART(name, reg) UART_INNER(name, reg)
+#define UART_INNER(idx, reg) UCA ## idx ## reg
+#define UART(idx, reg) UART_INNER(idx, reg)
 
 #define BRS_BITS_INNER(brs) UCBRS_ ## brs
 #define BRS_BITS(brs) BRS_BITS_INNER(brs)
@@ -30,6 +30,15 @@
 
 #define DMA_INNER(name, reg) DMA ## name ## reg
 #define DMA(name, reg) DMA_INNER(name, reg)
+
+#define DMA_CTL_INNER(chan) DMACTL ## chan
+#define DMA_CTL(chan) DMA_CTL(chan)
+
+#define DMA_TRIG_INNER(chan, trig) DMA ## chan ## TRIG__ ## trig
+#define DMA_TRIG(chan, trig) DMA_TRIG_INNER(chan, trig)
+
+#define DMA_TRIG_UART_INNER(idx, dir) USCIA ## idx ## dir
+#define DMA_TRIG_UART(idx, dir) DMA_TRIG_UART_INNER(idx, dir)
 
 #define DMA_INTFLAG_INNER(name) DMAIV_DMA ## name ## IFG
 #define DMA_INTFLAG(name) DMA_INTFLAG_INNER(name)
@@ -140,6 +149,11 @@
 #define PIN_I2C_TARGET_SDA                      1 //!< target I2C SDA line
 #define PIN_I2C_TARGET_SCL                      2 //!< target I2C SCL line
 
+#define UART_HOST                               0
+#define UART_TARGET                             1
+
+#define DMA_HOST_UART_TX                        0 //!< DMA channel for UART TX to host
+
 #elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ)
 
 #define PORT_LED                                J //!< GPIO port for LEDs
@@ -207,8 +221,8 @@
 
 #endif
 
-#define UART_HOST                               A0
-#define UART_TARGET                             A1
+// no host UART on this board
+#define UART_TARGET                             0
 
 // TODO: warning: timer shared with voltage logging code
 // NOTE: if changed, the ISR in main.c must also be changed
@@ -248,6 +262,16 @@
 #define COMP_CHAN_VINJ                          5
 /** @} End COMP_CHAN */
 
-#define DMA_HOST_UART_TX                        0
+// The register that selects the channel source depsn on the chan
+#if DMA_HOST_UART_TX == 0
+#define DMA_HOST_UART_TX_CTL 0
+#elif DMA_HOST_UART_TX == 1
+#define DMA_HOST_UART_TX_CTL 0
+#elif DMA_HOST_UART_TX == 2
+#define DMA_HOST_UART_TX_CTL 1
+#else
+#error Invalid DMA channel index: DMA_HOST_UART_TX
+#endif
+
 
 #endif // PIN_ASSIGN_H

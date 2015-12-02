@@ -17,9 +17,14 @@
 
 volatile unsigned host_uart_status = 0;
 
+#ifdef UART_HOST
 static uartBuf_t usbRx = { .head = 0, .tail = 0 };
+#endif // UART_HOST
+
+#ifdef UART_TARGET
 static uartBuf_t wispRx = { .head = 0, .tail = 0 };
 static uartBuf_t wispTx = { .head = 0, .tail = 0 };
+#endif // UART_TARGET
 
 /**
  * @brief       Determine the length of the circular buffer
@@ -41,18 +46,17 @@ void UART_setup(unsigned interface)
     {
 #ifdef UART_HOST
     case UART_INTERFACE_USB:
-        // USCI_A0 option select
         GPIO(PORT_UART_USB, SEL) |= BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX);
 
-        UCA0CTL1 |= UCSWRST;                    // put state machine in reset
-        UCA0CTL1 |= UCSSEL__SMCLK;
+        UART(UART_HOST, CTL1) |= UCSWRST; // put state machine in reset
+        UART(UART_HOST, CTL1) |= UCSSEL__SMCLK;
 #ifdef CONFIG_ABORT_ON_USB_UART_ERROR
-        UCA0CTL1 |= UCRXEIE;
+        UART(UART_HOST, CTL1) |= UCRXEIE;
 #endif
 
-        UCA0BR0 = CONFIG_USB_UART_BAUDRATE_BR0;
-        UCA0BR1 = CONFIG_USB_UART_BAUDRATE_BR1;
-        UCA0MCTL |= 0
+        UART(UART_HOST, BR0) = CONFIG_USB_UART_BAUDRATE_BR0;
+        UART(UART_HOST, BR1) = CONFIG_USB_UART_BAUDRATE_BR1;
+        UART(UART_HOST, MCTL) |= 0
 #ifdef CONFIG_USB_UART_BAUDRATE_UCOS16
             | UCOS16
 #endif
@@ -68,13 +72,8 @@ void UART_setup(unsigned interface)
 
         DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN;
 
-#if DMA_HOST_UART_TX == 0
-        DMACTL0 = DMA0TSEL__USCIA0TX;
-#elif DMA_HOST_UART_TX == 1
-        DMACTL0 = DMA1TSEL__USCIA0TX;
-#elif DMA_HOST_UART_TX == 2
-        DMACTL1 = DMA2TSEL__USCIA0TX;
-#endif
+        DMA_CTL(DMA_HOST_UART_TX_CTL) =
+            DMA_TRIG(DMA_HOST_UART_TX, DMA_TRIG_UART(UART_HOST, TX))
 
         DMACTL4 = DMARMWDIS;
 
@@ -84,25 +83,25 @@ void UART_setup(unsigned interface)
               DMADSTBYTE | DMASRCBYTE | DMALEVEL | DMAIE;
 
         // DMA(DMA_HOST_UART_TX, SA) = set on each transfer
-        DMA(DMA_HOST_UART_TX, DA) = (__DMA_ACCESS_REG__)(&UCA0TXBUF);
+        DMA(DMA_HOST_UART_TX, DA) = (__DMA_ACCESS_REG__)(&UART(UART_HOST, TXBUF));
         // DMA(DMA_HOST_UART_TX, SZ) = set on each transfer
 
-        UCA0CTL1 &= ~UCSWRST;                   // initialize USCI state machine
-        UCA0IE |= UCRXIE;                       // enable USCI_A0 Tx + Rx interrupts
+        UART(UART_HOST, CTL1) &= ~UCSWRST; // initialize USCI state machine
+        UART(UART_HOST, IE) |= UCRXIE;     // enable Tx + Rx interrupts
         break;
 #endif // PORT_PORT_UART_USB
 
 #ifdef UART_TARGET
     case UART_INTERFACE_WISP:
-        // USCI_A1 option select
-        GPIO(PORT_UART_TARGET, SEL) |= BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
+        GPIO(PORT_UART_TARGET, SEL) |=
+            BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX);
 
-        UCA1CTL1 |= UCSWRST;                    // put state machine in reset
-        UCA1CTL1 |= UCSSEL__SMCLK;              // use SMCLK
+        UART(UART_TARGET, CTL1) |= UCSWRST; // put state machine in reset
+        UART(UART_TARGET, CTL1) |= UCSSEL__SMCLK;
 
-        UCA1BR0 = CONFIG_TARGET_UART_BAUDRATE_BR0;
-        UCA1BR1 = CONFIG_TARGET_UART_BAUDRATE_BR1;
-        UCA1MCTL |= 0
+        UART(UART_TARGET, BR0) = CONFIG_TARGET_UART_BAUDRATE_BR0;
+        UART(UART_TARGET, BR1) = CONFIG_TARGET_UART_BAUDRATE_BR1;
+        UART(UART_TARGET, MCTL) |= 0
 #ifdef CONFIG_TARGET_UART_BAUDRATE_UCOS16
             | UCOS16
 #endif
@@ -114,8 +113,8 @@ void UART_setup(unsigned interface)
 #endif
        ;
 
-        UCA1CTL1 &= ~UCSWRST;                   // initialize USCI state machine
-        UCA1IE |= UCRXIE;                       // enable USCI_A1 Tx + Rx interrupts
+        UART(UART_TARGET, CTL1) &= ~UCSWRST; // initialize USCI state machine
+        UART(UART_TARGET, IE) |= UCRXIE;     // enable Tx + Rx interrupts
         break;
 
     default:
@@ -131,18 +130,22 @@ void UART_teardown(unsigned interface)
     {
 #ifdef UART_HOST
         case UART_INTERFACE_USB:
-            UCA0IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
-            UCA0CTL1 |= UCSWRST;                    // put state machine in reset
-            GPIO(PORT_UART_USB, SEL) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
-            GPIO(PORT_UART_USB, DIR) &= ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
+            UART(UART_HOST, IE) &= ~UCRXIE;   // disable Tx + Rx interrupts
+            UART(UART_HOST, CTL1) |= UCSWRST; // put state machine in reset
+            GPIO(PORT_UART_USB, SEL) &=
+                ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
+            GPIO(PORT_UART_USB, DIR) &=
+                ~(BIT(PIN_UART_USB_TX) | BIT(PIN_UART_USB_RX));
             break;
 #endif // PORT_UART_USB
 #ifdef UART_TARGET
         case UART_INTERFACE_WISP:
-            UCA1IE &= ~UCRXIE;                      // disable USCI_A1 Tx + Rx interrupts
-            UCA1CTL1 |= UCSWRST;                    // put state machine in reset
-            GPIO(PORT_UART_TARGET, SEL) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
-            GPIO(PORT_UART_TARGET, DIR) &= ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+            UART(UART_TARGET, IE) &= ~UCRXIE;   // disable Tx + Rx interrupts
+            UART(UART_TARGET, CTL1) |= UCSWRST; // put state machine in reset
+            GPIO(PORT_UART_TARGET, SEL) &=
+                ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
+            GPIO(PORT_UART_TARGET, DIR) &=
+                ~(BIT(PIN_UART_TARGET_TX) | BIT(PIN_UART_TARGET_RX));
             break;
 #endif // PORT_UART_TARGET
     }
@@ -342,8 +345,10 @@ void UART_send_msg_to_target(unsigned descriptor, unsigned payload_len, uint8_t 
 	}
 
     // enable the correct interrupt to start sending data
-    UCA1IE |= UCTXIE;
+    UART(UART_TARGET, IE) |= UCTXIE;
 }
+
+#ifdef UART_HOST
 
 void UART_send_msg_to_host(unsigned descriptor, unsigned payload_len, uint8_t *buf)
 {
@@ -379,10 +384,51 @@ void UART_end_transmission()
     UART_wait_for_tx_dma();
 }
 
+#endif // UART_HOST
+
+// TODO: factor these two into on_rx_int(...):
+
 #ifdef UART_HOST
-/*
- * USB message ISR
- */
+static inline void on_host_rx_int()
+{
+    usbRx.buf[usbRx.tail] = UART(UART_HOST, RXBUF); // copy the new byte
+
+    // update circular buffer tail
+    usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
+
+    main_loop_flags |= FLAG_UART_USB_RX;
+}
+#endif // UART_HOST
+
+#ifdef UART_TARGET
+static inline void on_target_rx_int()
+{
+    wispRx.buf[wispRx.tail] = UART(UART_TARGET, RXBUF); // copy the new byte
+
+    // update circular buffer tail
+    wispRx.tail = (wispRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
+
+    main_loop_flags |= FLAG_UART_WISP_RX;
+}
+
+static inline void on_target_tx_int()
+{
+    UART(UART_TARGET, TXBUF) = wispTx.buf[wispTx.head];
+
+    // update circular buffer headd
+    wispTx.head = (wispTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
+
+    main_loop_flags |= FLAG_UART_WISP_TX;
+
+    if (wispTx.head == wispTx.tail) {
+        // the software buffer is empty
+        UART(UART_TARGET, IE) &= ~UCTXIE; // disable TX interrupt
+    }
+}
+#endif // UART_TARGET
+
+#if (defined(UART_HOST) && UART_HOST == 0) || (defined(UART_TARGET) && UART_TARGET == 0)
+
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=USCI_A0_VECTOR
 __interrupt void USCI_A0_ISR(void)
@@ -398,26 +444,26 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
 
     case USCI_UCRXIFG:                      // Vector 2 - RXIFG
     {
+#if defined(UART_HOST) && UART_HOST == 0
 
 #ifdef CONFIG_ABORT_ON_USB_UART_ERROR
         ASSERT(ASSERT_UART_FAULT,  !(UCA0STAT & UCRXERR));
 #endif
-        usbRx.buf[usbRx.tail] = UCA0RXBUF; // copy the new byte
-        usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
 
-        main_loop_flags |= FLAG_UART_USB_RX;
+        on_host_rx_int();
+#elif defined(UART_TARGET) && UART_TARGET == 0
+        on_target_rx_int();
+#endif
         break;
     }
 
     default: break;
     }
 }
-#endif // UART_HOST
+#endif // UART A0 users
 
-#ifdef UART_TARGET
-/*
- * WISP message ISR
- */
+#if (defined(UART_HOST) && UART_HOST == 1) || (defined(UART_TARGET) && UART_TARGET == 1)
+
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=USCI_A1_VECTOR
 __interrupt void USCI_A1_ISR(void)
@@ -433,28 +479,28 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
 
     case USCI_UCRXIFG:                        // Vector 2 - RXIFG
     {
-        wispRx.buf[wispRx.tail] = UCA1RXBUF; // copy the new byte
-        wispRx.tail = (wispRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer tail
+#if defined(UART_HOST) && UART_HOST == 1
 
-        main_loop_flags |= FLAG_UART_WISP_RX;
+#ifdef CONFIG_ABORT_ON_USB_UART_ERROR
+        ASSERT(ASSERT_UART_FAULT,  !(UCA1STAT & UCRXERR));
+#endif
+
+        on_host_rx_int();
+#elif defined(UART_TARGET) && UART_TARGET == 1
+        on_target_rx_int();
+#endif
         break;
     }
 
     case USCI_UCTXIFG:                        // Vector 4 - TXIFG
     {
-        UCA1TXBUF = wispTx.buf[wispTx.head]; // place data in the Tx register
-        wispTx.head = (wispTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL; // update circular buffer headd
-
-        main_loop_flags |= FLAG_UART_WISP_TX;
-
-        if(wispTx.head == wispTx.tail) {
-            // the software buffer is empty
-            UCA1IE &= ~UCTXIE; // disable TX interrupt
-        }
+#if defined(UART_TARGET) && UART_TARGET == 1
+        on_target_tx_int();
+#endif
         break;
     }
 
     default: break;
     }
 }
-#endif // PORT_UART_TARGET
+#endif // UART A1 users
