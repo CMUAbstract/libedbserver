@@ -13,6 +13,25 @@
 #include "systick.h"
 #endif
 
+typedef struct {
+    unsigned stream; // stream bitmask value
+    uint8_t chan; // hw channel id
+} adc_stream_t;
+
+/* @brief Map between index, stream bit, and hw chan id
+ * @details NOTE: order must match adc_chan_index_t in host_comm.h
+ *          NOTE: size must match ADC_MAX_CHANNELS
+ */
+static adc_stream_t stream_info[] = {
+    { STREAM_VCAP,   ADC_CHAN_VCAP   },
+    { STREAM_VBOOST, ADC_CHAN_VBOOST },
+    { STREAM_VREG,   ADC_CHAN_VREG   },
+    { STREAM_VRECT,  ADC_CHAN_VRECT  },
+    { STREAM_VINJ,   ADC_CHAN_VINJ   },
+};
+
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
+
 #define TIMER_ADC_TRIGGER CONCAT(TMRMOD_ADC_TRIGGER, TMRIDX_ADC_TRIGGER)
 
 #define ADC_MAX_CHANNELS  5
@@ -43,23 +62,6 @@
 #define SAMPLE_TIMESTAMPS_OFFSET  (UART_MSG_HEADER_SIZE + STREAM_DATA_MSG_HEADER_LEN)
 #define SAMPLE_VOLTAGES_OFFSET  (SAMPLE_TIMESTAMPS_OFFSET + SAMPLE_TIMESTAMPS_SIZE)
 
-typedef struct {
-    unsigned stream; // stream bitmask value
-    uint8_t chan; // hw channel id
-} adc_stream_t;
-
-/* @brief Map between index, stream bit, and hw chan id
- * @details NOTE: order must match adc_chan_index_t in host_comm.h
- *          NOTE: size must match ADC_MAX_CHANNELS
- */
-static adc_stream_t stream_info[] = {
-    { STREAM_VCAP,   ADC_CHAN_VCAP   },
-    { STREAM_VBOOST, ADC_CHAN_VBOOST },
-    { STREAM_VREG,   ADC_CHAN_VREG   },
-    { STREAM_VRECT,  ADC_CHAN_VRECT  },
-    { STREAM_VINJ,   ADC_CHAN_VINJ   },
-};
-
 static unsigned num_channels;
 
 static uint8_t sample_msg_bufs[NUM_BUFFERS][SAMPLES_MSG_BUF_SIZE];
@@ -80,8 +82,6 @@ static unsigned voltage_sample_offset;
 static volatile unsigned sample_buf_idx;
 static uint32_t *sample_timestamps_buf;
 static uint16_t *sample_voltages_buf;
-
-#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
 
 void ADC_start(uint16_t streams, unsigned sampling_period)
 {

@@ -581,7 +581,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_BEGIN: {
         uint16_t streams = pkt->data[0];
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         unsigned sampling_period = (pkt->data[2] << 8) | pkt->data[1];
+#endif
 
         streams_bitmask = streams;
         adc_streams_bitmask = streams & ADC_STREAMS;
