@@ -73,7 +73,7 @@ void UART_setup(unsigned interface)
         DMA(DMA_HOST_UART_TX, CTL) &= ~DMAEN;
 
         DMA_CTL(DMA_HOST_UART_TX_CTL) =
-            DMA_TRIG(DMA_HOST_UART_TX, DMA_TRIG_UART(UART_HOST, TX))
+            DMA_TRIG(DMA_HOST_UART_TX, DMA_TRIG_UART(UART_HOST, TX));
 
         DMACTL4 = DMARMWDIS;
 

@@ -32,9 +32,9 @@
 #define DMA(name, reg) DMA_INNER(name, reg)
 
 #define DMA_CTL_INNER(chan) DMACTL ## chan
-#define DMA_CTL(chan) DMA_CTL(chan)
+#define DMA_CTL(chan) DMA_CTL_INNER(chan)
 
-#define DMA_TRIG_INNER(chan, trig) DMA ## chan ## TRIG__ ## trig
+#define DMA_TRIG_INNER(chan, trig) DMA ## chan ## TSEL__ ## trig
 #define DMA_TRIG(chan, trig) DMA_TRIG_INNER(chan, trig)
 
 #define DMA_TRIG_UART_INNER(idx, dir) USCIA ## idx ## dir
