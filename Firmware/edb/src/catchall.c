@@ -11,7 +11,9 @@
 #include "pin_assign.h"
 #include "error.h"
 
-// TODO: Some of these should be under config.h ifdefs
+// TODO: This is board-specific: maybe make a module_assign.h like pin_assig.h
+//       For now, we say that an interrupt is used if there is at least one
+//       build config in which it is used.
 
 // #define INT_HANDLED_RTC
 // #define INT_HANDLED_PORT2
