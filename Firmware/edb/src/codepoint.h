@@ -6,13 +6,7 @@
 
 #include "host_comm.h"
 
-// Bitmasks indicate whether a breakpoint (group) of given index is enabled
-extern uint16_t passive_breakpoints;
-extern uint16_t external_breakpoints;
-extern uint16_t internal_breakpoints;
-extern uint16_t code_energy_breakpoints;
-
-extern uint16_t watchpoints;
+extern uint16_t code_energy_breakpoints; // exposed for comparator ISR
 
 void set_external_breakpoint_pin_state(uint16_t bitmask, bool state);
 
@@ -25,7 +19,8 @@ void enable_watchpoints();
 void disable_watchpoints();
 
 void init_watchpoint_event_bufs();
-void append_watchpoint_event(unsigned index);
 void send_watchpoint_events();
+
+void handle_codepoint(uint8_t pin_state);
 
 #endif // CODEPOINT_H

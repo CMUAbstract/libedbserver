@@ -1069,44 +1069,12 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
-#if defined(CONFIG_ENABLE_WATCHPOINTS)
+#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
         /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
         pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
                     (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-
-        // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
-        // -1 to convert from one-based to zero-based index
-        unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
-        if (watchpoints & (1 << index)) {
-#ifdef CONFIG_ENABLE_ENERGY_PROFILE
-            uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-            profile_event(&payload.energy_profile, index, vcap);
-#endif
-#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
-            append_watchpoint_event(index);
-#endif
-        }
-
-#elif defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS)
-        if (!passive_breakpoints) {
-            error(ERROR_UNEXPECTED_INTERRUPT);
-            break;
-        }
-
-        /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
-        pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
-                    (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-
-        // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
-        // -1 to convert from one-based to zero-based index
-        unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0) - 1;
-        if (passive_breakpoints & (1 << index)) {
-            if (state == STATE_DEBUG)
-                error(ERROR_UNEXPECTED_CODEPOINT);
-
-            enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
-        }
-#endif // CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+#endif // WORKAROUND_FLIP_CODEPOINT_PINS
+        handle_codepoint(pin_state);
         break;
     }
 #endif // PORT_CODEPOINT
