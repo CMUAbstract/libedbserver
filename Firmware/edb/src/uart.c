@@ -386,46 +386,31 @@ void UART_end_transmission()
 
 #endif // UART_HOST
 
-// TODO: factor these two into on_rx_int(...):
-
-#ifdef UART_HOST
-static inline void on_host_rx_int()
+static inline void on_rx_int(uint8_t data, uartBuf_t *rxbuf, unsigned flag)
 {
-    usbRx.buf[usbRx.tail] = UART(UART_HOST, RXBUF); // copy the new byte
+    rxbuf->buf[rxbuf->tail] = data; // copy the new byte
 
     // update circular buffer tail
-    usbRx.tail = (usbRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
+    rxbuf->tail = (rxbuf->tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
 
-    main_loop_flags |= FLAG_UART_USB_RX;
-}
-#endif // UART_HOST
-
-#ifdef UART_TARGET
-static inline void on_target_rx_int()
-{
-    wispRx.buf[wispRx.tail] = UART(UART_TARGET, RXBUF); // copy the new byte
-
-    // update circular buffer tail
-    wispRx.tail = (wispRx.tail + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
-
-    main_loop_flags |= FLAG_UART_WISP_RX;
+    main_loop_flags |= flag;
 }
 
-static inline void on_target_tx_int()
+static inline void on_tx_int(volatile uint8_t *datareg, volatile uint8_t *intreg,
+                             uartBuf_t *txbuf, unsigned flag)
 {
-    UART(UART_TARGET, TXBUF) = wispTx.buf[wispTx.head];
+    *datareg = txbuf->buf[txbuf->head];
 
     // update circular buffer headd
-    wispTx.head = (wispTx.head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
+    txbuf->head = (txbuf->head + sizeof(uint8_t)) % UART_BUF_MAX_LEN_WITH_TAIL;
 
-    main_loop_flags |= FLAG_UART_WISP_TX;
+    main_loop_flags |= flag;
 
-    if (wispTx.head == wispTx.tail) {
+    if (txbuf->head == txbuf->tail) {
         // the software buffer is empty
-        UART(UART_TARGET, IE) &= ~UCTXIE; // disable TX interrupt
+        *intreg &= ~UCTXIE; // disable TX interrupt
     }
 }
-#endif // UART_TARGET
 
 #if (defined(UART_HOST) && UART_HOST == 0) || (defined(UART_TARGET) && UART_TARGET == 0)
 
@@ -450,12 +435,22 @@ void __attribute__ ((interrupt(USCI_A0_VECTOR))) USCI_A0_ISR (void)
         ASSERT(ASSERT_UART_FAULT,  !(UCA0STAT & UCRXERR));
 #endif
 
-        on_host_rx_int();
+        on_rx_int(UART(UART_HOST, RXBUF), &usbRx, FLAG_UART_USB_RX);
 #elif defined(UART_TARGET) && UART_TARGET == 0
-        on_target_rx_int();
+        on_rx_int(UART(UART_TARGET, RXBUF), &wispRx, FLAG_UART_WISP_RX);
 #endif
         break;
     }
+
+    case USCI_UCTXIFG:                        // Vector 4 - TXIFG
+    {
+#if defined(UART_TARGET) && UART_TARGET == 0
+        on_tx_int(&UART(UART_TARGET, TXBUF), &UART(UART_TARGET, IE),
+                  &wispTx, FLAG_UART_WISP_TX);
+#endif
+        break;
+    }
+
 
     default: break;
     }
@@ -485,9 +480,9 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
         ASSERT(ASSERT_UART_FAULT,  !(UCA1STAT & UCRXERR));
 #endif
 
-        on_host_rx_int();
+        on_rx_int(UART(UART_HOST, RXBUF), &usbRx, FLAG_UART_USB_RX);
 #elif defined(UART_TARGET) && UART_TARGET == 1
-        on_target_rx_int();
+        on_rx_int(UART(UART_TARGET, RXBUF), &wispRx, FLAG_UART_WISP_RX);
 #endif
         break;
     }
@@ -495,7 +490,8 @@ void __attribute__ ((interrupt(USCI_A1_VECTOR))) USCI_A1_ISR (void)
     case USCI_UCTXIFG:                        // Vector 4 - TXIFG
     {
 #if defined(UART_TARGET) && UART_TARGET == 1
-        on_target_tx_int();
+        on_tx_int(&UART(UART_TARGET, TXBUF), &UART(UART_TARGET, IE),
+                  &wispTx, FLAG_UART_WISP_TX);
 #endif
         break;
     }
