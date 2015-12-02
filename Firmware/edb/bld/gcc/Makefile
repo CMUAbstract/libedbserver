@@ -5,7 +5,6 @@ OBJECTS = \
 	main.o \
 	error.o \
 	uart.o \
-	systick.o \
 	adc.o \
 	mspware/pmm.o \
 	params.o \
@@ -39,6 +38,12 @@ endif
 ifeq ($(CONFIG_ENABLE_I2C_MONITORING),1)
 	CFLAGS += -DCONFIG_ENABLE_I2C_MONITORING
 	OBJECTS += i2c.o
+endif
+
+# Enable a time-keeping timer (systick)
+ifeq ($(CONFIG_SYSTICK),1)
+	CFLAGS += -DCONFIG_SYSTICK
+	OBJECTS += systick.o
 endif
 
 # Capacitor charge implemented by a PWM with a control loop around the duty-cycle

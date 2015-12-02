@@ -2,13 +2,16 @@
 #include <stdbool.h>
 #include <msp430.h>
 #include "adc.h"
-#include "systick.h"
 #include "pin_assign.h"
 #include "main_loop.h"
 #include "host_comm.h"
 #include "uart.h"
 #include "config.h"
 #include "error.h"
+
+#ifdef CONFIG_SYSTICK
+#include "systick.h"
+#endif
 
 #define ADC_MAX_CHANNELS  5
 
@@ -187,10 +190,17 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    uint32_t timestamp = SYSTICK_CURRENT_TIME;
+    uint32_t timestamp;
+
     unsigned current_num_samples = num_samples[sample_buf_idx];
 
     ASSERT(ASSERT_ADC_BUFFER_OVERFLOW, current_num_samples < NUM_BUFFERED_SAMPLES);
+
+#ifdef CONFIG_SYSTICK
+    timestamp = SYSTICK_CURRENT_TIME;
+#else // !CONFIG_SYSTICK
+    timestamp = 0;
+#endif // !CONFIG_SYSTICK
 
     sample_timestamps_buf[current_num_samples] = timestamp;
 
