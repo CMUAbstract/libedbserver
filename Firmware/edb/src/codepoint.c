@@ -15,6 +15,7 @@
 #include "systick.h"
 #include "main_loop.h"
 #include "tether.h"
+#include "payload.h"
 
 #include "codepoint.h"
 
@@ -262,6 +263,7 @@ void init_watchpoint_event_bufs()
     watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
 }
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 static void append_watchpoint_event(unsigned index)
 {
     watchpoint_event_t *watchpoint_event =
@@ -281,6 +283,7 @@ static void append_watchpoint_event(unsigned index)
         main_loop_flags |= FLAG_WATCHPOINT_READY;
     }
 }
+#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
 void send_watchpoint_events()
 {
@@ -331,7 +334,7 @@ void handle_codepoint(uint8_t pin_state)
         if (watchpoints & (1 << index)) {
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE
             uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-            profile_event(&payload.energy_profile, index, vcap);
+            payload_record_profile_event(index, vcap);
 #endif
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
             append_watchpoint_event(index);

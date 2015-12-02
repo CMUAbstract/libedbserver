@@ -13,6 +13,12 @@ typedef struct {
     uint8_t app_output[APP_OUTPUT_SIZE];
 } payload_t;
 
+void payload_init();
+void payload_send();
+
+void payload_record_profile_event(unsigned index, uint16_t vcap);
+void payload_record_app_output(const uint8_t *data, unsigned len);
+
 void payload_start_send_timer();
 void payload_stop_send_timer();
 

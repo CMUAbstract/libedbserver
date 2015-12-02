@@ -1,10 +1,23 @@
 #include <msp430.h>
+#include <string.h>
 
 #include "config.h"
 #include "pin_assign.h"
+#include "error.h"
 #include "main_loop.h"
+#include "host_comm_impl.h"
 
 #include "payload.h"
+
+static payload_t payload; // EDB+App data sent to host/ground
+
+void payload_init()
+{
+#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+    profile_reset(&payload.energy_profile);
+#endif
+    memset(&payload.app_output, 0, sizeof(payload.app_output));
+}
 
 void payload_start_send_timer()
 {
@@ -20,6 +33,24 @@ void payload_start_send_timer()
 void payload_stop_send_timer()
 {
     TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) = 0;
+}
+
+void payload_send()
+{
+    // TODO: for now we send the profile to host, in sprite this would
+    // be a call to the radio module
+    send_payload(&payload);
+}
+
+void payload_record_profile_event(unsigned index, uint16_t vcap)
+{
+    profile_event(&payload.energy_profile, index, vcap);
+}
+
+void payload_record_app_output(const uint8_t *data, unsigned len)
+{
+    ASSERT(ASSERT_APP_OUTPUT_BUF_OVERFLOW, len < sizeof(payload.app_output));
+    memcpy(&payload.app_output, data, len);
 }
 
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE

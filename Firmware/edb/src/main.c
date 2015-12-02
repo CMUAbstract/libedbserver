@@ -1,7 +1,6 @@
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 
 #include <libedb/target_comm.h>
 
@@ -65,8 +64,6 @@ static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
 static uint16_t streams_bitmask; // currently enabled streams
 
 static uartPkt_t usbRxPkt = { .processed = 1 };
-
-static payload_t payload; // EDB+App data sent to host/ground
 
 static void set_state(state_t new_state)
 {
@@ -906,9 +903,7 @@ int main(void)
     init_watchpoint_event_bufs();
 #endif
 
-#ifdef CONFIG_ENABLE_ENERGY_PROFILE
-    profile_reset(&payload.energy_profile);
-#endif
+    payload_init();
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
     arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
@@ -987,8 +982,7 @@ int main(void)
                         forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
                         break;
                     case WISP_RSP_APP_OUTPUT:
-                        ASSERT(ASSERT_APP_OUTPUT_BUF_OVERFLOW, wispRxPkt.length == APP_OUTPUT_SIZE);
-                        memcpy(payload.app_output, wispRxPkt.data, wispRxPkt.length);
+                        payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
                         break;
                 }
             	wispRxPkt.processed = 1;
@@ -1000,9 +994,7 @@ int main(void)
         }
 
         if (main_loop_flags & FLAG_SEND_PAYLOAD) {
-            // TODO: for now we send the profile to host, in sprite this would
-            // be a call to the radio module
-            send_payload(&payload);
+            payload_send();
             main_loop_flags &= ~FLAG_SEND_PAYLOAD;
         }
 
