@@ -20,6 +20,11 @@ OBJECTS = \
 
 BOARD = sprite-edb-socket-rgz
 
+# Specify board-specific configuration here (by default all flags are unset)
+ifeq ($(BOARD),edb)
+CONFIG_SYSTICK = 1
+endif
+
 # Flags that affect which sources are included go here, not in config.h
 
 # Enable code for decoding the RF protocol

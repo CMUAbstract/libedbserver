@@ -216,6 +216,14 @@
  */
 #define CONFIG_ENABLE_ENERGY_PROFILE
 
+
+/*
+ * @brief Enable streaming voltages
+ * @details Requires a timer to be allocated for the ADC trigger
+ *          (see TMRMOD_ADC_TRIGGER).
+ */
+#define CONFIG_ENABLE_VOLTAGE_STREAM
+
 #define CONFIG_SEND_ENERGY_PROFILE_INTERVAL 0xffff // time source fixed at ACLK
 
 // The rest essentially defines the register settings that carry out the above

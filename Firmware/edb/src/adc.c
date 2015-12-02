@@ -81,6 +81,8 @@ static volatile unsigned sample_buf_idx;
 static uint32_t *sample_timestamps_buf;
 static uint16_t *sample_voltages_buf;
 
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
+
 void ADC_start(uint16_t streams, unsigned sampling_period)
 {
     unsigned i;
@@ -159,6 +161,14 @@ void ADC_send_samples_to_host()
     num_samples[ready_buf_idx] = 0; // mark buffer as free
 }
 
+void ADC_stop()
+{
+    ADC12CTL0 &= ~(ADC12SC | ADC12ENC);  // stop conversion and disable ADC
+    while (ADC12CTL1 & ADC12BUSY); // conversion stops at end of sequence
+}
+
+#endif // CONFIG_ENABLE_VOLTAGE_STREAM
+
 uint16_t ADC_read(unsigned chan_index)
 {
     ADC12CTL0 &= ~ADC12ENC; // disable ADC
@@ -178,11 +188,7 @@ uint16_t ADC_read(unsigned chan_index)
     return ADC12MEM0;
 }
 
-void ADC_stop()
-{
-    ADC12CTL0 &= ~(ADC12SC | ADC12ENC);  // stop conversion and disable ADC
-    while (ADC12CTL1 & ADC12BUSY); // conversion stops at end of sequence
-}
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector = ADC12_VECTOR
@@ -267,6 +273,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 
     ADC12CTL0 |= ADC12ENC;
 }
+#endif // CONFIG_ENABLE_VOLTAGE_STREAM
 
 #if 0
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)

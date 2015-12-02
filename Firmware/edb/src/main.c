@@ -597,11 +597,13 @@ static void executeUSBCmd(uartPkt_t *pkt)
         if (streams & STREAM_WATCHPOINTS)
             enable_watchpoints();
 
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         // actions common to all adc streams
         if (streams & ADC_STREAMS) {
             main_loop_flags |= FLAG_LOGGING; // for main loop
             ADC_start(adc_streams_bitmask, sampling_period);
         }
+#endif
         break;
     }
 
@@ -618,11 +620,13 @@ static void executeUSBCmd(uartPkt_t *pkt)
         if (streams & STREAM_WATCHPOINTS)
             disable_watchpoints();
 
+#ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         // actions common to all adc streams
         if (streams & ADC_STREAMS) {
             ADC_stop();
             main_loop_flags &= ~FLAG_LOGGING; // for main loop
         }
+#endif
         break;
     }
 
