@@ -6,8 +6,10 @@ BOARD = sprite-edb-socket-rgz
 CONFIG_STARTUP_VOLTAGE_WORKAROUND = disable-pmm
 CONFIG_ENABLE_WATCHPOINTS = 1
 CONFIG_ENABLE_ENERGY_PROFILE = 1
+CONFIG_TARGET_UART = 1
 
 ifeq ($(BOARD),edb)
+CONFIG_HOST_UART = 1
 CONFIG_SYSTICK = 1
 CONFIG_ENABLE_WATCHPOINT_STREAM = 1
 CONFIG_ENABLE_VOLTAGE_STREAM = 1
@@ -17,19 +19,29 @@ OBJECTS = \
 	catchall.o \
 	main.o \
 	error.o \
-	uart.o \
 	adc.o \
 	mspware/pmm.o \
 	params.o \
 	charge.o \
 	comparator.o \
 	codepoint.o \
-	host_comm_impl.o \
-	target_comm_impl.o \
 	tether.o \
 	clock.o \
 	profile.o \
 	payload.o \
+
+
+ifeq ($(or $(CONFIG_HOST_UART),$(CONFIG_TARGET_UART)),1)
+	OBJECTS += uart.o
+endif
+
+ifeq ($(CONFIG_HOST_UART),1)
+	OBJECTS += host_comm_impl.o
+endif
+
+ifeq ($(CONFIG_TARGET_UART),1)
+	OBJECTS += target_comm_impl.o
+endif
 
 ifeq ($(CONFIG_ENABLE_RF_PROTOCOL_MONITORING),1)
 	OBJECTS += rfid/rfid.o rfid/rfid_decoder.o
