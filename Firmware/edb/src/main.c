@@ -580,7 +580,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
         streams_bitmask = streams;
         adc_streams_bitmask = streams & ADC_STREAMS;
 
+#ifdef CONFIG_SYSTICK
         systick_reset(); // to avoid timestamp wrap-around in middle of stream
+#endif
 
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
@@ -912,7 +914,9 @@ int main(void)
 
     reset_state();
 
+#ifdef CONFIG_SYSTICK
     systick_start();
+#endif
 
     __enable_interrupt();                   // enable all interrupts
 
