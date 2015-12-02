@@ -183,7 +183,7 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
     unmask_target_signal();
 }
 
-static void exit_debug_mode()
+void exit_debug_mode()
 {
     set_state(STATE_EXITING);
 
@@ -202,7 +202,7 @@ static void reset_state()
     unmask_target_signal();
 }
 
-static void interrupt_target()
+void interrupt_target()
 {
     uint16_t cur_vreg;
 
@@ -485,7 +485,7 @@ static inline void pin_setup()
  * @param   level   Vcap level to interrupt at
  * @details Implemented by continuously sampling Vcap using the ADC
  */
-static void break_at_vcap_level_adc(uint16_t level)
+void break_at_vcap_level_adc(uint16_t level)
 {
     uint16_t cur_vcap, cur_vreg;
 
@@ -515,7 +515,7 @@ static void break_at_vcap_level_adc(uint16_t level)
  * @param   cmp_ref Voltage reference with resepect to which 'target' voltage is calculated
  * @details Implemented by monitoring Vcap using the analog comparator
  */
-static void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
+void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
 {
     arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
     // expect comparator interrupt
