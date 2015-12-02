@@ -1,6 +1,6 @@
 EXEC = edb.out
 
-BOARD = sprite-edb-socket-rgz
+# Expects BOARD env var to be set to one supported by 'maker' (see Maker.board)
 
 # Configure the build here (see Makefile.config, by default all flags are unset)
 CONFIG_STARTUP_VOLTAGE_WORKAROUND = disable-pmm
