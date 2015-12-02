@@ -22,6 +22,12 @@
 #define UART_INNER(name, reg) UC ## name ## reg
 #define UART(name, reg) UART_INNER(name, reg)
 
+#define BRS_BITS_INNER(brs) UCBRS_ ## brs
+#define BRS_BITS(brs) BRS_BITS_INNER(brs)
+
+#define BRF_BITS_INNER(brf) UCBRF_ ## brf
+#define BRF_BITS(brf) BRF_BITS_INNER(brf)
+
 #define DMA_INNER(name, reg) DMA ## name ## reg
 #define DMA(name, reg) DMA_INNER(name, reg)
 
