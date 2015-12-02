@@ -60,7 +60,9 @@ static sig_cmd_t target_sig_cmd;
 
 static interrupt_context_t interrupt_context;
 
+#ifdef CONFIG_HOST_UART
 static uartPkt_t usbRxPkt = { .processed = 1 };
+#endif
 
 static void set_state(state_t new_state)
 {
