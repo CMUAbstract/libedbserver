@@ -73,12 +73,12 @@ static unsigned watchpoint_events_buf_idx;
 
 void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
 {
-#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
+#ifdef BOARD_EDB // flip order of codepoint pins
     if (bitmask == 0x1)
         bitmask = 0x2;
     else if (bitmask == 0x2)
         bitmask = 0x1;
-#endif
+#endif // BOARD_EDB
 
     if (state)
         GPIO(PORT_CODEPOINT, OUT) |= bitmask << PIN_CODEPOINT_0;

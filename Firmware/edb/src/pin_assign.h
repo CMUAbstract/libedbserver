@@ -100,7 +100,6 @@
 #define PIN_CODEPOINT_1                         5 // msb
 #define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1))
 #define NUM_CODEPOINT_PINS                      2
-#define WORKAROUND_FLIP_CODEPOINT_PINS // the hardware routing routes AUX1,AUX2 to pins out of order
 
 #define PORT_SERIAL_DECODE                      4 //!< GPIO port for serial decoder state
 #define PIN_SERIAL_DECODE_PULSE                 1 //!< input pulse trigged decoder interrupt
@@ -195,7 +194,6 @@
                                                  BIT(PIN_CODEPOINT_4) | \
                                                  BIT(PIN_CODEPOINT_5))
 #define NUM_CODEPOINT_PINS                      6
-//#define WORKAROUND_FLIP_CODEPOINT_PINS // the hardware routing routes AUX1,AUX2 to pins out of order
 
 #define PORT_SERIAL_DECODE                      3 //!< GPIO port for serial decoder state
 #define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt

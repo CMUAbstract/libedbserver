@@ -1069,11 +1069,11 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
-#ifdef WORKAROUND_FLIP_CODEPOINT_PINS
+#ifdef BOARD_EDB
         /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
         pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
                     (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-#endif // WORKAROUND_FLIP_CODEPOINT_PINS
+#endif // BOARD_EDB
         handle_codepoint(pin_state);
         break;
     }
