@@ -60,8 +60,6 @@ static sig_cmd_t target_sig_cmd;
 
 static interrupt_context_t interrupt_context;
 
-static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
-
 static uartPkt_t usbRxPkt = { .processed = 1 };
 
 static void set_state(state_t new_state)
@@ -585,8 +583,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         unsigned sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 #endif
 
-        adc_streams_bitmask = streams & ADC_STREAMS;
-
 #ifdef CONFIG_SYSTICK
         systick_reset(); // to avoid timestamp wrap-around in middle of stream
 #endif
@@ -602,7 +598,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         // actions common to all adc streams
         if (streams & ADC_STREAMS) {
             main_loop_flags |= FLAG_LOGGING; // for main loop
-            ADC_start(adc_streams_bitmask, sampling_period);
+            ADC_start(streams & ADC_STREAMS, sampling_period);
         }
 #endif
         break;
@@ -610,8 +606,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_STREAM_END: {
         unsigned streams = pkt->data[0];
-
-        adc_streams_bitmask &= ~(streams & ADC_STREAMS);
 
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
