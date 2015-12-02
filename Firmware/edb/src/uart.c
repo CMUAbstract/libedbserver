@@ -19,6 +19,8 @@
 #define BRF_BITS_INNER(brf) UCBRF_ ## brf
 #define BRF_BITS(brf) BRF_BITS_INNER(brf)
 
+// TODO: rename "usb" to "host"
+
 volatile unsigned host_uart_status = 0;
 
 static uartBuf_t usbRx = { .head = 0, .tail = 0 };
