@@ -238,8 +238,11 @@ static void finish_enter_debug_mode()
 
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_setup(UART_INTERFACE_WISP);
+
+#ifdef CONFIG_ENABLE_I2C_MONITORING
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
         I2C_setup();
+#endif
 
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
           main_loop_flags |= FLAG_INTERRUPTED; // main loop notifies the host
@@ -257,8 +260,11 @@ static void finish_exit_debug_mode()
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_teardown(UART_INTERFACE_WISP);
 #endif
+
+#ifdef CONFIG_ENABLE_I2C_MONITORING
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
         I2C_teardown();
+#endif
 
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
         main_loop_flags |= FLAG_EXITED_DEBUG_MODE;
