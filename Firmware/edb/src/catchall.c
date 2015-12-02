@@ -16,7 +16,7 @@
 //       build config in which it is used.
 
 // #define INT_HANDLED_RTC
-// #define INT_HANDLED_PORT2
+#define INT_HANDLED_PORT2
 #define INT_HANDLED_TIMER2_A1
 // #define INT_HANDLED_TIMER2_A0
 // #define INT_HANDLED_USCI_B1

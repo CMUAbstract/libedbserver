@@ -1086,6 +1086,32 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 
 #endif // Port 1 ISR users
 
+#if PORT_SIG == 2
+
+// Port 2 ISR
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=PORT2_VECTOR
+__interrupt void Port_2(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(PORT2_VECTOR))) Port_2 (void)
+#else
+#error Compiler not supported!
+#endif
+{
+    switch(__even_in_range(P2IV, 16))
+    {
+#if PORT_SIG == 2
+        case INTFLAG(PORT_SIG, PIN_SIG):
+            handle_target_signal();
+            break;
+#endif // PORT_SIG
+
+        default:
+            break;
+    }
+}
+#endif // Port 2 ISR users
+
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=COMP_B_VECTOR
 __interrupt void Comp_B_ISR (void)
