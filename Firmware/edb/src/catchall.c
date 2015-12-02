@@ -86,6 +86,7 @@ void __attribute__ ((interrupt(TIMER2_A1_VECTOR))) UNHANDLED_ISR_TIMER2_A1(void)
 }
 #endif
 
+#ifdef BOARD_EDB
 #ifndef INT_HANDLED_TIMER2_A0
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER2_A0_VECTOR
@@ -99,7 +100,9 @@ void __attribute__ ((interrupt(TIMER2_A0_VECTOR))) UNHANDLED_ISR_TIMER2_A0(void)
     ASSERT(ASSERT_UNHANDLED_INTERRUPT, 0);
 }
 #endif
+#endif // BOARD_EDB
 
+#ifdef BOARD_EDB
 #ifndef INT_HANDLED_USCI_B1
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=USCI_B1_VECTOR
@@ -113,6 +116,7 @@ void __attribute__ ((interrupt(USCI_B1_VECTOR))) UNHANDLED_ISR_USCI_B1(void)
     ASSERT(ASSERT_UNHANDLED_INTERRUPT, 0);
 }
 #endif
+#endif // BOARD_EDB
 
 #ifndef INT_HANDLED_USCI_A1
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -268,6 +272,7 @@ void __attribute__ ((interrupt(WDT_VECTOR))) UNHANDLED_ISR_WDT(void)
 }
 #endif
 
+#ifdef BOARD_EDB
 #ifndef INT_HANDLED_TIMER0_B1
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER0_B1_VECTOR
@@ -281,7 +286,9 @@ void __attribute__ ((interrupt(TIMER0_B1_VECTOR))) UNHANDLED_ISR_TIMER0_B1(void)
     ASSERT(ASSERT_UNHANDLED_INTERRUPT, 0);
 }
 #endif
+#endif // BOARD_EDB
 
+#ifdef BOARD_EDB
 #ifndef INT_HANDLED_TIMER0_B0
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER0_B0_VECTOR
@@ -295,6 +302,7 @@ void __attribute__ ((interrupt(TIMER0_B0_VECTOR))) UNHANDLED_ISR_TIMER0_B0(void)
     ASSERT(ASSERT_UNHANDLED_INTERRUPT, 0);
 }
 #endif
+#endif // BOARD_EDB
 
 #ifndef INT_HANDLED_COMP_B
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
