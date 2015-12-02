@@ -61,7 +61,6 @@ static sig_cmd_t target_sig_cmd;
 static interrupt_context_t interrupt_context;
 
 static uint16_t adc_streams_bitmask; // streams from ADC currently streaming
-static uint16_t streams_bitmask; // currently enabled streams
 
 static uartPkt_t usbRxPkt = { .processed = 1 };
 
@@ -586,7 +585,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         unsigned sampling_period = (pkt->data[2] << 8) | pkt->data[1];
 #endif
 
-        streams_bitmask = streams;
         adc_streams_bitmask = streams & ADC_STREAMS;
 
 #ifdef CONFIG_SYSTICK
@@ -614,7 +612,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
         unsigned streams = pkt->data[0];
 
         adc_streams_bitmask &= ~(streams & ADC_STREAMS);
-        streams_bitmask = 0;
 
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
         if (streams & STREAM_RF_EVENTS)
