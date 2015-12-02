@@ -2,9 +2,15 @@ EXEC = edb.out
 
 BOARD = sprite-edb-socket-rgz
 
-# Configure the build here (by default all flags are unset)
+# Configure the build here (see Makefile.config, by default all flags are unset)
+CONFIG_STARTUP_VOLTAGE_WORKAROUND = disable-pmm
+CONFIG_ENABLE_WATCHPOINTS = 1
+CONFIG_ENABLE_ENERGY_PROFILE = 1
+
 ifeq ($(BOARD),edb)
 CONFIG_SYSTICK = 1
+CONFIG_ENABLE_WATCHPOINT_STREAM = 1
+CONFIG_ENABLE_VOLTAGE_STREAM = 1
 endif
 
 OBJECTS = \
