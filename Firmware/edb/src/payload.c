@@ -37,9 +37,13 @@ void payload_stop_send_timer()
 
 void payload_send()
 {
+#ifdef CONFIG_HOST_UART
     // TODO: for now we send the profile to host, in sprite this would
     // be a call to the radio module
     send_payload(&payload);
+#else
+    // Well, ... do nothing for now
+#endif
 }
 
 void payload_record_profile_event(unsigned index, uint16_t vcap)
