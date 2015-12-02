@@ -154,6 +154,44 @@
 
 #define DMA_HOST_UART_TX                        0 //!< DMA channel for UART TX to host
 
+// TODO: warning: timer shared with voltage logging code
+// NOTE: if changed, the ISR in main.c must also be changed
+#define TIMER_SIG_SERIAL_DECODE                 A1
+#define TMRCC_SIG_SERIAL                        0
+
+// NOTE: if changed, the ISR definition in rfid_decoder.c must be also changed
+#define TIMER_RF_RX_DECODE                      A0
+#define TIMER_RF_TX_DECODE                      A1
+
+// NOTE: if changed, the ISR in main.c must also be changed
+#define TIMER_SEND_ENERGY_PROFILE               A0
+#define TMRCC_SEND_ENERGY_PROFILE               0 //!< timer capture-compare register index
+
+/** @} End PORTS */
+
+// TODO: define only numbers here and use a macro that takes a number (for consistency)
+/**
+ * @defgroup    ADC_CHANNELS   ADC input channel names to pins
+ * @{
+ */
+#define ADC_CHAN_VCAP                          ADC12INCH_1 //!< ADC input channel select for Vcap
+#define ADC_CHAN_VBOOST                        ADC12INCH_2 //!< ADC input channel select for Vboost
+#define ADC_CHAN_VREG                          ADC12INCH_3 //!< ADC input channel select for Vreg
+#define ADC_CHAN_VRECT                         ADC12INCH_4 //!< ADC input channel select for Vrect
+#define ADC_CHAN_VINJ                          ADC12INCH_5 //!< ADC input channel select for VINJ
+/** @} End ADC_CHANNELS */
+
+/**
+ * @defgroup    COMP_CHAN comparator input channel pins
+ * @{
+ */
+#define COMP_CHAN_VCAP                          1
+#define COMP_CHAN_VBOOST                        2
+#define COMP_CHAN_VREG                          3
+#define COMP_CHAN_VRECT                         4
+#define COMP_CHAN_VINJ                          5
+/** @} End COMP_CHAN */
+
 #elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ)
 
 #define PORT_LED                                J //!< GPIO port for LEDs
@@ -219,8 +257,6 @@
 #define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt
 #define PIN_SERIAL_DECODE_TIMER                 1 //!< decoder timer started, rolled over, or stopped
 
-#endif
-
 // no host UART on this board
 #define UART_TARGET                             0
 
@@ -228,10 +264,6 @@
 // NOTE: if changed, the ISR in main.c must also be changed
 #define TIMER_SIG_SERIAL_DECODE                 A1
 #define TMRCC_SIG_SERIAL                        0
-
-// NOTE: if changed, the ISR definition in rfid_decoder.c must be also changed
-#define TIMER_RF_RX_DECODE                      A0
-#define TIMER_RF_TX_DECODE                      A1
 
 // NOTE: if changed, the ISR in main.c must also be changed
 #define TIMER_SEND_ENERGY_PROFILE               A0
@@ -261,6 +293,9 @@
 #define COMP_CHAN_VRECT                         4
 #define COMP_CHAN_VINJ                          5
 /** @} End COMP_CHAN */
+
+
+#endif // BOARD_
 
 // The register that selects the channel source depsn on the chan
 #if DMA_HOST_UART_TX == 0
