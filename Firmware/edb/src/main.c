@@ -777,7 +777,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
         uint16_t energy_level = *(uint16_t *)(&pkt->data[2]);
         comparator_ref_t cmp_ref = (comparator_ref_t)pkt->data[4];
         bool enable = (bool)pkt->data[5];
-        toggle_breakpoint(type, index, energy_level, cmp_ref, enable);
+        unsigned rc = toggle_breakpoint(type, index, energy_level,
+                                        cmp_ref, enable);
+        send_return_code(rc);
         break;
     }
 
@@ -786,7 +788,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
         unsigned index = pkt->data[0];
         bool enable = (bool)(pkt->data[1] & (1 << 0));
         bool vcap_snapshot = (bool)(pkt->data[1] & (1 << 1));
-        toggle_watchpoint(index, enable, vcap_snapshot);
+        unsigned rc = toggle_watchpoint(index, enable, vcap_snapshot);
+        send_return_code(rc);
         break;
     }
 

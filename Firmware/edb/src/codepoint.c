@@ -87,7 +87,7 @@ void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
         GPIO(PORT_CODEPOINT, OUT) &= ~(bitmask << PIN_CODEPOINT_0);
 }
 
-void toggle_breakpoint(breakpoint_type_t type, unsigned index,
+unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
                               uint16_t energy_level, comparator_ref_t cmp_ref,
                               bool enable)
 {
@@ -210,10 +210,10 @@ void toggle_breakpoint(breakpoint_type_t type, unsigned index,
             error(ERROR_INVALID_VALUE);
             break;
     }
-    send_return_code(rc);
+    return rc;
 }
 
-void toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
+unsigned toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
 {
     unsigned rc = RETURN_CODE_SUCCESS;
 
@@ -237,7 +237,7 @@ void toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
     }
 
 out:
-    send_return_code(rc);
+    return rc;
 }
 
 void init_watchpoint_event_bufs()
