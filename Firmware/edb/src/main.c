@@ -5,6 +5,7 @@
 #include <libedb/target_comm.h>
 
 #include "pin_assign.h"
+#include "dev_console.h"
 #include "host_comm.h"
 #include "host_comm_impl.h"
 #include "target_comm_impl.h"
@@ -473,6 +474,11 @@ static inline void pin_setup()
 #endif
     ;
 
+#if defined(CONFIG_DEV_CONSOLE)
+    GPIO(PORT_SOFT_UART, DIR) |= BIT(PIN_SOFT_UART_TX);
+    GPIO(PORT_SOFT_UART, SEL) |= BIT(PIN_SOFT_UART_TX);
+#endif
+
 #ifdef CONFIG_ROUTE_ACLK_TO_PIN
     P1SEL |= BIT0;
     P1DIR |= BIT0;
@@ -903,6 +909,12 @@ int main(void)
     BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
 #endif
 
+    INIT_CONSOLE();
+
+    __enable_interrupt();                   // enable all interrupts
+
+    PRINTF("EDB booted\r\n");
+
 #ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
 #endif
@@ -929,8 +941,6 @@ int main(void)
 #ifdef CONFIG_SYSTICK
     systick_start();
 #endif
-
-    __enable_interrupt();                   // enable all interrupts
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
 

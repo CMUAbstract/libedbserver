@@ -15,6 +15,9 @@ CONFIG_ENABLE_WATCHPOINT_STREAM = 1
 CONFIG_ENABLE_VOLTAGE_STREAM = 1
 endif
 
+CONFIG_DEV_CONSOLE = 1
+
+
 OBJECTS = \
 	catchall.o \
 	main.o \
@@ -59,6 +62,12 @@ endif
 include ../Makefile.config
 
 include $(MAKER_ROOT)/Makefile.gcc
+
+ifeq ($(CONFIG_DEV_CONSOLE),1)
+CFLAGS += -DCONFIG_DEV_CONSOLE
+CONFIG_PRINTF_LIB = libmspsoftuart
+include $(MAKER_ROOT)/Makefile.console
+endif
 
 SRC_DIR = ../../src
 
