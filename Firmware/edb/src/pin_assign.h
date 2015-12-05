@@ -205,9 +205,9 @@
 
 #elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ)
 
-#define PORT_LED                                J //!< GPIO port for LEDs
+#define PORT_LED                                2 //!< GPIO port for LEDs
 #define PIN_LED_GREEN                           2
-#define PIN_LED_RED                             3
+#define PIN_LED_RED                             2 //!< TODO: make optional
 
 // No second UART on this board
 //#define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
