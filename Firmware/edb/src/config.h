@@ -465,8 +465,12 @@
 
 #endif // CONFIG_UART_CLOCK_FREQ_*
 
-#if !defined(CONFIG_USB_UART_BAUDRATE_BR0) || !defined(CONFIG_TARGET_UART_BAUDRATE_BR0)
-#error UART configuration error: no config for selected CONFIG_UART_CLOCK_FREQ
+#if defined(CONFIG_USB_UART_BAUDRATE) && !defined(CONFIG_USB_UART_BAUDRATE_BR0)
+#error Host UART configuration error: no config for selected CONFIG_UART_CLOCK_FREQ
+#endif
+
+#if defined(CONFIG_TARGET_UART_BAUDRATE) && !defined(CONFIG_TARGET_UART_BAUDRATE_BR0)
+#error Target UART configuration error: no config for selected CONFIG_UART_CLOCK_FREQ
 #endif
 
 #endif // CONFIG_H
