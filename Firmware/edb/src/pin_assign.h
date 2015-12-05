@@ -277,7 +277,7 @@
 #define TMRCC_SIG_SERIAL                        0
 
 // NOTE: if changed, the ISR in main.c must also be changed
-#define TIMER_SEND_ENERGY_PROFILE               A0
+#define TIMER_SEND_ENERGY_PROFILE               A1
 #define TMRCC_SEND_ENERGY_PROFILE               0 //!< timer capture-compare register index
 
 /** @} End PORTS */

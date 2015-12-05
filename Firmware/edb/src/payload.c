@@ -59,10 +59,10 @@ void payload_record_app_output(const uint8_t *data, unsigned len)
 
 #ifdef CONFIG_ENABLE_ENERGY_PROFILE
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER0_A0_VECTOR
-__interrupt void TIMER0_A0_ISR (void)
+#pragma vector=TIMER1_A0_VECTOR
+__interrupt void TIMER1_A0_ISR (void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER0_A0_VECTOR))) TIMER0_A0_ISR (void)
+void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #else
 #error Compiler not supported!
 #endif
