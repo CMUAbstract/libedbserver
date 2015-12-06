@@ -82,7 +82,7 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #endif
 #endif
 {
-    main_loop_flags |= FLAG_SEND_PAYLOAD;
+    main_loop_flags |= FLAG_APP_OUTPUT | FLAG_SEND_PAYLOAD;
     // TODO: clear the sleep on exit flag
     TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
 }

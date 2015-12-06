@@ -529,6 +529,23 @@ void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
     // expect comparator interrupt
 }
 
+void get_app_output()
+{
+    interrupt_target();
+
+    // TODO: timeout
+    while (state != STATE_DEBUG);
+
+    target_comm_send_get_app_output();
+    // TODO: timeout
+    while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+            (wispRxPkt.descriptor != WISP_RSP_APP_OUTPUT)); // wait for response
+    payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
+    wispRxPkt.processed = 1;
+
+    exit_debug_mode();
+}
+
 #ifdef CONFIG_HOST_UART
 /**
  * @brief       Execute a command received from the computer through the USB port
@@ -1034,6 +1051,13 @@ int main(void)
             }
         }
 #endif // CONFIG_TARGET_UART
+
+#ifdef CONFIG_COLLECT_APP_OUTPUT
+        if (main_loop_flags & FLAG_APP_OUTPUT) {
+            main_loop_flags &= ~FLAG_APP_OUTPUT;
+            get_app_output();
+        }
+#endif
 
         if (main_loop_flags & FLAG_SEND_PAYLOAD) {
             payload_send();

@@ -15,5 +15,6 @@ void target_comm_send_read_mem(uint32_t address, unsigned len);
 void target_comm_send_write_mem(uint32_t address, uint8_t *value, unsigned len);
 void target_comm_send_exit_debug_mode();
 void target_comm_send_echo(uint8_t value);
+void target_comm_send_get_app_output();
 
 #endif // TARGET_COMM_IMPL_H

@@ -86,3 +86,8 @@ void target_comm_send_echo(uint8_t value)
     target_msg_payload[payload_len++] = value;
     UART_send_msg_to_target(WISP_CMD_SERIAL_ECHO, payload_len, target_msg_buf);
 }
+
+void target_comm_send_get_app_output()
+{
+    UART_send_msg_to_target(WISP_CMD_GET_APP_OUTPUT, 0, target_msg_buf);
+}
