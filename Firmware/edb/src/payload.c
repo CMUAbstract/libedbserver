@@ -1,6 +1,8 @@
 #include <msp430.h>
 #include <string.h>
 
+#include <libio/log.h>
+
 #include "config.h"
 #include "pin_assign.h"
 #include "error.h"
@@ -37,10 +39,22 @@ void payload_stop_send_timer()
 
 void payload_send()
 {
-#ifdef CONFIG_HOST_UART
+#if defined(CONFIG_HOST_UART)
     // TODO: for now we send the profile to host, in sprite this would
     // be a call to the radio module
     send_payload(&payload);
+#elif defined(CONFIG_DEV_CONSOLE)
+    int i;
+    BLOCK_LOG_BEGIN();
+    BLOCK_LOG("payload:\r\n");
+    for (i = 0; i < sizeof(payload_t); ++i) {
+        BLOCK_LOG("%02x ", payload[i]);
+
+        if (((i + 1) & (8 - 1)) == 0)
+            BLOCK_LOG("\r\n");
+    }
+    BLOCK_LOG("\r\n");
+    BLOCK_LOG_END();
 #else
     // Well, ... do nothing for now
 #endif
