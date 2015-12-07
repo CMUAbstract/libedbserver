@@ -78,8 +78,8 @@
 #define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
 #define PIN_UART_USB_RX                         4 //!< RX pin for UART to host USB
 
-#define PORT_UART_TARGET                        4  //!< GPIO port with UART connected to target device
-#define PIN_UART_TARGET_TX                      4 //!< TX pin for UART to target device
+#define PORT_UART_TARGET                        1  //!< GPIO port with UART connected to target device
+#define PIN_UART_TARGET_TX                      6 //!< TX pin for UART to target device
 #define PIN_UART_TARGET_RX                      5 //!< RX pin for UART to target device
 
 #define PORT_VSENSE                             6 //!< GPIO port for voltage sense lines
@@ -108,9 +108,9 @@
 #define PIN_STATE_0                             1 //!< debugger state lsb bit
 #define PIN_STATE_1                             2 //!< debugger state msb bit
 
-#define PORT_EVENT                              4 //!< GPIO port for debugger state pins
-#define PIN_EVENT_0                             1 //!< debugger state lsb bit
-#define PIN_EVENT_1                             2 //!< debugger state msb bit
+#define PORT_EVENT                              3 //!< GPIO port for debugger state pins
+#define PIN_EVENT_0                             6 //!< debugger state lsb bit
+#define PIN_EVENT_1                             7 //!< debugger state msb bit
 
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             1 //!< scope trigger pin
@@ -233,16 +233,16 @@
 #define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
 #define PIN_LS_ENABLE                           2 //!< level shifter enable pin - output low to disable
 
-#define PORT_SIG                                2 //!< GPIO port for signal line to target
+#define PORT_SIG                                1 //!< GPIO port for signal line to target
 #define PIN_SIG                                 0 //!< target signal pin
 
 #define PORT_STATE                              3 //!< GPIO port for debugger state pins
-#define PIN_STATE_0                             0 //!< debugger state lsb bit
-#define PIN_STATE_1                             1 //!< debugger state msb bit
+#define PIN_STATE_0                             4 //!< debugger state lsb bit
+#define PIN_STATE_1                             5 //!< debugger state msb bit
 
 #define PORT_EVENT                              3 //!< GPIO port for debugger state pins
-#define PIN_EVENT_0                             0 //!< debugger state lsb bit
-#define PIN_EVENT_1                             1 //!< debugger state msb bit
+#define PIN_EVENT_0                             6 //!< debugger state lsb bit
+#define PIN_EVENT_1                             7 //!< debugger state msb bit
 
 #define PORT_TRIGGER                            3 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             2 //!< scope trigger pin
@@ -254,19 +254,13 @@
 // Code point pins must be on same port and consecutive and in order
 // NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
 #define PORT_CODEPOINT                          1
-#define PIN_CODEPOINT_0                         0 // lsb
-#define PIN_CODEPOINT_1                         1
-#define PIN_CODEPOINT_2                         2
-#define PIN_CODEPOINT_3                         3
-#define PIN_CODEPOINT_4                         4
-#define PIN_CODEPOINT_5                         5
+#define PIN_CODEPOINT_0                         1 // lsb
+#define PIN_CODEPOINT_1                         2
+#define PIN_CODEPOINT_2                         3
 #define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
                                                  BIT(PIN_CODEPOINT_1) | \
-                                                 BIT(PIN_CODEPOINT_2) | \
-                                                 BIT(PIN_CODEPOINT_3) | \
-                                                 BIT(PIN_CODEPOINT_4) | \
-                                                 BIT(PIN_CODEPOINT_5))
-#define NUM_CODEPOINT_PINS                      6
+                                                 BIT(PIN_CODEPOINT_2))
+#define NUM_CODEPOINT_PINS                      3
 
 #define PORT_SERIAL_DECODE                      3 //!< GPIO port for serial decoder state
 #define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt
