@@ -7,4 +7,4 @@
 
 #include "tether.h"
 
-state_t state = STATE_IDLE;
+volatile state_t state = STATE_IDLE;

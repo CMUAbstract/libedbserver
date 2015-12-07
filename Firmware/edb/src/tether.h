@@ -15,6 +15,6 @@ typedef enum {
 /** @brief Current state of the tethering state machine
  *  @ddetails TODO: rename to tether_state
  */
-extern state_t state;
+extern volatile state_t state;
 
 #endif // TETHER_H
