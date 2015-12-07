@@ -1024,8 +1024,8 @@ int main(void)
 
 #ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
     unsigned i;
-    for (i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
-        toggle_watchpoint(i, 1, /* vcap snapshot */ true);
+    for (i = 1; i <= CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
+        toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
