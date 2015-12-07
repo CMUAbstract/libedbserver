@@ -342,7 +342,7 @@ void handle_codepoint(uint8_t pin_state)
         if (watchpoints & (1 << index)) {
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
             uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-            payload_record_profile_event(index, vcap);
+            payload_record_profile_event(index - 1, vcap);
 #endif
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
             append_watchpoint_event(index);
