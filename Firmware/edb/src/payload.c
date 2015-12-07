@@ -15,10 +15,12 @@ static payload_t payload; // EDB+App data sent to host/ground
 
 void payload_init()
 {
-#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
     profile_reset(&payload.energy_profile);
 #endif
+#ifdef CONFIG_COLLECT_APP_OUTPUT
     memset(&payload.app_output, 0, sizeof(payload.app_output));
+#endif
 }
 
 void payload_start_send_timer()
@@ -60,18 +62,22 @@ void payload_send()
 #endif
 }
 
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
 void payload_record_profile_event(unsigned index, uint16_t vcap)
 {
     profile_event(&payload.energy_profile, index, vcap);
 }
+#endif // CONFIG_COLLECT_ENERGY_PROFILE
 
+#ifdef CONFIG_COLLECT_APP_OUTPUT
 void payload_record_app_output(const uint8_t *data, unsigned len)
 {
     ASSERT(ASSERT_APP_OUTPUT_BUF_OVERFLOW, len < sizeof(payload.app_output));
     memcpy(&payload.app_output, data, len);
 }
+#endif // CONFIG_COLLECT_APP_OUTPUT
 
-#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+#ifdef CONFIG_ENABLE_PAYLOAD
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER1_A0_VECTOR
 __interrupt void TIMER1_A0_ISR (void)
@@ -82,7 +88,12 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #endif
 #endif
 {
-    main_loop_flags |= FLAG_APP_OUTPUT | FLAG_SEND_PAYLOAD;
+    main_loop_flags |= FLAG_SEND_PAYLOAD
+#ifdef CONFIG_COLLECT_APP_OUTPUT
+        | FLAG_APP_OUTPUT
+#endif
+        ;
+
     // TODO: clear the sleep on exit flag
     TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
 }

@@ -332,7 +332,7 @@ void handle_codepoint(uint8_t pin_state)
         // -1 to convert from one-based to zero-based index
         unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
         if (watchpoints & (1 << index)) {
-#ifdef CONFIG_ENABLE_ENERGY_PROFILE
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
             uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
             payload_record_profile_event(index, vcap);
 #endif

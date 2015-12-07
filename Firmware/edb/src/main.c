@@ -564,6 +564,7 @@ void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
     // expect comparator interrupt
 }
 
+#ifdef CONFIG_COLLECT_APP_OUTPUT
 void get_app_output()
 {
     LOG("interrupting target\r\n");
@@ -590,6 +591,7 @@ void get_app_output()
     LOG("exiting debug mode\r\n");
     exit_debug_mode();
 }
+#endif // CONFIG_COLLECT_APP_OUTPUT
 
 #ifdef CONFIG_HOST_UART
 /**
@@ -991,7 +993,9 @@ int main(void)
     init_watchpoint_event_bufs();
 #endif
 
+#ifdef CONFIG_ENABLE_PAYLOAD
     payload_init();
+#endif
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
     arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
@@ -1084,9 +1088,11 @@ int main(void)
                         forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
 #endif
                         break;
+#ifdef CONFIG_COLLECT_APP_OUTPUT
                     case WISP_RSP_APP_OUTPUT:
                         payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
                         break;
+#endif
                 }
             	wispRxPkt.processed = 1;
             }
@@ -1104,10 +1110,12 @@ int main(void)
         }
 #endif
 
+#ifdef CONFIG_ENABLE_PAYLOAD
         if (main_loop_flags & FLAG_SEND_PAYLOAD) {
             payload_send();
             main_loop_flags &= ~FLAG_SEND_PAYLOAD;
         }
+#endif
 
 /*
         if(main_loop_flags & FLAG_UART_WISP_TX) {
