@@ -51,13 +51,21 @@
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
 static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
+
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static int sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
+#endif
+
 static bool target_powered = false; // user requested continuous power
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static unsigned sig_serial_echo_value = 0;
 static state_t saved_sig_serial_echo_state;
+#endif
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static sig_cmd_t target_sig_cmd;
+#endif
 
 static interrupt_context_t interrupt_context;
 
@@ -132,6 +140,7 @@ static void continuous_power_off()
     GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
 }
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static inline void reset_serial_decoder()
 {
     sig_serial_bit_index = SIG_SERIAL_NUM_BITS;
@@ -161,6 +170,7 @@ static inline void stop_serial_decoder()
     GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_TIMER);
 #endif
 }
+#endif // CONFIG_TARGET_SIDE_DEBUG_MODE
 
 static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
@@ -175,7 +185,9 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
         interrupt_context.saved_debug_mode_flags = debug_mode_flags;
     }
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     reset_serial_decoder();
+#endif
 
     debug_mode_flags = flags;
 
@@ -197,7 +209,9 @@ void exit_debug_mode()
 static void reset_state()
 {
     continuous_power_off();
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     stop_serial_decoder();
+#endif
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     set_state(STATE_IDLE);
     unmask_target_signal();
@@ -247,7 +261,9 @@ static void finish_enter_debug_mode()
     if (debug_mode_flags & DEBUG_MODE_INTERACTIVE)
           main_loop_flags |= FLAG_INTERRUPTED; // main loop notifies the host
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     reset_serial_decoder();
+#endif
 
     unmask_target_signal(); // listen because target *may* request to exit active debug mode
 }
@@ -304,6 +320,7 @@ static void handle_target_signal()
             break;
 
         case STATE_ENTERING:
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 #ifdef CONFIG_SIG_SERIAL_DECODE_PINS
             GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
             GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
@@ -324,6 +341,10 @@ static void handle_target_signal()
                 mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
                 finish_enter_debug_mode();
             }
+#else // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+            mask_target_signal();
+            finish_enter_debug_mode();
+#endif // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
             break;
 
         case STATE_EXITING: // Targed acknowledged our request to exit debug mode
@@ -331,6 +352,7 @@ static void handle_target_signal()
             finish_exit_debug_mode();
             break;
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
         case STATE_DEBUG: // Target requested to exit debug mode OR
                           // target hit an assert or bkpt within an energy guard
 
@@ -365,7 +387,9 @@ static void handle_target_signal()
                 }
             }
             break;
+#endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
         case STATE_SERIAL_ECHO: // for testing purposes
 #ifdef CONFIG_SIG_SERIAL_DECODE_PINS
             GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
@@ -381,6 +405,7 @@ static void handle_target_signal()
                 set_state(saved_sig_serial_echo_state);
             }
             break;
+#endif // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 
         default:
             error(ERROR_UNEXPECTED_INTERRUPT);
@@ -1228,7 +1253,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
     }
 }
 
-#ifdef CONFIG_ENABLE_DEBUG_MODE
+#if defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE)
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER1_A0_VECTOR
 __interrupt void TIMER1_A0_ISR (void)
@@ -1252,7 +1277,7 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #endif
     TIMER_CC(TIMER_SIG_SERIAL_DECODE, TMRCC_SIG_SERIAL, CCTL) &= ~CCIFG;
 }
-#endif // CONFIG_ENABLE_DEBUG_MODE
+#endif // CONFIG_ENABLE_DEBUG_MODE && CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=UNMI_VECTOR
