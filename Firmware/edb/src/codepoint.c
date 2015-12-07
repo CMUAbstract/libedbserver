@@ -336,8 +336,8 @@ void handle_codepoint(uint8_t pin_state)
 {
 #if defined(CONFIG_ENABLE_WATCHPOINTS)
 
-        // NOTE: can't encode a zero-based index, because the pulse must trigger the interrupt
-        // -1 to convert from one-based to zero-based index
+        // NOTE: can't encode a zero-based index, because the pulse must
+        // trigger the interrupt
         unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
         if (watchpoints & (1 << index)) {
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
