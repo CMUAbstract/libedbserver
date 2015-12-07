@@ -48,7 +48,7 @@ void payload_send()
     BLOCK_LOG_BEGIN();
     BLOCK_LOG("payload:\r\n");
     for (i = 0; i < sizeof(payload_t); ++i) {
-        BLOCK_LOG("%02x ", payload[i]);
+        BLOCK_LOG("%02x ", *((uint8_t *)&payload + i));
 
         if (((i + 1) & (8 - 1)) == 0)
             BLOCK_LOG("\r\n");
