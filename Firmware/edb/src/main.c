@@ -255,7 +255,10 @@ static void finish_enter_debug_mode()
 {
     // WISP has entered debug main loop
     set_state(STATE_DEBUG);
-    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_GREEN);
+
+#ifdef CONFIG_DEBUG_MODE_LED
+    GPIO(PORT_LED_DEBUG_MODE, OUT) |= BIT(PIN_LED_DEBUG_MODE);
+#endif // CONFIG_DEBUG_MODE_LED
 
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_setup(UART_INTERFACE_WISP);
@@ -305,7 +308,9 @@ static void finish_exit_debug_mode()
         set_state(STATE_DEBUG);
     }
 
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+#ifdef CONFIG_DEBUG_MODE_LED
+    GPIO(PORT_LED_DEBUG_MODE, OUT) &= ~BIT(PIN_LED_DEBUG_MODE);
+#endif // CONFIG_DEBUG_MODE_LED
 
     // Give the target enough time to start waiting for our signal
     __delay_cycles(CONFIG_EXIT_DEBUG_MODE_LATENCY_CYCLES);
@@ -454,6 +459,16 @@ static inline void pin_setup()
 
     GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
     GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
+
+#ifdef CONFIG_DEBUG_MODE_LED
+    GPIO(PORT_LED_DEBUG_MODE, OUT) &= ~BIT(PIN_LED_DEBUG_MODE);
+    GPIO(PORT_LED_DEBUG_MODE, DIR) |= BIT(PIN_LED_DEBUG_MODE);
+#endif // CONFIG_DEBUG_MODE_LED
+
+#ifdef CONFIG_MAIN_LOOP_LED
+    GPIO(PORT_LED_MAIN_LOOP, OUT) &= ~BIT(PIN_LED_MAIN_LOOP);
+    GPIO(PORT_LED_MAIN_LOOP, DIR) |= BIT(PIN_LED_MAIN_LOOP);
+#endif // CONFIG_MAIN_LOOP_LED
 
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
@@ -1139,7 +1154,7 @@ int main(void)
         // The LED blinking will slow down when the monitor is performing more tasks.
         if (++count == 0xffff) {
             if (state == STATE_IDLE)
-                GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
+                GPIO(PORT_LED_MAIN_LOOP, OUT) ^= BIT(PIN_LED_MAIN_LOOP);
             count = 0;
         }
 #endif

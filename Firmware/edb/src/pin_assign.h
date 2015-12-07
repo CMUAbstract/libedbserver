@@ -74,6 +74,12 @@
 #define PIN_LED_GREEN                           2
 #define PIN_LED_RED                             3
 
+#define PORT_LED_MAIN_LOOP                      2
+#define PIN_LED_MAIN_LOOP                       2
+
+#define PORT_LED_DEBUG_MODE                     2
+#define PIN_LED_DEBUG_MODE                      3
+
 #define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
 #define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
 #define PIN_UART_USB_RX                         4 //!< RX pin for UART to host USB
@@ -208,6 +214,12 @@
 #define PORT_LED                                2 //!< GPIO port for LEDs
 #define PIN_LED_GREEN                           2
 #define PIN_LED_RED                             2 //!< TODO: make optional
+
+#define PORT_LED_MAIN_LOOP                      2
+#define PIN_LED_MAIN_LOOP                       2
+
+#define PORT_LED_DEBUG_MODE                     2
+#define PIN_LED_DEBUG_MODE                      2
 
 // No second UART on this board
 //#define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
