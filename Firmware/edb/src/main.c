@@ -56,7 +56,9 @@ static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits
 static int sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
 #endif
 
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
 static bool target_powered = false; // user requested continuous power
+#endif
 
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static unsigned sig_serial_echo_value = 0;
@@ -129,6 +131,7 @@ static void mask_target_signal()
     GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
 
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
 static void continuous_power_on()
 {
     // The output level was configured high on boot up
@@ -139,6 +142,7 @@ static void continuous_power_off()
 {
     GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
 }
+#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static inline void reset_serial_decoder()
@@ -180,7 +184,9 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
     set_state(STATE_ENTERING);
 
     if (!(flags & DEBUG_MODE_NESTED)) {
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
         interrupt_context.saved_vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+#endif
     } else {
         interrupt_context.saved_debug_mode_flags = debug_mode_flags;
     }
@@ -208,7 +214,9 @@ void exit_debug_mode()
 
 static void reset_state()
 {
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
     continuous_power_off();
+#endif
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     stop_serial_decoder();
 #endif
@@ -286,10 +294,12 @@ static void finish_exit_debug_mode()
         main_loop_flags |= FLAG_EXITED_DEBUG_MODE;
 
     if (!(debug_mode_flags & DEBUG_MODE_NESTED)) {
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
         if (!target_powered) {
             continuous_power_off();
             interrupt_context.restored_vcap = discharge_adc(interrupt_context.saved_vcap);
         }
+#endif
         set_state(STATE_IDLE);
     } else { // nested: go back to the outer debug mode
         debug_mode_flags = interrupt_context.saved_debug_mode_flags;
