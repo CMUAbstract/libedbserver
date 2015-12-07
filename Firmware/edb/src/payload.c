@@ -72,7 +72,7 @@ void payload_record_profile_event(unsigned index, uint16_t vcap)
 #ifdef CONFIG_COLLECT_APP_OUTPUT
 void payload_record_app_output(const uint8_t *data, unsigned len)
 {
-    ASSERT(ASSERT_APP_OUTPUT_BUF_OVERFLOW, len < sizeof(payload.app_output));
+    ASSERT(ASSERT_APP_OUTPUT_BUF_OVERFLOW, len <= sizeof(payload.app_output));
     memcpy(&payload.app_output, data, len);
 }
 #endif // CONFIG_COLLECT_APP_OUTPUT
