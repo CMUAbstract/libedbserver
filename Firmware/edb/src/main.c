@@ -1064,8 +1064,8 @@ int main(void)
 
 #ifdef CONFIG_COLLECT_APP_OUTPUT
         if (main_loop_flags & FLAG_APP_OUTPUT) {
-            main_loop_flags &= ~FLAG_APP_OUTPUT;
             get_app_output();
+            main_loop_flags &= ~FLAG_APP_OUTPUT;
         }
 #endif
 
