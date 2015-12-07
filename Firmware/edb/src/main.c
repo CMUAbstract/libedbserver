@@ -1022,6 +1022,12 @@ int main(void)
     systick_start();
 #endif
 
+#ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
+    unsigned i;
+    for (i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
+        toggle_watchpoint(i, 1, /* vcap snapshot */ true);
+#endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
+
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
 
 #ifdef CONFIG_PERIODIC_PAYLOAD_AUTO
