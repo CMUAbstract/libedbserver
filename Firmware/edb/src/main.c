@@ -567,7 +567,7 @@ void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
 void get_app_output()
 {
     LOG("interrupting target\r\n");
-    interrupt_target();
+    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_WITH_UART);
 
     // TODO: timeout
     while (state != STATE_DEBUG);
