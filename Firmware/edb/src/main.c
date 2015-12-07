@@ -1134,6 +1134,7 @@ int main(void)
         }
 #endif
 
+#ifdef CONFIG_MAIN_LOOP_LED
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
         if (++count == 0xffff) {
@@ -1141,6 +1142,7 @@ int main(void)
                 GPIO(PORT_LED, OUT) ^= BIT(PIN_LED_GREEN);
             count = 0;
         }
+#endif
 
     }
 }
