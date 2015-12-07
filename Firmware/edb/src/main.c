@@ -531,18 +531,28 @@ void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
 
 void get_app_output()
 {
+    LOG("interrupting target\r\n");
     interrupt_target();
 
     // TODO: timeout
     while (state != STATE_DEBUG);
 
+    LOG("requesting data from target\r\n");
+
     target_comm_send_get_app_output();
+
+    LOG("waiting for reply\r\n");
     // TODO: timeout
     while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
             (wispRxPkt.descriptor != WISP_RSP_APP_OUTPUT)); // wait for response
+
+    LOG("received reply: msg %02x len %u data %02x...\r\n",
+        wispRxPkt.descriptor, wispRxPkt.length, wispRxPkt.data[0]);
+
     payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
     wispRxPkt.processed = 1;
 
+    LOG("exiting debug mode\r\n");
     exit_debug_mode();
 }
 
