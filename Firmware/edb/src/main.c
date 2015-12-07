@@ -493,7 +493,7 @@ static inline void pin_setup()
     // By default codepoint pins are output (bkpt mode), the direction
     // is changed if/when watchpoints are enabled
 #ifndef CONFIG_RFID_DECODER_STATE_PINS // pin conflict
-    GPIO(PORT_CODEPOINT, DIR) |= BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1);
+    GPIO(PORT_CODEPOINT, DIR) |= BITS_CODEPOINT;
 #endif
 
 #ifdef CONFIG_PULL_DOWN_ON_COMM_LINES
