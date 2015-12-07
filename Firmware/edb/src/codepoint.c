@@ -236,6 +236,14 @@ unsigned toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
         watchpoints_vcap_snapshot &= ~(((uint16_t)vcap_snapshot) << index);
     }
 
+// TODO: not sure how to make this coexist with enabling on stream start
+#ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
+    if (watchpoints)
+        enable_watchpoints();
+    else
+        disable_watchpoints();
+#endif
+
 out:
     return rc;
 }
