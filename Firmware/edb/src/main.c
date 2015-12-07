@@ -1010,6 +1010,10 @@ int main(void)
 
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
 
+#ifdef CONFIG_PERIODIC_PAYLOAD_AUTO
+    payload_start_send_timer();
+#endif
+
     while(1) {
 
         if (main_loop_flags & FLAG_INTERRUPTED) {
