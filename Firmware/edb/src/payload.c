@@ -3,6 +3,10 @@
 
 #include <libio/log.h>
 
+#ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
+#include <libsprite/radio.h>
+#endif
+
 #include "config.h"
 #include "pin_assign.h"
 #include "error.h"
@@ -60,6 +64,12 @@ void payload_send()
 #else
     // Well, ... do nothing for now
 #endif
+
+#ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
+    radio_txInit();
+    radio_transmit((const char *)&payload, sizeof(payload_t));
+    radio_sleep();
+#endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
 }
 
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
