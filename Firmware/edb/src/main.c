@@ -26,7 +26,6 @@
 #include "tether.h"
 #include "interrupt.h"
 #include "clock.h"
-#include "profile.h"
 #include "payload.h"
 
 #ifdef CONFIG_PWM_CHARGING
