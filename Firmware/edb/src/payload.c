@@ -1,7 +1,9 @@
 #include <msp430.h>
 #include <string.h>
 
+#ifdef CONFIG_DEV_CONSOLE
 #include <libio/log.h>
+#endif
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
 #include <libsprite/radio.h>
