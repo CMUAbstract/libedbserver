@@ -980,7 +980,9 @@ int main(void)
 
     pin_setup();
 
+#ifdef CONFIG_BOOT_LED
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+#endif // CONFIG_BOOT_LED
 
     clock_setup(); // set up unified clock system
 
@@ -1030,7 +1032,9 @@ int main(void)
         toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
+#ifdef CONFIG_BOOT_LED
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+#endif // CONFIG_BOOT_LED
 
 #ifdef CONFIG_PERIODIC_PAYLOAD_AUTO
     payload_start_send_timer();
