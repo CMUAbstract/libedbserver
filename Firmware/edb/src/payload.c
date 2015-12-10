@@ -6,7 +6,7 @@
 #endif
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
-#include <libsprite/radio.h>
+#include <libsprite/SpriteRadio.h>
 #endif
 
 #include "config.h"
@@ -26,6 +26,11 @@ void payload_init()
 #endif
 #ifdef CONFIG_COLLECT_APP_OUTPUT
     memset(&payload.app_output, 0, sizeof(payload.app_output));
+#endif
+
+// TODO: move to main, because this is too major
+#ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
+    SpriteRadio_SpriteRadio();
 #endif
 }
 
@@ -68,9 +73,9 @@ void payload_send()
 #endif
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
-    radio_txInit();
-    radio_transmit((const char *)&payload, sizeof(payload_t));
-    radio_sleep();
+    SpriteRadio_txInit();
+    SpriteRadio_transmit((char *)&payload, sizeof(payload_t));
+    SpriteRadio_sleep();
 #endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
 }
 
