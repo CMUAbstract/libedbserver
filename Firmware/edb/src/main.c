@@ -973,7 +973,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
 int main(void)
 {
+#ifdef CONFIG_MAIN_LOOP_LED
     uint32_t count = 0;
+#endif
 
     // Stop watchdog timer to prevent time out reset
     WDTCTL = WDTPW + WDTHOLD;
