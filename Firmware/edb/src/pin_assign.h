@@ -297,11 +297,7 @@
  * @defgroup    ADC_CHANNELS   ADC input channel names to pins
  * @{
  */
-#define ADC_CHAN_VCAP                          ADC12INCH_1 //!< ADC input channel select for Vcap
-#define ADC_CHAN_VBOOST                        ADC12INCH_2 //!< ADC input channel select for Vboost
-#define ADC_CHAN_VREG                          ADC12INCH_3 //!< ADC input channel select for Vreg
-#define ADC_CHAN_VRECT                         ADC12INCH_4 //!< ADC input channel select for Vrect
-#define ADC_CHAN_VINJ                          ADC12INCH_5 //!< ADC input channel select for VINJ
+#define ADC_CHAN_VCAP                          ADC12INCH_4 //!< ADC input channel select for Vcap
 /** @} End ADC_CHANNELS */
 
 /**
@@ -309,10 +305,6 @@
  * @{
  */
 #define COMP_CHAN_VCAP                          1
-#define COMP_CHAN_VBOOST                        2
-#define COMP_CHAN_VREG                          3
-#define COMP_CHAN_VRECT                         4
-#define COMP_CHAN_VINJ                          5
 /** @} End COMP_CHAN */
 
 

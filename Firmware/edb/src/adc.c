@@ -24,10 +24,18 @@ typedef struct {
  */
 static adc_stream_t stream_info[] = {
     { STREAM_VCAP,   ADC_CHAN_VCAP   },
+#ifdef ADC_CHAN_VBOOST
     { STREAM_VBOOST, ADC_CHAN_VBOOST },
+#endif
+#ifdef ADC_CHAN_VREG
     { STREAM_VREG,   ADC_CHAN_VREG   },
+#endif
+#ifdef ADC_CHAN_VRECT
     { STREAM_VRECT,  ADC_CHAN_VRECT  },
+#endif
+#ifdef ADC_CHAN_VINJ
     { STREAM_VINJ,   ADC_CHAN_VINJ   },
+#endif
 };
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
