@@ -544,8 +544,10 @@ static inline void pin_setup()
     P1DIR |= BIT0;
 #endif
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     // In our IDLE state, target might request to enter active debug mode
     unmask_target_signal();
+#endif
 }
 
 /**
