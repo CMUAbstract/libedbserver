@@ -1014,7 +1014,9 @@ int main(void)
     PWM_setup(1024-1, 512); // dummy default values
 #endif
 
+#ifdef CONFIG_HOST_UART
     UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
+#endif
 
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
     RFID_init();
