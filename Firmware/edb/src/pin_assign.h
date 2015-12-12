@@ -211,15 +211,15 @@
 
 #elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ)
 
-#define PORT_LED                                2 //!< GPIO port for LEDs
-#define PIN_LED_GREEN                           2
-#define PIN_LED_RED                             2 //!< TODO: make optional
+#define PORT_LED                                3 //!< GPIO port for LEDs
+#define PIN_LED_GREEN                           3
+#define PIN_LED_RED                             4 //!< TODO: make optional
 
-#define PORT_LED_MAIN_LOOP                      2
-#define PIN_LED_MAIN_LOOP                       2
+#define PORT_LED_MAIN_LOOP                      3
+#define PIN_LED_MAIN_LOOP                       3
 
-#define PORT_LED_DEBUG_MODE                     2
-#define PIN_LED_DEBUG_MODE                      2
+#define PORT_LED_DEBUG_MODE                     3
+#define PIN_LED_DEBUG_MODE                      4
 
 // No second UART on this board
 //#define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
@@ -253,8 +253,8 @@
 #define PIN_STATE_1                             5 //!< debugger state msb bit
 
 #define PORT_EVENT                              3 //!< GPIO port for debugger state pins
-#define PIN_EVENT_0                             6 //!< debugger state lsb bit
-#define PIN_EVENT_1                             7 //!< debugger state msb bit
+#define PIN_EVENT_0                             0 //!< debugger state lsb bit
+#define PIN_EVENT_1                             0 //!< debugger state msb bit
 
 #define PORT_TRIGGER                            3 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             2 //!< scope trigger pin
