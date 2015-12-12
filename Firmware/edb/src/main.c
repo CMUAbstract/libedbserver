@@ -1030,7 +1030,7 @@ int main(void)
 
 #ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
     unsigned i;
-    for (i = 1; i <= CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
+    for (i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
         toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
@@ -1188,7 +1188,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #error Compiler not supported!
 #endif
 {
-    uint8_t pin_state = GPIO(PORT_CODEPOINT, IN); // snapshot
 
     // TODO: clear interrupt for *all* codepoint pins (not just the one that we
     // are handling, since each pin is a bit of the encoded index)
@@ -1211,6 +1210,8 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif // PORT_SIG
 
 #if PORT_CODEPOINT == 1
+#if 0 // TODO: implement workaround for no codepoint index encoding (i.e. 1 pin
+      //  per watchpoint)
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
     {
@@ -1222,6 +1223,20 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         handle_codepoint(pin_state);
         break;
     }
+#else
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
+        handle_codepoint(0);
+        break;
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
+        handle_codepoint(1);
+        break;
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_2):
+        handle_codepoint(2);
+        break;
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_3):
+        handle_codepoint(3);
+        break;
+#endif
 #endif // PORT_CODEPOINT
 
 	default:

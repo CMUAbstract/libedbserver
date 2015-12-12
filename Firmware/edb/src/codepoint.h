@@ -21,6 +21,6 @@ void disable_watchpoints();
 void init_watchpoint_event_bufs();
 void send_watchpoint_events();
 
-void handle_codepoint(uint8_t pin_state);
+void handle_codepoint(unsigned index);
 
 #endif // CODEPOINT_H

@@ -332,17 +332,16 @@ void disable_watchpoints()
     main_loop_flags &= ~FLAG_WATCHPOINT_READY;
 }
 
-void handle_codepoint(uint8_t pin_state)
+void handle_codepoint(unsigned index)
 {
 #if defined(CONFIG_ENABLE_WATCHPOINTS)
 
         // NOTE: can't encode a zero-based index, because the pulse must
         // trigger the interrupt
-        unsigned index = ((pin_state & BITS_CODEPOINT) >> PIN_CODEPOINT_0);
         if (watchpoints & (1 << index)) {
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
             uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-            payload_record_profile_event(index - 1, vcap);
+            payload_record_profile_event(index, vcap);
 #endif
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
             append_watchpoint_event(index);
@@ -350,6 +349,11 @@ void handle_codepoint(uint8_t pin_state)
         }
 
 #elif defined(CONFIG_ENABLE_PASSIVE_BREAKPOINTS)
+
+#error NOT IMPLEMENTED: TODO: implement without encoding index onto pins
+// The problem is that EDB might not read the pin state in time, because
+// it might be busy with another ISR.
+
         if (!passive_breakpoints) {
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
