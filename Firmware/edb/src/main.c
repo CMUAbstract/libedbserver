@@ -1214,6 +1214,8 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
       //  per watchpoint)
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_2):
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_3):
     {
 #ifdef BOARD_EDB
         /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */

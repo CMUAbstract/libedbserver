@@ -269,10 +269,12 @@
 #define PIN_CODEPOINT_0                         1 // lsb
 #define PIN_CODEPOINT_1                         2
 #define PIN_CODEPOINT_2                         3
+#define PIN_CODEPOINT_3                         4
 #define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
                                                  BIT(PIN_CODEPOINT_1) | \
-                                                 BIT(PIN_CODEPOINT_2))
-#define NUM_CODEPOINT_PINS                      3
+                                                 BIT(PIN_CODEPOINT_2) | \
+                                                 BIT(PIN_CODEPOINT_3))
+#define NUM_CODEPOINT_PINS                      4 // remember to add cases to ISR
 
 #define PORT_SERIAL_DECODE                      3 //!< GPIO port for serial decoder state
 #define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt
