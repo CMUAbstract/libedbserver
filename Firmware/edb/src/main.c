@@ -1201,10 +1201,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #error Compiler not supported!
 #endif
 {
-
-    // TODO: clear interrupt for *all* codepoint pins (not just the one that we
-    // are handling, since each pin is a bit of the encoded index)
-
 	switch(__even_in_range(P1IV, 16))
 	{
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
