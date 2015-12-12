@@ -319,7 +319,7 @@ void enable_watchpoints()
     init_watchpoint_event_bufs(); // need to clear count
 
     // enable rising-edge interrupt on codepoint pins (harmless to do every time)
-    GPIO(PORT_CODEPOINT, DIR) &= BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IFG) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
