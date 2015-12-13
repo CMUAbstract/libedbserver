@@ -34,21 +34,6 @@ void payload_init()
 #endif
 }
 
-void payload_start_send_timer()
-{
-    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCR) =
-        CONFIG_SEND_ENERGY_PROFILE_INTERVAL;
-    TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) |= TACLR | TASSEL__ACLK;
-    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
-    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) |= CCIE;
-
-    TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) |= MC__UP; // start
-}
-
-void payload_stop_send_timer()
-{
-    TIMER(TIMER_SEND_ENERGY_PROFILE, CTL) = 0;
-}
 
 void payload_send()
 {
@@ -93,24 +78,3 @@ void payload_record_app_output(const uint8_t *data, unsigned len)
     memcpy(&payload.app_output, data, len);
 }
 #endif // CONFIG_COLLECT_APP_OUTPUT
-
-#ifdef CONFIG_ENABLE_PAYLOAD
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A0_VECTOR
-__interrupt void TIMER1_A0_ISR (void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-#endif
-{
-    main_loop_flags |= FLAG_SEND_PAYLOAD
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-        | FLAG_APP_OUTPUT
-#endif
-        ;
-
-    // TODO: clear the sleep on exit flag
-    TIMER_CC(TIMER_SEND_ENERGY_PROFILE, TMRCC_SEND_ENERGY_PROFILE, CCTL) &= ~CCIFG;
-}

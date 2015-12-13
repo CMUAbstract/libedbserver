@@ -51,6 +51,7 @@ OBJECTS = \
 	clock.o \
 	profile.o \
 	payload.o \
+	sched.o \
 
 
 ifeq ($(or $(CONFIG_HOST_UART),$(CONFIG_TARGET_UART)),1)

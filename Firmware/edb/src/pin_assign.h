@@ -288,9 +288,9 @@
 #define TIMER_SIG_SERIAL_DECODE                 A1
 #define TMRCC_SIG_SERIAL                        0
 
-// NOTE: if changed, the ISR in main.c must also be changed
-#define TIMER_SEND_ENERGY_PROFILE               A1
-#define TMRCC_SEND_ENERGY_PROFILE               0 //!< timer capture-compare register index
+// !< general-purpose timer for scheduling pre-defined actions
+#define TIMER_SCHED                             A1
+#define TMRCC_SCHED                             0 //!< timer capture-compare register index
 
 /** @} End PORTS */
 

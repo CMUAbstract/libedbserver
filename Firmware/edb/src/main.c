@@ -27,6 +27,7 @@
 #include "interrupt.h"
 #include "clock.h"
 #include "payload.h"
+#include "sched.h"
 
 #ifdef CONFIG_PWM_CHARGING
 #include "pwm.h"
@@ -67,6 +68,9 @@ static state_t saved_sig_serial_echo_state;
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static sig_cmd_t target_sig_cmd;
 #endif
+
+/* Whether timed out while communicating with target over UART */
+static bool target_comm_timeout;
 
 static interrupt_context_t interrupt_context;
 
@@ -175,6 +179,52 @@ static inline void stop_serial_decoder()
 }
 #endif // CONFIG_TARGET_SIDE_DEBUG_MODE
 
+static void reset_state()
+{
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
+    continuous_power_off();
+#endif
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+    stop_serial_decoder();
+#endif
+    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+    set_state(STATE_IDLE);
+    unmask_target_signal();
+}
+
+#ifdef CONFIG_ENABLE_PAYLOAD
+static sched_cmd_t on_send_payload()
+{
+    main_loop_flags |= FLAG_SEND_PAYLOAD
+#ifdef CONFIG_COLLECT_APP_OUTPUT
+        | FLAG_APP_OUTPUT
+#endif
+        ;
+    return SCHED_CMD_RESCHEDULE;
+}
+#endif // CONFIG_ENABLE_PAYLOAD
+
+#ifdef CONFIG_ENABLE_DEBUG_MODE
+static sched_cmd_t on_enter_debug_mode_timeout()
+{
+    reset_state();
+    return SCHED_CMD_NONE;
+}
+static sched_cmd_t on_exit_debug_mode_timeout()
+{
+    reset_state();
+    return SCHED_CMD_NONE;
+}
+#endif // CONFIG_ENABLE_DEBUG_MODE
+
+#ifdef CONFIG_ENABLE_DEBUG_MODE
+static sched_cmd_t on_target_comm_timeout()
+{
+    target_comm_timeout = true;
+    return SCHED_CMD_NONE;
+}
+#endif // CONFIG_ENABLE_DEBUG_MODE
+
 static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
     interrupt_context.type = int_type;
@@ -196,6 +246,8 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 
     debug_mode_flags = flags;
 
+    schedule_action(on_enter_debug_mode_timeout, CONFIG_ENTER_DEBUG_MODE_TIMEOUT);
+
     mask_target_signal();
     signal_target();
     unmask_target_signal();
@@ -207,21 +259,10 @@ void exit_debug_mode()
 
     // interrupt_context cleared after the target acks the exit request
 
+    schedule_action(on_exit_debug_mode_timeout, CONFIG_EXIT_DEBUG_MODE_TIMEOUT);
+
     unmask_target_signal();
     target_comm_send_exit_debug_mode();
-}
-
-static void reset_state()
-{
-#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
-    continuous_power_off();
-#endif
-#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
-    stop_serial_decoder();
-#endif
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
-    set_state(STATE_IDLE);
-    unmask_target_signal();
 }
 
 void interrupt_target()
@@ -250,9 +291,10 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
     wispRxPkt.processed = 1;
 }
 
-
 static void finish_enter_debug_mode()
 {
+    abort_action(on_enter_debug_mode_timeout);
+
     // WISP has entered debug main loop
     set_state(STATE_DEBUG);
 
@@ -280,6 +322,8 @@ static void finish_enter_debug_mode()
 
 static void finish_exit_debug_mode()
 {
+    abort_action(on_exit_debug_mode_timeout);
+
     // WISP has shutdown UART and is asleep waiting for int to resume
 #if 0 // TODO: this breaks edb after a few printfs, the only danger of not tearing UART down
       // is energy interference due to the pins being high, but hopefully this is negligible
@@ -597,17 +641,32 @@ void get_app_output()
     LOG("interrupting target\r\n");
     enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_WITH_UART);
 
-    // TODO: timeout
-    while (state != STATE_DEBUG);
+    // TODO: sleep
+    while (state != STATE_DEBUG && state != STATE_IDLE);
+
+    if (state == STATE_IDLE) {
+        LOG("timed out while interrupting target\r\n");
+        return;
+    }
 
     LOG("requesting data from target\r\n");
-
     target_comm_send_get_app_output();
 
     LOG("waiting for reply\r\n");
-    // TODO: timeout
-    while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
-            (wispRxPkt.descriptor != WISP_RSP_APP_OUTPUT)); // wait for response
+    target_comm_timeout = false;
+    schedule_action(on_target_comm_timeout, CONFIG_TARGET_COMM_TIMEOUT);
+
+    // TODO: sleep
+    while(!target_comm_timeout &&
+          ((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
+           (wispRxPkt.descriptor != WISP_RSP_APP_OUTPUT)));
+
+    if (target_comm_timeout) {
+        LOG("timed out while waiting for target reply\r\n");
+        return;
+    } else {
+        abort_action(on_target_comm_timeout);
+    }
 
     LOG("received reply: msg %02x len %u data %02x...\r\n",
         wispRxPkt.descriptor, wispRxPkt.length, wispRxPkt.data[0]);
@@ -965,9 +1024,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_PERIODIC_PAYLOAD: {
         bool enable = pkt->data[0];
         if (enable) {
-            payload_start_send_timer();
+            schedule_action(on_send_payload, CONFIG_SEND_PAYLOAD_INTERVAL);
         } else {
-            payload_stop_send_timer();
+            abort_action(on_send_payload);
         }
         send_return_code(RETURN_CODE_SUCCESS);
         break;
@@ -1052,7 +1111,7 @@ int main(void)
 #endif // CONFIG_BOOT_LED
 
 #ifdef CONFIG_PERIODIC_PAYLOAD_AUTO
-    payload_start_send_timer();
+    schedule_action(on_send_payload, CONFIG_SEND_PAYLOAD_INTERVAL);
 #endif
 
     while(1) {

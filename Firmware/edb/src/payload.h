@@ -22,9 +22,6 @@ typedef struct {
 void payload_init();
 void payload_send();
 
-void payload_start_send_timer();
-void payload_stop_send_timer();
-
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
 void payload_record_profile_event(unsigned index, uint16_t vcap);
 #endif
