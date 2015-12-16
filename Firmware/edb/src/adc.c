@@ -193,7 +193,10 @@ uint16_t ADC_read(unsigned chan_index)
     ADC12CTL0 |= ADC12SC; // start conversion
 
     while (ADC12CTL1 & ADC12BUSY); // wait for conversion to complete
-    return ADC12MEM0;
+    uint16_t reading = ADC12MEM0;
+
+    ADC12CTL0 &= ~ADC12ON; // turn ADC off
+    return reading;
 }
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
