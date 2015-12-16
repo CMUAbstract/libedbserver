@@ -254,7 +254,7 @@
 
 #define PORT_EVENT                              3 //!< GPIO port for debugger state pins
 #define PIN_EVENT_0                             0 //!< debugger state lsb bit
-#define PIN_EVENT_1                             0 //!< debugger state msb bit
+#define PIN_EVENT_1                             2 //!< debugger state msb bit
 
 #define PORT_TRIGGER                            3 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             2 //!< scope trigger pin
