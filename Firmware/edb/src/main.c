@@ -191,7 +191,10 @@ static void reset_state()
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
 #endif // CONFIG_DEBUG_MODE_LED
     set_state(STATE_IDLE);
+
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     unmask_target_signal();
+#endif  // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 }
 
 #ifdef CONFIG_ENABLE_PAYLOAD
@@ -317,9 +320,9 @@ static void finish_enter_debug_mode()
 
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     reset_serial_decoder();
+    unmask_target_signal(); // listen because target *may* request to exit active debug mode
 #endif
 
-    unmask_target_signal(); // listen because target *may* request to exit active debug mode
 }
 
 static void finish_exit_debug_mode()
@@ -362,7 +365,10 @@ static void finish_exit_debug_mode()
     __delay_cycles(CONFIG_EXIT_DEBUG_MODE_LATENCY_CYCLES);
 
     signal_target(); // tell target to continue execution
+
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     unmask_target_signal(); // target may request to enter active debug mode
+#endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 }
 
 /**
