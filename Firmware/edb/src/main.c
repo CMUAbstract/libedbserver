@@ -187,7 +187,9 @@ static void reset_state()
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     stop_serial_decoder();
 #endif
+#ifdef CONFIG_DEBUG_MODE_LED
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
+#endif // CONFIG_DEBUG_MODE_LED
     set_state(STATE_IDLE);
     unmask_target_signal();
 }
