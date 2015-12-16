@@ -12,6 +12,19 @@
 #define MCU_BOOT_LATENCY_MS 5ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
                                  // 3 ms for 4 MHz, 5 ms for 8 Mhz (there's a fixed time component)
 
+/** @brief Lower boundary in the histogram of watchpoint energies in the profile
+ *  @details V to raw ADC value conversion:
+ *      Vmin/Vref * 2^12, where Vref = 2.5 (see adc.c), and 12 is for 12-bit ADC
+ */
+//#define CONFIG_ENERGY_PROFILE_MIN_VOLTAGE 2949 // Vmin = 1.8v
+#define CONFIG_ENERGY_PROFILE_MIN_VOLTAGE 3276 // Vmin = 2.0v
+
+
+/** @brief Energy profile buckets that are smaller than one byte
+ *  @details NOTE: does not work!
+ */
+// #define CONFIG_PROFILE_SUB_BYTE_BUCKET_SIZES
+
 #ifdef BOARD_EDB
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
