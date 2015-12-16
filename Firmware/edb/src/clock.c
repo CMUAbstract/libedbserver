@@ -47,9 +47,6 @@ void clock_setup()
     __delay_cycles(65535);
     __delay_cycles(65535);
 #endif
-#if !(defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM) || defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DELAY))
-#error No workaround for startup voltage problem: see CONFIG_STARTUP_VOLTAGE_WORKAROUND_*
-#endif
 
     // NOTE: The MCU starts in a fault condition, because ACLK is set to XT1 LF but
     // XT1 LF takes time to initialize. Its init begins when XT1 pin function
