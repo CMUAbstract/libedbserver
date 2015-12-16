@@ -162,7 +162,8 @@ unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
 
                 if (energy_level) {
                     code_energy_breakpoints |= 1 << index;
-                    arm_comparator(CMP_OP_CODE_ENERGY_BREAKPOINT, energy_level, cmp_ref, CMP_EDGE_ANY);
+                    arm_comparator(CMP_OP_CODE_ENERGY_BREAKPOINT, energy_level,
+                                   cmp_ref, CMP_EDGE_ANY, COMP_CHAN_VCAP);
                     // comparator output high means Vcap < cmp ref (activate breakpoint)
                     breakpoint_active = CBCTL1 & CBOUT;
 

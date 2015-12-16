@@ -6,16 +6,11 @@
 
 #include "comparator.h"
 
-#define COMP_NEG_CHAN_INNER(idx) CBIMSEL_ ## idx
-#define COMP_NEG_CHAN(idx) COMP_NEG_CHAN_INNER(idx)
-
-#define COMP_PORT_DIS_INNER(idx) CBPD ## idx
-#define COMP_PORT_DIS(idx) COMP_PORT_DIS_INNER(idx)
-
 comparator_op_t comparator_op = CMP_OP_NONE;
 
-void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
-                           comparator_edge_t edge)
+void arm_comparator_impl(comparator_op_t op, uint16_t target, comparator_ref_t ref,
+                         comparator_edge_t edge,
+                         uint16_t ctl0_chan_bits, uint16_t ctl1_chan_bits)
 {
     comparator_op = op;
 
@@ -39,8 +34,8 @@ void arm_comparator(comparator_op_t op, uint16_t target, comparator_ref_t ref,
     }
     CBCTL2 |= (target << 8) | target;
 
-    CBCTL0 |= CBIMEN | COMP_NEG_CHAN(COMP_CHAN_VCAP); // route input pin to V-, input channel (pin)
-    CBCTL3 |= COMP_PORT_DIS(COMP_CHAN_VCAP); // disable input port buffer on pin
+    CBCTL0 |= CBIMEN | ctl0_chan_bits; // route input pin to V-, input channel (pin)
+    CBCTL3 |= ctl1_chan_bits; // disable input port buffer on pin
     CBCTL1 |= CBF | CBFDLY_3;
 
     CBINT &= ~CBIE; // disable CompB interrupt

@@ -631,7 +631,8 @@ void break_at_vcap_level_adc(uint16_t level)
  */
 void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
 {
-    arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING);
+    arm_comparator(CMP_OP_ENERGY_BREAKPOINT, level, ref, CMP_EDGE_RISING,
+                   COMP_CHAN_VCAP);
     // expect comparator interrupt
 }
 
@@ -1091,7 +1092,7 @@ int main(void)
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
     arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
-                   CMP_REF_VREF_2_5, CMP_EDGE_RISING);
+                   CMP_REF_VREF_2_5, CMP_EDGE_RISING, COMP_CHAN_VCAP);
 #endif
 
     reset_state();
