@@ -249,6 +249,7 @@ out:
     return rc;
 }
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 void init_watchpoint_event_bufs()
 {
     unsigned i, offset;
@@ -272,7 +273,6 @@ void init_watchpoint_event_bufs()
     watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
 }
 
-#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 static void append_watchpoint_event(unsigned index)
 {
     watchpoint_event_t *watchpoint_event =
@@ -317,7 +317,9 @@ void send_watchpoint_events()
 
 void enable_watchpoints()
 {
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
     init_watchpoint_event_bufs(); // need to clear count
+#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
     // enable rising-edge interrupt on codepoint pins (harmless to do every time)
     GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
@@ -330,7 +332,9 @@ void disable_watchpoints()
 {
     GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
     main_loop_flags &= ~FLAG_WATCHPOINT_READY;
+#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 }
 
 void handle_codepoint(unsigned index)
