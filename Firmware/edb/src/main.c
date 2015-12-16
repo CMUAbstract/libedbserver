@@ -512,9 +512,6 @@ static inline void pin_setup()
     // GPIO(PORT_CONT_POWER, DIR) |= BIT(PIN_CONT_POWER);
     // GPIO(PORT_CONT_POWER, OUT) &= ~BIT(PIN_CONT_POWER);
 
-    GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
-    GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
-
 #ifdef CONFIG_DEBUG_MODE_LED
     GPIO(PORT_LED_DEBUG_MODE, OUT) &= ~BIT(PIN_LED_DEBUG_MODE);
     GPIO(PORT_LED_DEBUG_MODE, DIR) |= BIT(PIN_LED_DEBUG_MODE);
@@ -1062,7 +1059,8 @@ int main(void)
     clock_setup(); // set up unified clock system
 
 #ifdef CONFIG_CLOCK_TEST_MODE
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
+    GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
     BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
 #endif
 
@@ -1431,10 +1429,12 @@ void __attribute__ ((interrupt(UNMI_VECTOR))) unmi_isr(void)
     // We do not use ASSERT here because oon oscillator fault, the
     // clock frequency is not the same as nominal, so the assert id
     // encoding onto blink rate would not be correct.
+#ifdef CONFIG_ERROR_LED
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_GREEN);
     GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
     if (UCSCTL7 & XT2OFFG)
         GPIO(PORT_LED, OUT) |= BIT(PIN_LED_GREEN);
+#endif // CONFIG_ERROR_LED
 
     while (1);
 }
