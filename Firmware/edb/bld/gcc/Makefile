@@ -19,6 +19,7 @@ CONFIG_POWER_TARGET_IN_DEBUG_MODE = 1
 CONFIG_BOOT_LED = 1
 CONFIG_MAIN_LOOP_LED = 1
 CONFIG_DEBUG_MODE_LED = 1
+CONFIG_CHARGE_MANIP = 1
 
 else ifeq ($(BOARD),sprite-edb-socket-rgz)
 CONFIG_ENABLE_PAYLOAD = 1
@@ -44,7 +45,6 @@ OBJECTS = \
 	adc.o \
 	mspware/pmm.o \
 	params.o \
-	charge.o \
 	comparator.o \
 	codepoint.o \
 	tether.o \
@@ -77,6 +77,10 @@ ifeq ($(CONFIG_SYSTICK),1)
 endif
 ifeq ($(CONFIG_PWM_CHARGING),1)
 	OBJECTS += pwm.o
+endif
+
+ifeq ($(CONFIG_CHARGE_MANIP),1)
+	OBJECTS += charge.o
 endif
 
 ifeq ($(CONFIG_RADIO_TRANSMIT_PAYLOAD),1)
