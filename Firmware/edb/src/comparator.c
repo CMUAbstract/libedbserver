@@ -36,7 +36,7 @@ void arm_comparator_impl(comparator_op_t op, uint16_t target, comparator_ref_t r
 
     CBCTL0 |= CBIMEN | ctl0_chan_bits; // route input pin to V-, input channel (pin)
     CBCTL3 |= ctl1_chan_bits; // disable input port buffer on pin
-    CBCTL1 |= CBF | CBFDLY_3;
+    CBCTL1 |= CBF | CBFDLY_3 | CBPWRMD_1; // note CBPPWRMD_2 seems to not work on CC430F5137
 
     CBINT &= ~CBIE; // disable CompB interrupt
 
