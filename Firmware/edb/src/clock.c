@@ -24,9 +24,10 @@ void clock_setup()
 {
     unsigned rc;
 
-    // Increase Vcore setting to level3 to support high frequency
-    rc = PMM_setVCore(0x03);
+#if CONFIG_CORE_VOLTAGE_LEVEL > 0
+    rc = PMM_setVCore(CONFIG_CORE_VOLTAGE_LEVEL); // 0 for Vcc 1.8v, 1 - 2.0v, 2 - 2.2v, 3 - 2.4v
     ASSERT(ASSERT_SET_CORE_VOLTAGE_FAILED, rc == STATUS_SUCCESS);
+#endif // CONFIG_CORE_VOLTAGE_LEVEL
 
 #if defined(CONFIG_STARTUP_VOLTAGE_WORKAROUND_DISABLE_PMM)
     PMMCTL0_H = PMMPW_H;

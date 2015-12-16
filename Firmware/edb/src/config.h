@@ -25,6 +25,14 @@
  */
 // #define CONFIG_PROFILE_SUB_BYTE_BUCKET_SIZES
 
+/** @brief Core voltage regulator setting
+ * @details For freq above 8MHz level needs to be higher than 0 (see datasheet).
+ * For radio (on BOARD_SPRITE_EDB), core voltage needs to be 2 or above,
+ * however we don't set it because then the board doesn't boot on harvested
+ * energy (and kicksat doesn't set core level either).
+ */
+#define CONFIG_CORE_VOLTAGE_LEVEL   0
+
 #ifdef BOARD_EDB
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
