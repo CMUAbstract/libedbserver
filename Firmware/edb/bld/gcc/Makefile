@@ -3,13 +3,13 @@ EXEC = edb.out
 # Expects BOARD env var to be set to one supported by 'maker' (see Maker.board)
 
 # Configure the build here (see Makefile.config, by default all flags are unset)
-CONFIG_STARTUP_VOLTAGE_WORKAROUND = disable-pmm
 CONFIG_ENABLE_WATCHPOINTS = 1
 CONFIG_TARGET_UART = 1
 CONFIG_ENABLE_DEBUG_MODE = 1
 CONFIG_PULL_DOWN_ON_COMM_LINES = 1
 
 ifeq ($(BOARD),edb)
+CONFIG_STARTUP_VOLTAGE_WORKAROUND = disable-pmm
 CONFIG_HOST_UART = 1
 CONFIG_SYSTICK = 1
 CONFIG_ENABLE_WATCHPOINT_STREAM = 1
