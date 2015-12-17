@@ -1197,8 +1197,8 @@ int main(void)
             main_loop_flags &= ~FLAG_ENERGY_PROFILE_READY;
 
             // next action
-            //main_loop_flags |= FLAG_APP_OUTPUT;
-            main_loop_flags |= FLAG_SEND_BEACON;
+            main_loop_flags |= FLAG_APP_OUTPUT;
+            //main_loop_flags |= FLAG_SEND_BEACON;
             continue;
         }
 #endif
