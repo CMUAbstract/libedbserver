@@ -1117,9 +1117,16 @@ int main(void)
     GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
 #endif // CONFIG_BOOT_LED
 
+    // Setup target's "power switch" pin
+    GPIO(PORT_TARGET_PWR_SWITCH, OUT) &= ~BIT(PIN_TARGET_PWR_SWITCH);
+    GPIO(PORT_TARGET_PWR_SWITCH, DIR) |= BIT(PIN_TARGET_PWR_SWITCH);
+
 #ifdef CONFIG_PERIODIC_PAYLOAD_AUTO
     schedule_action(on_send_payload, CONFIG_SEND_PAYLOAD_INTERVAL);
 #endif
+
+    // turn on target's "power switch"
+    GPIO(PORT_TARGET_PWR_SWITCH, OUT) |= BIT(PIN_TARGET_PWR_SWITCH);
 
     while(1) {
 
