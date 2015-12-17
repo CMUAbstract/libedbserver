@@ -59,6 +59,7 @@ static uint16_t watchpoints_vcap_snapshot = 0;
     (WATCHPOINT_EVENT_BUF_HEADER_SPACE * sizeof(watchpoint_event_t) - \
         (UART_MSG_HEADER_SIZE + STREAM_DATA_MSG_HEADER_LEN))
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 static watchpoint_event_t
 watchpoint_events_msg_bufs[NUM_WATCHPOINT_BUFFERS][WATCHPOINT_EVENT_BUF_SIZE];
 
@@ -70,6 +71,7 @@ static watchpoint_event_t *watchpoint_events_bufs[NUM_WATCHPOINT_BUFFERS] = {
 static unsigned watchpoint_events_count[NUM_WATCHPOINT_BUFFERS];
 static watchpoint_event_t *watchpoint_events_buf;
 static unsigned watchpoint_events_buf_idx;
+#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
 
 void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
