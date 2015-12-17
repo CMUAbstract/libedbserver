@@ -1130,9 +1130,12 @@ int main(void)
 
     while(1) {
 
+
+#ifdef CONFIG_FETCH_INTERRUPT_CONTEXT 
         if (main_loop_flags & FLAG_INTERRUPTED) {
             main_loop_flags &= ~FLAG_INTERRUPTED;
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
             if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
                 debug_mode_flags & DEBUG_MODE_WITH_UART)
                 get_target_interrupt_context(&interrupt_context);
@@ -1141,6 +1144,7 @@ int main(void)
             send_interrupt_context(&interrupt_context);
 #endif
         }
+#endif // CONFIG_FETCH_INTERRUPT_CONTEXT 
 
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
         if (main_loop_flags & FLAG_WATCHPOINT_READY) {
