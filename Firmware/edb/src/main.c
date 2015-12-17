@@ -1056,8 +1056,8 @@ int main(void)
     uint32_t count = 0;
 #endif
 
-    // Stop watchdog timer to prevent time out reset
-    WDTCTL = WDTPW + WDTHOLD;
+    // Configure watchdog to 4 minutes
+    WDTCTL = WDTPW | WDTCNTCL | CONFIG_WDT_BITS;
 
     pin_setup();
 
@@ -1157,6 +1157,9 @@ int main(void)
     LOG("main loop\r\n");
 
     while(1) {
+
+        WDTCTL = WDTPW | WDTCNTCL | CONFIG_WDT_BITS; // kick the watchdog
+
         if (main_loop_flags & FLAG_SEND_BEACON) {
             LOG("sb\r\n");
             payload_send_beacon();

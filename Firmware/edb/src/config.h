@@ -35,6 +35,9 @@
 
 #define CONFIG_MAIN_LOOP_SLEEP_STATE LPM0_bits
 
+/** @brief Watchdog configuration */
+#define CONFIG_WDT_BITS (WDTSSEL__ACLK | WDTIS__8192K) // 4 minutes
+
 #ifdef BOARD_EDB
 // #define CONFIG_DCO_REF_SOURCE_REFO
 // #define CONFIG_DCO_REF_CLOCK_DIV 1
