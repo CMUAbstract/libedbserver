@@ -1059,7 +1059,7 @@ int main(void)
 
     __enable_interrupt();                   // enable all interrupts
 
-    PRINTF("EDB booted\r\n");
+    LOG("EDB booted\r\n");
 
 #ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
