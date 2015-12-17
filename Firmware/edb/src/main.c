@@ -1124,10 +1124,11 @@ int main(void)
             if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
                 debug_mode_flags & DEBUG_MODE_WITH_UART)
                 get_target_interrupt_context(&interrupt_context);
-            // do it here: reply marks completion of enter sequence
+#endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 #ifdef CONFIG_HOST_UART
+            // do it here: reply marks completion of enter sequence
             send_interrupt_context(&interrupt_context);
-#endif
+#endif // CONFIG_HOST_UART
         }
 #endif // CONFIG_FETCH_INTERRUPT_CONTEXT 
 
