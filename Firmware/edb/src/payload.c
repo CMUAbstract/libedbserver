@@ -29,16 +29,17 @@ typedef struct _edb_info_t{
 
 static payload_t payload; // EDB+App data sent to host/ground
 
-static void log_packet(char type, uint8_t *pkt, unsigned len)
+static void log_packet(char type, uint8_t header, uint8_t *pkt, unsigned len)
 {
 #if defined(CONFIG_DEV_CONSOLE)
     int i;
     BLOCK_LOG_BEGIN();
     BLOCK_LOG("tx: pkt %c:\r\n", type);
+    BLOCK_LOG("%02x ", header);
     for (i = 0; i < len; ++i) {
         BLOCK_LOG("%02x ", *((uint8_t *)pkt + i));
 
-        if (((i + 1) & (8 - 1)) == 0)
+        if (((i + 1 + 1) & (8 - 1)) == 0)
             BLOCK_LOG("\r\n");
     }
     BLOCK_LOG("\r\n");
@@ -65,7 +66,7 @@ void payload_send_beacon()
 {
     uint8_t b = 'E';
 
-    log_packet('B', &b, sizeof(b));
+    log_packet('B', 0, &b, sizeof(b));
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
@@ -79,15 +80,16 @@ void payload_send_app_output()
 {
     // randomply pick one sensor and send only that
 
-    int sensor_idx = rand() % NUM_SENSORS;
+    uint8_t sensor_idx = rand() % NUM_SENSORS;
 
     uint8_t *pkt = (uint8_t *)(&payload.app_output) + sensor_idx * NUM_WINDOWS;
     unsigned pkt_len = NUM_WINDOWS * sizeof(int8_t);
 
-    log_packet('A', pkt, pkt_len);
+    log_packet('A', sensor_idx, pkt, pkt_len);
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
+    SpriteRadio_transmit((char *)&sensor_idx, 1);
     SpriteRadio_transmit((char *)pkt, pkt_len);
     SpriteRadio_sleep();
 #endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
@@ -101,12 +103,13 @@ void payload_send_profile()
     int wp_idx = rand() % NUM_EVENTS;
 
     uint8_t *pkt = (uint8_t *)(&payload.energy_profile.events[0] + wp_idx);
-    unsigned pkt_len = sizeof(event_t);
+    unsigned pkt_len = NUM_ENERGY_BYTES + 1; // 1 is for count; this is sizeof(event_t) without padding
 
-    log_packet('E', pkt, pkt_len);
+    log_packet('E', wp_idx, pkt, pkt_len);
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
+    SpriteRadio_transmit((char *)&wp_idx, pkt_len);
     SpriteRadio_transmit((char *)&pkt, pkt_len);
     SpriteRadio_sleep();
 #endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
@@ -115,7 +118,7 @@ void payload_send_profile()
 
 void payload_send()
 {
-    log_packet('P', (uint8_t *)&payload, sizeof(payload_t));
+    log_packet('P', 0, (uint8_t *)&payload, sizeof(payload_t));
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
