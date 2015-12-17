@@ -304,7 +304,7 @@
  * @defgroup    COMP_CHAN comparator input channel pins
  * @{
  */
-#define COMP_CHAN_VCAP                          1
+#define COMP_CHAN_VCAP                          4
 /** @} End COMP_CHAN */
 
 
