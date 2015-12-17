@@ -1197,6 +1197,7 @@ int main(void)
             // next action
             //main_loop_flags |= FLAG_APP_OUTPUT;
             main_loop_flags |= FLAG_SEND_BEACON;
+            continue;
         }
 #endif
 
