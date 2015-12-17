@@ -1304,19 +1304,27 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         break;
     }
 #else
+#ifdef PIN_CODEPOINT_0
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
         handle_codepoint(0);
         break;
+#endif // PIN_CODEPOINT_0
+#ifdef PIN_CODEPOINT_1
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
         handle_codepoint(1);
         break;
+#endif // PIN_CODEPOINT_1
+#ifdef PIN_CODEPOINT_2
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_2):
         handle_codepoint(2);
         break;
+#endif // PIN_CODEPOINT_2
+#ifdef PIN_CODEPOINT_3
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_3):
         handle_codepoint(3);
         break;
-#endif
+#endif // PIN_CODEPOINT_3
+#endif // if 0
 #endif // PORT_CODEPOINT
 
 	default:
