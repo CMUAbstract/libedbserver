@@ -1,5 +1,6 @@
 #include <msp430.h>
 #include <string.h>
+#include <stdlib.h>
 
 #ifdef CONFIG_DEV_CONSOLE
 #include <libio/log.h>
@@ -17,7 +18,33 @@
 
 #include "payload.h"
 
+
+// TODO: HACK
+// From app: must match!
+#define NUM_SENSORS 7
+#define NUM_WINDOWS 4
+typedef struct _edb_info_t{
+  int8_t averages[NUM_SENSORS][NUM_WINDOWS];
+} edb_info_t;
+
 static payload_t payload; // EDB+App data sent to host/ground
+
+static void log_packet(char type, uint8_t *pkt, unsigned len)
+{
+#if defined(CONFIG_DEV_CONSOLE)
+    int i;
+    BLOCK_LOG_BEGIN();
+    BLOCK_LOG("tx: pkt %c:\r\n", type);
+    for (i = 0; i < len; ++i) {
+        BLOCK_LOG("%02x ", *((uint8_t *)pkt + i));
+
+        if (((i + 1) & (8 - 1)) == 0)
+            BLOCK_LOG("\r\n");
+    }
+    BLOCK_LOG("\r\n");
+    BLOCK_LOG_END();
+#endif
+}
 
 void payload_init()
 {
@@ -34,28 +61,58 @@ void payload_init()
 #endif
 }
 
+void payload_send_beacon()
+{
+    uint8_t b = 'E';
+
+    log_packet('B', &b, sizeof(b));
+
+#ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
+    SpriteRadio_txInit();
+    SpriteRadio_transmit((char *)&b, 1);
+    SpriteRadio_sleep();
+#endif
+}
+
+void payload_send_app_output()
+{
+    // randomply pick one sensor and send only that
+
+    int sensor_idx = rand() % NUM_SENSORS;
+
+    uint8_t *pkt = (uint8_t *)(&payload.app_output) + sensor_idx * NUM_WINDOWS;
+    unsigned pkt_len = NUM_WINDOWS * sizeof(int8_t);
+
+    log_packet('A', pkt, pkt_len);
+
+#ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
+    SpriteRadio_txInit();
+    SpriteRadio_transmit((char *)pkt, pkt_len);
+    SpriteRadio_sleep();
+#endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
+}
+
+void payload_send_profile()
+{
+    // randomply pick one watchpoint and send only that
+    // TODO: seed rand()
+    int wp_idx = rand() % NUM_EVENTS;
+
+    uint8_t *pkt = (uint8_t *)(&payload.energy_profile.events[0] + wp_idx);
+    unsigned pkt_len = sizeof(event_t);
+
+    log_packet('E', pkt, pkt_len);
+
+#ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
+    SpriteRadio_txInit();
+    SpriteRadio_transmit((char *)&pkt, pkt_len);
+    SpriteRadio_sleep();
+#endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
+}
 
 void payload_send()
 {
-#if defined(CONFIG_HOST_UART)
-    // TODO: for now we send the profile to host, in sprite this would
-    // be a call to the radio module
-    send_payload(&payload);
-#elif defined(CONFIG_DEV_CONSOLE)
-    int i;
-    BLOCK_LOG_BEGIN();
-    BLOCK_LOG("payload:\r\n");
-    for (i = 0; i < sizeof(payload_t); ++i) {
-        BLOCK_LOG("%02x ", *((uint8_t *)&payload + i));
-
-        if (((i + 1) & (8 - 1)) == 0)
-            BLOCK_LOG("\r\n");
-    }
-    BLOCK_LOG("\r\n");
-    BLOCK_LOG_END();
-#else
-    // Well, ... do nothing for now
-#endif
+    log_packet('P', (uint8_t *)&payload, sizeof(payload_t));
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();

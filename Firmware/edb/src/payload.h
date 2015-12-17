@@ -20,7 +20,10 @@ typedef struct {
 } payload_t;
 
 void payload_init();
-void payload_send();
+void payload_send_beacon();
+void payload_send_profile();
+void payload_send_app_output();
+void payload_send(); // do no use, it's too big
 
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
 void payload_record_profile_event(unsigned index, uint16_t vcap);
