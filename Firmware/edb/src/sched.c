@@ -79,13 +79,14 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
         sched_action = NULL;
 
         sched_cmd_t cmd = action();
-        if (cmd == SCHED_CMD_RESCHEDULE)
+        if (cmd & SCHED_CMD_RESCHEDULE)
             schedule_action(action, sched_action_interval);
+        if (cmd & SCHED_CMD_WAKEUP)
+            __bic_SR_register_on_exit(LPM3_bits); // LPM3_bits covers all sleep states
 
         reschedule_preempted_action();
     }
 
-    // TODO: clear the sleep on exit flag?
     // TODO: Does this clear IFG mess up any possible timer starts above?
     TIMER_CC(TIMER_SCHED, TMRCC_SCHED, CCTL) &= ~CCIFG;
 }

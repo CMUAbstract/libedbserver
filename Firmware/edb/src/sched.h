@@ -3,8 +3,9 @@
 
 /** @brief Schedulable actions can return one of these to reschedule self */
 typedef enum {
-    SCHED_CMD_NONE = 0,
-    SCHED_CMD_RESCHEDULE,
+    SCHED_CMD_NONE          = 1 << 0,
+    SCHED_CMD_RESCHEDULE    = 1 << 1, // schedule same action again
+    SCHED_CMD_WAKEUP        = 1 << 2, // exit from low-power state
 } sched_cmd_t;
 
 /** @brief A schedulable action is a void function */
