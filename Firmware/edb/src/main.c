@@ -217,12 +217,12 @@ static void reset_state()
 static sched_cmd_t on_enter_debug_mode_timeout()
 {
     reset_state();
-    return SCHED_CMD_NONE;
+    return SCHED_CMD_WAKEUP;
 }
 static sched_cmd_t on_exit_debug_mode_timeout()
 {
     reset_state();
-    return SCHED_CMD_NONE;
+    return SCHED_CMD_WAKEUP;
 }
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
@@ -231,7 +231,7 @@ static sched_cmd_t on_exit_debug_mode_timeout()
 static sched_cmd_t on_target_comm_timeout()
 {
     target_comm_timeout = true;
-    return SCHED_CMD_NONE;
+    return SCHED_CMD_WAKEUP;
 }
 #endif // CONFIG_COLLECT_APP_OUTPUT
 #endif // CONFIG_ENABLE_DEBUG_MODE
@@ -697,7 +697,7 @@ sched_cmd_t on_watchpoint_collection_complete()
 {
     disable_watchpoints();
     main_loop_flags |= FLAG_ENERGY_PROFILE_READY;
-    return SCHED_CMD_NONE;
+    return SCHED_CMD_WAKEUP;
 }
 
 #ifdef CONFIG_HOST_UART
