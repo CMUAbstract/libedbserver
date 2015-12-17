@@ -305,6 +305,7 @@
  * @{
  */
 #define COMP_CHAN_VCAP                          4
+#define COMP_CHAN_VDD_SELF                      5
 /** @} End COMP_CHAN */
 
 
