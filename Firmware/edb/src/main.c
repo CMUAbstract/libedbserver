@@ -1079,6 +1079,10 @@ int main(void)
 
     LOG("EDB booted\r\n");
 
+    // Seed the random number generator
+    uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
+    srand(seed);
+
 #ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
 #endif
@@ -1126,8 +1130,6 @@ int main(void)
 
     // turn on target's "power switch"
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) |= BIT(PIN_TARGET_PWR_SWITCH);
-
-    // TODO: seed rand()
 
     // Randomly choose which action to perform (EDB does not keep state across reboots)
     // NOTE: this is outside the loop, because within the loop we manually chain the tasks.

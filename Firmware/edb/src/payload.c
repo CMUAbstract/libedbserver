@@ -98,7 +98,6 @@ void payload_send_app_output()
 void payload_send_profile()
 {
     // randomply pick one watchpoint and send only that
-    // TODO: seed rand()
     int wp_idx = rand() % NUM_EVENTS;
 
     uint8_t *pkt = (uint8_t *)(&payload.energy_profile.events[0] + wp_idx);
