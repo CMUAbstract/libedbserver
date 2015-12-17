@@ -126,7 +126,7 @@
 #define CONFIG_EXIT_DEBUG_MODE_TIMEOUT    0xff
 #define CONFIG_TARGET_COMM_TIMEOUT        0xff
 
-#define CONFIG_WATCHPOINT_COLLECTION_TIME 0xfff
+#define CONFIG_WATCHPOINT_COLLECTION_TIME 0x1fff
 
 // The rest essentially defines the register settings that carry out the above
 
