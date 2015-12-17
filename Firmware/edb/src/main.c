@@ -1153,13 +1153,13 @@ int main(void)
         }
 #endif // CONFIG_WATCHPOINT_STREAM
 
+#ifdef CONFIG_HOST_UART
         if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
             main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
 
-#ifdef CONFIG_HOST_UART
             send_voltage(interrupt_context.restored_vcap);
-#endif
         }
+#endif
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         if((main_loop_flags & FLAG_ADC_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
@@ -1169,12 +1169,12 @@ int main(void)
         }
 #endif // CONFIG_ENABLE_VOLTAGE_STREAM
 
+#ifdef CONFIG_HOST_UART
         if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
             main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
-#ifdef CONFIG_HOST_UART
             send_return_code(RETURN_CODE_SUCCESS);
-#endif
         }
+#endif
 
 #ifdef CONFIG_HOST_UART
         if(main_loop_flags & FLAG_UART_USB_RX) {
