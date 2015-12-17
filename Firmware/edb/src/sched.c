@@ -68,6 +68,8 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
 #error Compiler not supported!
 #endif
 {
+    TIMER(TIMER_SCHED, CTL) = MC__STOP;
+
     if (sched_action != NULL) {
 
         // At this point, the one-shot timer event has taken place (and is
