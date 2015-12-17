@@ -44,6 +44,7 @@ void profile_event(profile_t *profile, unsigned index, uint16_t vcap)
     } else { // bucket overflowed, reset all buckets, to keep histogram consistent
         for (int i = 0; i < NUM_ENERGY_BYTES; ++i)
             profile->events[index].energy[i] = 0;
+        profile->events[index].count = 0;
     }
 
 #endif // CONFIG_PROFILE_SUB_BYTE_BUCKET_SIZES
