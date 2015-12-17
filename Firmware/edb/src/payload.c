@@ -74,6 +74,7 @@ void payload_send_beacon()
 #endif
 }
 
+#ifdef CONFIG_COLLECT_APP_OUTPUT
 void payload_send_app_output()
 {
     // randomply pick one sensor and send only that
@@ -91,7 +92,9 @@ void payload_send_app_output()
     SpriteRadio_sleep();
 #endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
 }
+#endif // CONFIG_COLLECT_APP_OUTPUT
 
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
 void payload_send_profile()
 {
     // randomply pick one watchpoint and send only that
@@ -109,6 +112,7 @@ void payload_send_profile()
     SpriteRadio_sleep();
 #endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
 }
+#endif // COLLECT_ENERGY_PROFILE
 
 void payload_send()
 {
