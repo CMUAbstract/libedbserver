@@ -119,10 +119,10 @@
 #define CONFIG_ADC_TIMER_FREQ (CONFIG_ADC_TIMER_CLK_FREQ / CONFIG_ADC_TIMER_DIV)
 
 // Intervals for schedulable actions: time source fixed at ACLK
-#define CONFIG_SEND_PAYLOAD_INTERVAL    0xffff
+#define CONFIG_SEND_PAYLOAD_INTERVAL    0x8000
 #define CONFIG_ENTER_DEBUG_MODE_TIMEOUT   0xff
 #define CONFIG_EXIT_DEBUG_MODE_TIMEOUT    0xff
-#define CONFIG_TARGET_COMM_TIMEOUT       0xfff
+#define CONFIG_TARGET_COMM_TIMEOUT        0xff
 
 // The rest essentially defines the register settings that carry out the above
 

@@ -41,7 +41,7 @@ void schedule_action(action_t *action, unsigned interval)
 
     // TODO: make it one-shot
     TIMER_CC(TIMER_SCHED, TMRCC_SCHED, CCR) = interval;
-    TIMER(TIMER_SCHED, CTL) |= TACLR | TASSEL__ACLK;
+    TIMER(TIMER_SCHED, CTL) |= TACLR | TASSEL__ACLK | ID__8;
     TIMER_CC(TIMER_SCHED, TMRCC_SCHED, CCTL) &= ~CCIFG;
     TIMER_CC(TIMER_SCHED, TMRCC_SCHED, CCTL) |= CCIE;
 
