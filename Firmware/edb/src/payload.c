@@ -18,6 +18,11 @@
 
 #include "payload.h"
 
+typedef enum {
+    PKT_TYPE_BEACON             = 1,
+    PKT_TYPE_APP_OUTPUT         = 2,
+    PKT_TYPE_ENERGY_PROFILE     = 3,
+} pkt_type_t;
 
 // TODO: HACK
 // From app: must match!
@@ -64,13 +69,13 @@ void payload_init()
 
 void payload_send_beacon()
 {
-    uint8_t b = 'E';
+    uint8_t pkt = (PKT_TYPE_BEACON << 4) | 0x0E;
 
-    log_packet('B', 0, &b, sizeof(b));
+    log_packet('B', 0, &pkt, sizeof(pkt));
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
-    SpriteRadio_transmit((char *)&b, 1);
+    SpriteRadio_transmit((char *)&pkt, sizeof(pkt));
     SpriteRadio_sleep();
 #endif
 }
@@ -85,11 +90,13 @@ void payload_send_app_output()
     uint8_t *pkt = (uint8_t *)(&payload.app_output) + sensor_idx * NUM_WINDOWS;
     unsigned pkt_len = NUM_WINDOWS * sizeof(int8_t);
 
-    log_packet('A', sensor_idx, pkt, pkt_len);
+    uint8_t header = (PKT_TYPE_APP_OUTPUT << 4) | (sensor_idx & 0x0f);
+
+    log_packet('A', header, pkt, pkt_len);
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
-    SpriteRadio_transmit((char *)&sensor_idx, 1);
+    SpriteRadio_transmit((char *)&header, sizeof(header));
     SpriteRadio_transmit((char *)pkt, pkt_len);
     SpriteRadio_sleep();
 #endif // CONFIG_RADIO_TRANSMIT_PAYLOAD
@@ -105,7 +112,9 @@ void payload_send_profile()
     uint8_t *pkt = (uint8_t *)(&payload.energy_profile.events[0] + wp_idx);
     unsigned pkt_len = NUM_ENERGY_BYTES + 1; // 1 is for count; this is sizeof(event_t) without padding
 
-    log_packet('E', wp_idx, pkt, pkt_len);
+    uint8_t header = (PKT_TYPE_ENERGY_PROFILE << 4) | (wp_idx & 0x0f);
+
+    log_packet('E', header, pkt, pkt_len);
 
 #ifdef CONFIG_RADIO_TRANSMIT_PAYLOAD
     SpriteRadio_txInit();
