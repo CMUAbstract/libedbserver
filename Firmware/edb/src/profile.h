@@ -11,7 +11,7 @@
 #define NUM_ENERGY_BYTES                (NUM_ENERGY_QUANTA / NUM_ENERGY_QUANTA_PER_BYTE)
 
 typedef struct {
-    uint16_t count;
+    uint8_t count;
     uint8_t energy[NUM_ENERGY_BYTES]; // buckets
 } event_t;
 
