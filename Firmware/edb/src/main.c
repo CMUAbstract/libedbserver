@@ -1189,7 +1189,7 @@ int main(void)
         }
 */
 
-#ifdef CONFIG_TARGET_UART
+#if defined(CONFIG_TARGET_UART) && defined(CONFIG_TARGET_UART_PUSH)
         if(main_loop_flags & FLAG_UART_WISP_RX) {
             // we've received a byte over UART from the WISP
             if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
@@ -1212,7 +1212,7 @@ int main(void)
             	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
             }
         }
-#endif // CONFIG_TARGET_UART
+#endif // defined(CONFIG_TARGET_UART) && defined(CONFIG_TARGET_UART_PUSH)
 
 #ifdef CONFIG_COLLECT_APP_OUTPUT
         if (main_loop_flags & FLAG_APP_OUTPUT) {
