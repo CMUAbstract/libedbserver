@@ -1,6 +1,7 @@
 #include <msp430.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include <libedb/target_comm.h>
 
@@ -47,6 +48,17 @@
 /** @} End LOG_DEFINES */
 
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC_MAX_CHANNELS * sizeof(uint16_t))
+
+typedef enum {
+    TASK_BEACON = 0,
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
+    TASK_ENERGY_PROFILE,
+#endif // CONFIG_COLLECT_ENERGY_PROFILE
+#ifdef CONFIG_COLLECT_APP_OUTPUT
+    TASK_APP_OUTPUT;
+#endif // CONFIG_COLLECT_APP_OUTPUT
+    NUM_TASKS,
+} task_t;
 
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
@@ -681,6 +693,13 @@ void get_app_output()
 }
 #endif // CONFIG_COLLECT_APP_OUTPUT
 
+sched_cmd_t on_watchpoint_collection_complete()
+{
+    disable_watchpoints();
+    main_loop_flags |= FLAG_ENERGY_PROFILE_READY;
+    return SCHED_CMD_NONE;
+}
+
 #ifdef CONFIG_HOST_UART
 /**
  * @brief       Execute a command received from the computer through the USB port
@@ -1031,7 +1050,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 }
 #endif // CONFIG_HOST_UART
 
-
 int main(void)
 {
 #ifdef CONFIG_MAIN_LOOP_LED
@@ -1109,7 +1127,76 @@ int main(void)
     // turn on target's "power switch"
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) |= BIT(PIN_TARGET_PWR_SWITCH);
 
+    // TODO: seed rand()
+
+    // Randomly choose which action to perform (EDB does not keep state across reboots)
+    // NOTE: this is outside the loop, because within the loop we manually chain the tasks.
+    task_t task = rand() % NUM_TASKS;
+
+    switch (task) {
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
+        case TASK_ENERGY_PROFILE:
+            main_loop_flags |= FLAG_COLLECT_WATCHPOINTS;
+            break;
+#endif // CONFIG_COLLECT_ENERGY_PROFILE
+#ifdef CONFIG_COLLECT_APP_OUTPUT
+        case TASK_APP_OUTPUT:
+            main_loop_flags |= FLAG_APP_OUTPUT;
+            break;
+#endif // CONFIG_COLLECT_APP_OUTPUT
+        case TASK_BEACON:
+        default:
+            main_loop_flags |= FLAG_SEND_BEACON;
+            break;
+    }
+
+    LOG("main loop\r\n");
+
     while(1) {
+        if (main_loop_flags & FLAG_SEND_BEACON) {
+            LOG("sb\r\n");
+            payload_send_beacon();
+            main_loop_flags &= ~FLAG_SEND_BEACON;
+
+            // next action
+            main_loop_flags |= FLAG_COLLECT_WATCHPOINTS;
+            //main_loop_flags |= FLAG_APP_OUTPUT;
+            //main_loop_flags |= FLAG_SEND_BEACON;
+            continue;
+        }
+
+        if (main_loop_flags & FLAG_COLLECT_WATCHPOINTS) {
+            LOG("cw\r\n");
+            schedule_action(on_watchpoint_collection_complete, CONFIG_WATCHPOINT_COLLECTION_TIME);
+            enable_watchpoints();
+            main_loop_flags &= ~FLAG_COLLECT_WATCHPOINTS;
+        }
+
+#ifdef CONFIG_COLLECT_APP_OUTPUT
+        if (main_loop_flags & FLAG_APP_OUTPUT) {
+            LOG("ao\r\n");
+            get_app_output();
+            payload_send_app_output();
+            main_loop_flags &= ~FLAG_APP_OUTPUT;
+
+            // next action
+            //main_loop_flags |= FLAG_COLLECT_WATCHPOINTS;
+            main_loop_flags |= FLAG_SEND_BEACON;
+            continue;
+        }
+#endif
+
+#ifdef CONFIG_COLLECT_ENERGY_PROFILE
+        if (main_loop_flags & FLAG_ENERGY_PROFILE_READY) {
+            LOG("sw\r\n");
+            payload_send_profile();
+            main_loop_flags &= ~FLAG_ENERGY_PROFILE_READY;
+
+            // next action
+            //main_loop_flags |= FLAG_APP_OUTPUT;
+            main_loop_flags |= FLAG_SEND_BEACON;
+        }
+#endif
 
 
 #ifdef CONFIG_FETCH_INTERRUPT_CONTEXT 
@@ -1207,20 +1294,6 @@ int main(void)
         }
 #endif // defined(CONFIG_TARGET_UART) && defined(CONFIG_TARGET_UART_PUSH)
 
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-        if (main_loop_flags & FLAG_APP_OUTPUT) {
-            get_app_output();
-            main_loop_flags &= ~FLAG_APP_OUTPUT;
-        }
-#endif
-
-#ifdef CONFIG_ENABLE_PAYLOAD
-        if (main_loop_flags & FLAG_SEND_PAYLOAD) {
-            payload_send();
-            main_loop_flags &= ~FLAG_SEND_PAYLOAD;
-        }
-#endif
-
 /*
         if(main_loop_flags & FLAG_UART_WISP_TX) {
             // WISP UART Tx byte
@@ -1246,8 +1319,10 @@ int main(void)
         }
 #endif
 
+        LOG("sleep\r\n");
         // sleep, wait for event flag to be set, then handle it in loop
         __bis_SR_register(CONFIG_MAIN_LOOP_SLEEP_STATE + GIE);
+        LOG("woke up\r\n");
     }
 }
 

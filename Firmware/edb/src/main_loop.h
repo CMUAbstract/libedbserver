@@ -19,8 +19,10 @@ typedef enum {
     FLAG_INTERRUPTED     		= 0x0100, //!< target is in active debug mode
     FLAG_EXITED_DEBUG_MODE      = 0x0200, //!< debugger has restored energy level
     FLAG_WATCHPOINT_READY       = 0x0400, //!< watchpoint event ready for transmission to host
-    FLAG_SEND_PAYLOAD           = 0x0800, //!< send payload with data from EDB and app to host/ground
+    FLAG_ENERGY_PROFILE_READY   = 0x0800, //!< send payload with data from EDB and app to host/ground
     FLAG_APP_OUTPUT             = 0x1000, //!< interrupt target and get app data packet
+    FLAG_COLLECT_WATCHPOINTS    = 0x2000, //!< start collecting energy profile (watchpoints)
+    FLAG_SEND_BEACON            = 0x4000, //!< transmit a beacon to ground
 } main_loop_flag_t;
 
 extern volatile uint16_t main_loop_flags; // bit mask containing bit flags to check in the main loop
