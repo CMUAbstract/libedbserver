@@ -197,18 +197,6 @@ static void reset_state()
 #endif  // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 }
 
-#ifdef CONFIG_ENABLE_PAYLOAD
-static sched_cmd_t on_send_payload()
-{
-    main_loop_flags |= FLAG_SEND_PAYLOAD
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-        | FLAG_APP_OUTPUT
-#endif
-        ;
-    return SCHED_CMD_RESCHEDULE;
-}
-#endif // CONFIG_ENABLE_PAYLOAD
-
 #ifdef CONFIG_ENABLE_DEBUG_MODE
 static sched_cmd_t on_enter_debug_mode_timeout()
 {
@@ -1024,17 +1012,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
     case USB_CMD_GET_PARAM: {
         param_t param = pkt->data[0];
         send_param(param);
-        break;
-    }
-
-    case USB_CMD_PERIODIC_PAYLOAD: {
-        bool enable = pkt->data[0];
-        if (enable) {
-            schedule_action(on_send_payload, CONFIG_SEND_PAYLOAD_INTERVAL);
-        } else {
-            abort_action(on_send_payload);
-        }
-        send_return_code(RETURN_CODE_SUCCESS);
         break;
     }
 
