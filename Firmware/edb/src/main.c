@@ -279,6 +279,7 @@ void interrupt_target()
     enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
 }
 
+#ifdef CONFIG_FETCH_INTERRUPT_CONTEXT
 static void get_target_interrupt_context(interrupt_context_t *int_context)
 {
     // In case target requested the interrupt, ask it for more details
@@ -289,6 +290,7 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
     int_context->id = ((uint16_t)wispRxPkt.data[2] << 8) | wispRxPkt.data[1];
     wispRxPkt.processed = 1;
 }
+#endif // CONFIG_FETCH_INTERRUPT_CONTEXT
 
 static void finish_enter_debug_mode()
 {
