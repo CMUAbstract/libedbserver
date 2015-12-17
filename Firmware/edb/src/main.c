@@ -69,8 +69,12 @@ static state_t saved_sig_serial_echo_state;
 static sig_cmd_t target_sig_cmd;
 #endif
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
+#ifdef CONFIG_COLLECT_APP_OUTPUT // TODO: a timeout should be applied to all target comms
 /* Whether timed out while communicating with target over UART */
 static bool target_comm_timeout;
+#endif // CONFIG_COLLECT_APP_OUTPUT
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
 static interrupt_context_t interrupt_context;
 
@@ -211,11 +215,13 @@ static sched_cmd_t on_exit_debug_mode_timeout()
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
+#ifdef CONFIG_COLLECT_APP_OUTPUT // TODO: a timeout should be applied to all target comms
 static sched_cmd_t on_target_comm_timeout()
 {
     target_comm_timeout = true;
     return SCHED_CMD_NONE;
 }
+#endif // CONFIG_COLLECT_APP_OUTPUT
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
 static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
