@@ -107,7 +107,7 @@ void payload_send_app_output()
 void payload_send_profile()
 {
     // randomply pick one watchpoint and send only that
-    int wp_idx = rand() % NUM_EVENTS;
+    int wp_idx = rand() % (NUM_EVENTS - 1); // 3rd watchpoint unused
 
     uint8_t *pkt = (uint8_t *)(&payload.energy_profile.events[0] + wp_idx);
     unsigned pkt_len = NUM_ENERGY_BYTES + 1; // 1 is for count; this is sizeof(event_t) without padding
