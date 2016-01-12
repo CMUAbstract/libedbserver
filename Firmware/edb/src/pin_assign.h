@@ -74,10 +74,10 @@
 #define PIN_LED_GREEN                           2
 #define PIN_LED_RED                             3
 
-#define PORT_LED_MAIN_LOOP                      2
+#define PORT_LED_MAIN_LOOP                      J
 #define PIN_LED_MAIN_LOOP                       2
 
-#define PORT_LED_DEBUG_MODE                     2
+#define PORT_LED_DEBUG_MODE                     J
 #define PIN_LED_DEBUG_MODE                      3
 
 #define PORT_LED_BOOT							J
