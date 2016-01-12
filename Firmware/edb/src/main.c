@@ -1057,10 +1057,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
 int main(void)
 {
-#ifdef CONFIG_MAIN_LOOP_LED
-    uint32_t count = 0;
-#endif
-
     // Configure watchdog to 4 minutes
     WDTCTL = WDTPW | WDTCNTCL | CONFIG_WDT_BITS;
 
