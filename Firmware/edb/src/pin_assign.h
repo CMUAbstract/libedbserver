@@ -176,9 +176,6 @@
 #define TIMER_RF_RX_DECODE                      A0
 #define TIMER_RF_TX_DECODE                      A1
 
-// NOTE: if changed, the ISR in main.c must also be changed
-#define TIMER_SEND_ENERGY_PROFILE               A0
-#define TMRCC_SEND_ENERGY_PROFILE               0 //!< timer capture-compare register index
 
 #define TMRMOD_ADC_TRIGGER                      B //!< timer module for ADC trigger in stream mode
 #define TMRIDX_ADC_TRIGGER                      0 //!< timer index for ADC trigger in stream mode
