@@ -1329,10 +1329,12 @@ int main(void)
         }
 #endif
 
+#ifdef CONFIG_SLEEP_IN_MAIN_LOOP
         LOG("sleep\r\n");
         // sleep, wait for event flag to be set, then handle it in loop
         __bis_SR_register(CONFIG_MAIN_LOOP_SLEEP_STATE + GIE);
         LOG("woke up\r\n");
+#endif // CONFIG_SLEEP_IN_MAIN_LOOP
     }
 }
 
