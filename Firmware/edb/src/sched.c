@@ -60,10 +60,10 @@ void abort_action(action_t *action)
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A0_VECTOR
-__interrupt void TIMER1_A0_ISR (void)
+#pragma vector=TIMER1_A1_VECTOR
+__interrupt void TIMER1_A1_ISR (void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
+void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
 #else
 #error Compiler not supported!
 #endif

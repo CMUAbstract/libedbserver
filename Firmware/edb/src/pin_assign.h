@@ -176,6 +176,9 @@
 #define TIMER_RF_RX_DECODE                      A0
 #define TIMER_RF_TX_DECODE                      A1
 
+// !< general-purpose timer for scheduling pre-defined actions
+#define TIMER_SCHED                             A1
+#define TMRCC_SCHED                             0 //!< timer capture-compare register index
 
 #define TMRMOD_ADC_TRIGGER                      B //!< timer module for ADC trigger in stream mode
 #define TMRIDX_ADC_TRIGGER                      0 //!< timer index for ADC trigger in stream mode
