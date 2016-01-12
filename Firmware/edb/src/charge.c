@@ -55,7 +55,7 @@ uint16_t discharge_adc(uint16_t target)
 
 void charge_cmp(uint16_t target, comparator_ref_t ref)
 {
-    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING);
+    arm_comparator(CMP_OP_CHARGE, target, ref, CMP_EDGE_FALLING, COMP_CHAN_VCAP);
 
     // Configure the pin
     GPIO(PORT_CHARGE, DS) |= BIT(PIN_CHARGE); // full drive strength
@@ -69,7 +69,7 @@ void charge_cmp(uint16_t target, comparator_ref_t ref)
 
 void discharge_cmp(uint16_t target, comparator_ref_t ref)
 {
-    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING);
+    arm_comparator(CMP_OP_DISCHARGE, target, ref, CMP_EDGE_RISING, COMP_CHAN_VCAP);
 
     GPIO(PORT_DISCHARGE, DIR) |= BIT(PIN_DISCHARGE); // open the discharge "valve"
 
