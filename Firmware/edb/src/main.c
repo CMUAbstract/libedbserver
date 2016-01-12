@@ -536,6 +536,11 @@ static inline void pin_setup()
     GPIO(PORT_LED_MAIN_LOOP, DIR) |= BIT(PIN_LED_MAIN_LOOP);
 #endif // CONFIG_MAIN_LOOP_LED
 
+#ifdef CONFIG_BOOT_LED
+    GPIO(PORT_LED_BOOT, OUT) &= ~BIT(PIN_LED_BOOT);
+    GPIO(PORT_LED_BOOT, DIR) |= BIT(PIN_LED_BOOT);
+#endif // CONFIG_BOOT_LED
+
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
@@ -1062,7 +1067,7 @@ int main(void)
     pin_setup();
 
 #ifdef CONFIG_BOOT_LED
-    GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+    GPIO(PORT_LED_BOOT, OUT) |= BIT(PIN_LED_BOOT);
 #endif // CONFIG_BOOT_LED
 
     clock_setup(); // set up unified clock system
@@ -1123,7 +1128,7 @@ int main(void)
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
 #ifdef CONFIG_BOOT_LED
-    GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+    GPIO(PORT_LED_BOOT, OUT) &= ~BIT(PIN_LED_BOOT);
 #endif // CONFIG_BOOT_LED
 
 #if CONFIG_TARGET_POWER_SWITCH

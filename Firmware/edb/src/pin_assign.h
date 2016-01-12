@@ -80,6 +80,9 @@
 #define PORT_LED_DEBUG_MODE                     2
 #define PIN_LED_DEBUG_MODE                      3
 
+#define PORT_LED_BOOT							J
+#define PIN_LED_BOOT							3
+
 #define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
 #define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
 #define PIN_UART_USB_RX                         4 //!< RX pin for UART to host USB
