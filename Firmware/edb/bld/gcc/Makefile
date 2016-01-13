@@ -1,6 +1,9 @@
 EXEC = edb.out
 
 SRC_ROOT = ../../src
+LIB_ROOT = ../../lib
+
+LIBMSP_ROOT = $(LIB_ROOT)/libmsp
 
 # Expects BOARD env var to be set to one supported by 'maker' (see Maker.board)
 
