@@ -1,5 +1,7 @@
 EXEC = edb.out
 
+SRC_ROOT = ../../src
+
 # Expects BOARD env var to be set to one supported by 'maker' (see Maker.board)
 
 # Configure the build here (see Makefile.config, by default all flags are unset)
@@ -103,12 +105,10 @@ CONFIG_PRINTF_LIB = libmspsoftuart
 include $(MAKER_ROOT)/Makefile.console
 endif
 
-SRC_DIR = ../../src
-
 CFLAGS += \
-	-I$(SRC_DIR) \
-	-I$(SRC_DIR)/rfid \
-	-I$(SRC_DIR)/mspware \
+	-I$(SRC_ROOT) \
+	-I$(SRC_ROOT)/rfid \
+	-I$(SRC_ROOT)/mspware \
 	-I$(LIBEDB_ROOT)/src/include \
 
-VPATH = $(SRC_DIR)
+VPATH = $(SRC_ROOT)
