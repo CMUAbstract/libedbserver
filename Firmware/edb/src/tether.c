@@ -3,7 +3,6 @@
 #include <msp430.h>
 
 #include "config.h"
-#include "pin_assign.h"
 
 #include "tether.h"
 
