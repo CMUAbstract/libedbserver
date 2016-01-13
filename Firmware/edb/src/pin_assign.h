@@ -2,7 +2,7 @@
 #define PIN_ASSIGN_H
 
 #ifdef CONFIG_LIBMSPSOFTUART_PRINTF
-#include <libsoftuart/pins.h>
+#include <libmspsoftuart/pins.h>
 #endif // CONFIG_LIBMSPSOFTUART_PRINTF
 
 /**
