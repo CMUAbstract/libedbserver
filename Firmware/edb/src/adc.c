@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <msp430.h>
+
+#include <libmsp/periph.h>
+
 #include "adc.h"
 #include "pin_assign.h"
 #include "main_loop.h"

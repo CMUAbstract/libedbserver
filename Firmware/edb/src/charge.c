@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <msp430.h>
 
+#include <libmsp/periph.h>
+
 #include "config.h"
 #include "pin_assign.h"
 #include "adc.h"

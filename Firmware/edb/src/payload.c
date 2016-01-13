@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include <libmsp/periph.h>
+
 #ifdef CONFIG_DEV_CONSOLE
 #include <libio/log.h>
 #endif

@@ -1,5 +1,8 @@
 #include <msp430.h>
 #include <stdint.h>
+
+#include <libmsp/periph.h>
+
 #include "pin_assign.h"
 #include "config.h"
 

@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <msp430.h>
 
+#include <libmsp/periph.h>
+
 #include "config.h"
 #include "pmm.h" // must be before pin_assign.h since the latter undefs
 #include "pin_assign.h"

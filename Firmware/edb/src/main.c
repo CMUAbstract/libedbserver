@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <libmsp/periph.h>
 #include <libedb/target_comm.h>
 
 #include "pin_assign.h"

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <msp430.h>
 
+#include <libmsp/periph.h>
 #include <libedb/target_comm.h>
 
 #include "host_comm.h"

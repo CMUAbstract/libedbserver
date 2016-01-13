@@ -6,6 +6,8 @@
 #include <msp430.h>
 #include <stdint.h>
 
+#include <libmsp/periph.h>
+
 #include "config.h"
 #include "pin_assign.h"
 #include "systick.h"

@@ -2,6 +2,8 @@
 
 #include <msp430.h>
 
+#include <libmsp/periph.h>
+
 #include "pin_assign.h"
 
 void I2C_setup()

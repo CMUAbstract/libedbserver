@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <libmsp/periph.h>
+
 #include "pin_assign.h"
 
 #include "error.h"

@@ -1,6 +1,7 @@
 #include <msp430.h>
 #include <string.h>
 
+#include <libmsp/periph.h>
 #include <libedb/target_comm.h>
 
 #include "config.h"
