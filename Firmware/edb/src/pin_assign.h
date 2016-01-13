@@ -1,5 +1,10 @@
 #ifndef PIN_ASSIGN_H
 #define PIN_ASSIGN_H
+
+#ifdef CONFIG_LIBMSPSOFTUART_PRINTF
+#include <libsoftuart/pins.h>
+#endif // CONFIG_LIBMSPSOFTUART_PRINTF
+
 /**
  * @defgroup    PORTS   Pin assignments
  * @{
@@ -198,10 +203,6 @@
 
 #define PORT_TRIGGER                            3 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             2 //!< scope trigger pin
-
-#define PORT_SOFT_UART                          3 //!< dev console port
-#define PIN_SOFT_UART_TX                        1
-#define PIN_SOFT_UART_RX                        2
 
 // Code point pins must be on same port and consecutive and in order
 // NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
