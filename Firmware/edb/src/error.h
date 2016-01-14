@@ -2,6 +2,7 @@
 #define ERROR_H
 
 #include <libmsp/clock.h>
+#include <libio/log.h>
 
 /* @brief A number that identifies an error condition
  * @details The handling of each error is defined in the source file.
@@ -55,6 +56,9 @@ void error(error_t num);
 #define ASSERT(idx, cond) \
     if (!(cond)) { \
         GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
+        __bis_SR_register(GIE); \
+        LOG("ASSERT: %u\r\n", idx); \
+        __bic_SR_register(GIE); \
         BLINK_LOOP(PIN_LED_GREEN, (CONFIG_MCLK_FREQ >> 1) >> (idx)); \
     }
 
