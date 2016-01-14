@@ -348,6 +348,7 @@ void handle_codepoint(unsigned index)
         // trigger the interrupt
         if (watchpoints & (1 << index)) {
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
+            // TODO: set and use the flag in watchpoints_vcap_snapshot in sprite-mode too
             uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
             payload_record_profile_event(index, vcap);
 #endif
