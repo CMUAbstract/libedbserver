@@ -3,6 +3,7 @@
 #include <msp430.h>
 
 #include <libmsp/periph.h>
+#include <libio/log.h>
 
 #include "adc.h"
 #include "pin_assign.h"
@@ -101,6 +102,8 @@ void ADC_start(uint16_t streams, unsigned sampling_period)
     uint8_t *header;
     volatile uint8_t *ctl_reg;
 
+    LOG("adc: start: streams 0x%04x period %u\r\n", streams, sampling_period);
+
     ADC12CTL0 &= ~ADC12ENC; // disable conversion so we can set control bits
 
     // sequence of channels, single conversion
@@ -174,6 +177,8 @@ void ADC_send_samples_to_host()
 
 void ADC_stop()
 {
+    LOG("adc: stop\r\n");
+
     ADC12CTL0 &= ~(ADC12SC | ADC12ENC);  // stop conversion and disable ADC
     while (ADC12CTL1 & ADC12BUSY); // conversion stops at end of sequence
 }
