@@ -1377,22 +1377,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #endif // PORT_SIG
 
 #if PORT_CODEPOINT == 1
-#if 0 // TODO: implement workaround for no codepoint index encoding (i.e. 1 pin
-      //  per watchpoint)
-    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
-    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
-    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_2):
-    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_3):
-    {
-#ifdef BOARD_EDB
-        /* Workaround the hardware routing that routes AUX1,AUX2 to pins out of order */
-        pin_state = (pin_state & BIT(PIN_CODEPOINT_0) ? BIT(PIN_CODEPOINT_1) : 0) |
-                    (pin_state & BIT(PIN_CODEPOINT_1) ? BIT(PIN_CODEPOINT_0) : 0);
-#endif // BOARD_EDB
-        handle_codepoint(pin_state);
-        break;
-    }
-#else
 #ifdef PIN_CODEPOINT_0
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
         handle_codepoint(0);
@@ -1413,7 +1397,6 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         handle_codepoint(3);
         break;
 #endif // PIN_CODEPOINT_3
-#endif // if 0
 #endif // PORT_CODEPOINT
 
 	default:
