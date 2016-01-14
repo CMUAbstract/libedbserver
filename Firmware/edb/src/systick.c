@@ -15,7 +15,7 @@ uint32_t ticks = 0;
 
 void systick_start()
 {
-    LOG("systick: starting\r\n");
+    LOG("systick: start\r\n");
 
     // configure relative timer
     TA2CTL |= TACLR | CONFIG_TIMELOG_TIMER_SOURCE | TIMER_DIV_BITS(CONFIG_TIMELOG_TIMER_DIV);
@@ -31,11 +31,15 @@ void systick_start()
 
 void systick_stop()
 {
-	TA2CTL = 0; // stop timer
+    LOG("systick: stop\r\n");
+
+    TA2CTL = 0; // stop timer
 }
 
 void systick_reset()
 {
+    LOG("systick: reset\r\n");
+
     TA2CTL |= TACLR;
     ticks = 0;
 }
