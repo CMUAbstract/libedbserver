@@ -4,6 +4,7 @@
 #define MCU_ON_THRES 2730ull /* 2.0 V */ // int(math.ceil(voltage * 4096 / self.VDD))
 #define MCU_BOOT_LATENCY_MS 5ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
                                  // 3 ms for 4 MHz, 5 ms for 8 Mhz (there's a fixed time component)
+#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_MCLK_FREQ / 1000)
 
 /** @brief Lower boundary in the histogram of watchpoint energies in the profile
  *  @details V to raw ADC value conversion:
@@ -92,8 +93,6 @@
 
 
 // The rest essentially defines the register settings that carry out the above
-
-#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_MCLK_FREQ / 1000)
 
 #define CONFIG_UART_CLOCK_FREQ CONFIG_SMCLK_FREQ
 
