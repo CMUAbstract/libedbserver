@@ -115,6 +115,5 @@ CFLAGS += \
 	-I$(SRC_ROOT) \
 	-I$(SRC_ROOT)/rfid \
 	-I$(LIBEDB_ROOT)/src/include \
-	-I$(LIBMSP_ROOT)/src/include \
 
 VPATH = $(SRC_ROOT)
