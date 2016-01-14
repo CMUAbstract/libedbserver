@@ -18,8 +18,12 @@ void systick_start()
     TA2CTL |= TACLR | CONFIG_TIMELOG_TIMER_SOURCE | TIMER_DIV_BITS(CONFIG_TIMELOG_TIMER_DIV);
     TA2EX0 |= TIMER_A_DIV_EX_BITS(CONFIG_TIMELOG_TIMER_DIV_EX);
 
-    // continuous mode, clear TAR, enable interrupt
-    TA2CTL |= MC__CONTINUOUS | TAIE; // start
+    // start in continuous mode, clear TAR, enable interrupt (if 32bit)
+    TA2CTL |= MC__CONTINUOUS
+#ifdef CONFIG_SYSTICK_32BIT
+		| TAIE
+#endif // CONFIG_SYSTICK_32BIT
+	;
 }
 
 void systick_stop()
