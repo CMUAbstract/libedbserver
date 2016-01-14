@@ -1331,7 +1331,7 @@ int main(void)
 #ifdef CONFIG_MAIN_LOOP_LED
         // This LED toggle is unnecessary, and probably a huge waste of processing time.
         // The LED blinking will slow down when the monitor is performing more tasks.
-        if (state == STATE_IDLE) {
+        if (!(main_loop_flags & FLAG_LOGGING) && state == STATE_IDLE) {
             // pulse the LED
             GPIO(PORT_LED_MAIN_LOOP, OUT) ^= BIT(PIN_LED_MAIN_LOOP);
             __delay_cycles(CONFIG_MCLK_FREQ / 2);
