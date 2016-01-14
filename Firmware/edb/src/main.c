@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include <libmsp/periph.h>
+#include <libmsp/clock.h>
 #include <libedb/target_comm.h>
 
 #include "pin_assign.h"
@@ -27,7 +28,6 @@
 #include "codepoint.h"
 #include "tether.h"
 #include "interrupt.h"
-#include "clock.h"
 #include "payload.h"
 #include "sched.h"
 
@@ -1067,7 +1067,7 @@ int main(void)
     GPIO(PORT_LED_BOOT, OUT) |= BIT(PIN_LED_BOOT);
 #endif // CONFIG_BOOT_LED
 
-    clock_setup(); // set up unified clock system
+    msp_clock_setup(); // set up unified clock system
 
 #ifdef CONFIG_CLOCK_TEST_MODE
     GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));

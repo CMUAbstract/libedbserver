@@ -1,11 +1,10 @@
 EXEC = edb.out
 
 SRC_ROOT = ../../src
-LIB_ROOT = ../../lib
+export LIB_ROOT = $(abspath ../../lib)
 
-LIBMSP_ROOT = $(LIB_ROOT)/libmsp
-LIBMSPSOFTUART_ROOT = $(LIB_ROOT)/libmspsoftuart
-LIBEDB_ROOT = ../../../libedb
+# TODO: use depend func
+export LIBEDB_ROOT = $(abspath ../../../libedb)
 
 # Expects BOARD env var to be set to one supported by 'maker' (see Maker.board)
 
@@ -59,7 +58,6 @@ OBJECTS = \
 	comparator.o \
 	codepoint.o \
 	tether.o \
-	clock.o \
 	profile.o \
 	payload.o \
 	sched.o \
@@ -103,6 +101,8 @@ endif
 include ../Makefile.config
 
 include $(MAKER_ROOT)/Makefile.gcc
+
+$(eval $(call depend,libmsp))
 
 ifeq ($(CONFIG_DEV_CONSOLE),1)
 CFLAGS += -DCONFIG_DEV_CONSOLE
