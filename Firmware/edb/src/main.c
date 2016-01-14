@@ -1085,12 +1085,14 @@ int main(void)
     // Seed the random number generator
     uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
     srand(seed);
+    LOG("seed: %u\r\n", seed);
 
 #ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
 #endif
 
 #ifdef CONFIG_HOST_UART
+    LOG("initing host uart\r\n");
     UART_setup(UART_INTERFACE_USB); // USCI_A0 UART
 #endif
 
@@ -1127,6 +1129,8 @@ int main(void)
     GPIO(PORT_LED_BOOT, OUT) &= ~BIT(PIN_LED_BOOT);
 #endif // CONFIG_BOOT_LED
 
+    LOG("init done\r\n");
+
 #if CONFIG_TARGET_POWER_SWITCH
     // Setup target's "power switch" pin
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) &= ~BIT(PIN_TARGET_PWR_SWITCH);
@@ -1140,6 +1144,7 @@ int main(void)
     // Randomly choose which action to perform (EDB does not keep state across reboots)
     // NOTE: this is outside the loop, because within the loop we manually chain the tasks.
     task_t task = rand() % NUM_TASKS;
+    LOG("task: %u\r\n", task);
 
     switch (task) {
 #ifdef CONFIG_COLLECT_ENERGY_PROFILE
