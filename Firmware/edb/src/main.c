@@ -1326,9 +1326,8 @@ int main(void)
         // The LED blinking will slow down when the monitor is performing more tasks.
         if (state == STATE_IDLE) {
             // pulse the LED
-            GPIO(PORT_LED_MAIN_LOOP, OUT) |= BIT(PIN_LED_MAIN_LOOP);
-            __delay_cycles(1000000);
-            GPIO(PORT_LED_MAIN_LOOP, OUT) &= ~BIT(PIN_LED_MAIN_LOOP);
+            GPIO(PORT_LED_MAIN_LOOP, OUT) ^= BIT(PIN_LED_MAIN_LOOP);
+            __delay_cycles(CONFIG_MCLK_FREQ / 2);
         }
 #endif
 
