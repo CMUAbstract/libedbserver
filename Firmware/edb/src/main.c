@@ -5,6 +5,7 @@
 
 #include <libmsp/periph.h>
 #include <libmsp/clock.h>
+#include <libmsp/watchdog.h>
 #include <libedb/target_comm.h>
 
 #include "pin_assign.h"
@@ -1058,8 +1059,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
 int main(void)
 {
-    // Configure watchdog to 4 minutes
-    WDTCTL = WDTPW | WDTCNTCL | CONFIG_WDT_BITS;
+#ifdef CONFIG_WATCHDOG
+	msp_watchdog_enable(CONFIG_WDT_BITS);
+#else // !CONFIG_WATCHDOG
+	msp_watchdog_disable();
+#endif // !CONFIG_WATCHDOG
 
     pin_setup();
 
