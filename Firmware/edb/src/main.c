@@ -1079,9 +1079,9 @@ int main(void)
     BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
 #endif
 
-#ifdef CCONFIG_DEV_CONSOLE
+#ifdef CONFIG_DEV_CONSOLE
     INIT_CONSOLE();
-#endif // CCONFIG_DEV_CONSOLE
+#endif // CONFIG_DEV_CONSOLE
 
     __enable_interrupt();                   // enable all interrupts
 
