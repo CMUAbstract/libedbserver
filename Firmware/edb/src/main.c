@@ -598,11 +598,6 @@ static inline void pin_setup()
 #endif
     ;
 
-#if defined(CONFIG_DEV_CONSOLE)
-    GPIO(PORT_SOFT_UART, DIR) |= BIT(PIN_SOFT_UART_TX);
-    GPIO(PORT_SOFT_UART, SEL) |= BIT(PIN_SOFT_UART_TX);
-#endif
-
 #ifdef CONFIG_ROUTE_ACLK_TO_PIN
     P1SEL |= BIT0;
     P1DIR |= BIT0;
