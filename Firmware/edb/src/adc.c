@@ -217,6 +217,9 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 
     unsigned current_num_samples = num_samples[sample_buf_idx];
 
+    uint16_t iv = ADC12IV;
+    ADC12IFG = 0; // clear interrupt flags, since ASSERT enables nesting
+
     ASSERT(ASSERT_ADC_BUFFER_OVERFLOW, current_num_samples < NUM_BUFFERED_SAMPLES);
 
 #ifdef CONFIG_SYSTICK
@@ -227,7 +230,7 @@ void __attribute__ ((interrupt(ADC12_VECTOR))) ADC12_ISR (void)
 
     sample_timestamps_buf[current_num_samples] = timestamp;
 
-    switch(__even_in_range(ADC12IV,34))
+    switch(__even_in_range(iv,34))
     {
         case ADC12IV_NONE:                         // Vector  0:  No interrupt
         case ADC12IV_ADC12OVIFG:                   // Vector  2:  ADC overflow
