@@ -1136,6 +1136,7 @@ int main(void)
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) |= BIT(PIN_TARGET_PWR_SWITCH);
 #endif // CONFIG_TARGET_POWER_SWITCH
 
+#ifdef CONFIG_TASK_DRIVEN
     // Randomly choose which action to perform (EDB does not keep state across reboots)
     // NOTE: this is outside the loop, because within the loop we manually chain the tasks.
     task_t task = rand() % NUM_TASKS;
@@ -1156,6 +1157,7 @@ int main(void)
             main_loop_flags |= FLAG_SEND_BEACON;
             break;
     }
+#endif // CONFIG_TASK_DRIVEN
 
     LOG("main loop\r\n");
 
