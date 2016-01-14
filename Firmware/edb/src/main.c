@@ -1163,7 +1163,9 @@ int main(void)
 
     while(1) {
 
-        WDTCTL = WDTPW | WDTCNTCL | CONFIG_WDT_BITS; // kick the watchdog
+#ifdef CONFIG_WATCHDOG
+        msp_watchdog_kick();
+#endif // !CONFIG_WATCHDOG
 
         if (main_loop_flags & FLAG_SEND_BEACON) {
             LOG("sb\r\n");
