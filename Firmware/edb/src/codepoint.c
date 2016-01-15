@@ -37,7 +37,7 @@ uint16_t watchpoints = 0;
 static uint16_t watchpoints_vcap_snapshot = 0;
 
 // See libedb/edb.h for description
-#define NUM_CODEPOINT_VALUES     ((1 << NUM_CODEPOINT_PINS) - 1)
+#define NUM_CODEPOINT_VALUES     NUM_CODEPOINT_PINS
 #define MAX_PASSIVE_BREAKPOINTS  NUM_CODEPOINT_VALUES
 #define MAX_INTERNAL_BREAKPOINTS (sizeof(uint16_t) * 8) // _debug_breakpoints_enable in libdebug
 #define MAX_EXTERNAL_BREAKPOINTS NUM_CODEPOINT_PINS
@@ -221,7 +221,7 @@ unsigned toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
 {
     unsigned rc = RETURN_CODE_SUCCESS;
 
-    if (index > MAX_WATCHPOINTS) { // effectively one-based index
+    if (index >= MAX_WATCHPOINTS) {
         rc = RETURN_CODE_INVALID_ARGS;
         goto out;
     }
@@ -324,11 +324,17 @@ void enable_watchpoints()
     init_watchpoint_event_bufs(); // need to clear count
 #endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
-    // enable rising-edge interrupt on codepoint pins (harmless to do every time)
+    // enable rising-edge interrupt on enabled codepoint pins (harmless to do every time)
+    uint8_t enabled_pins = 0;
+    for (int i = 0; i < NUM_CODEPOINT_PINS; ++i) {
+        enabled_pins |= (watchpoints & (1 << i)) ? ((1 << i) << PIN_CODEPOINT_0) : 0;
+    }
+
     GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IES) &= ~BITS_CODEPOINT;
     GPIO(PORT_CODEPOINT, IFG) &= ~BITS_CODEPOINT;
-    GPIO(PORT_CODEPOINT, IE) |= BITS_CODEPOINT;
+
+    GPIO(PORT_CODEPOINT, IE) |= enabled_pins;
 }
 
 void disable_watchpoints()
