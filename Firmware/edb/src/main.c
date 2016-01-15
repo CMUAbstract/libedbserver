@@ -1237,8 +1237,8 @@ int main(void)
 
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
         if (main_loop_flags & FLAG_WATCHPOINT_READY) {
-            main_loop_flags &= ~FLAG_WATCHPOINT_READY;
             send_watchpoint_events();
+            main_loop_flags &= ~FLAG_WATCHPOINT_READY;
         }
 #endif // CONFIG_WATCHPOINT_STREAM
 

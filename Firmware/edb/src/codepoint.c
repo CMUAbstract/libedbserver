@@ -278,21 +278,40 @@ void init_watchpoint_event_bufs()
 
 static void append_watchpoint_event(unsigned index)
 {
-    watchpoint_event_t *watchpoint_event =
-        &watchpoint_events_buf[watchpoint_events_count[watchpoint_events_buf_idx]++];
+    if (watchpoint_events_count[watchpoint_events_buf_idx] <
+            NUM_WATCHPOINT_EVENTS_BUFFERED) {
 
-    watchpoint_event->timestamp = SYSTICK_CURRENT_TIME;
-    watchpoint_event->index = index;
-    if (watchpoints_vcap_snapshot & (1 << index))
-        watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-    else // TODO: don't stream vcap at all if snapshot is not enabled
-        watchpoint_event->vcap = 0;
+        watchpoint_event_t *watchpoint_event =
+            &watchpoint_events_buf[watchpoint_events_count[watchpoint_events_buf_idx]++];
 
-    if (watchpoint_events_count[watchpoint_events_buf_idx] == NUM_WATCHPOINT_EVENTS_BUFFERED) {
-        // swap to the other buffer in the double-buffer pair
-        watchpoint_events_buf_idx ^= 1;
-        watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
-        main_loop_flags |= FLAG_WATCHPOINT_READY;
+        watchpoint_event->timestamp = SYSTICK_CURRENT_TIME;
+        watchpoint_event->index = index;
+        if (watchpoints_vcap_snapshot & (1 << index))
+            watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+        else // TODO: don't stream vcap at all if snapshot is not enabled
+            watchpoint_event->vcap = 0;
+
+    }
+
+    if (watchpoint_events_count[watchpoint_events_buf_idx] ==
+            NUM_WATCHPOINT_EVENTS_BUFFERED) {// buffer full
+        if (!(main_loop_flags & FLAG_WATCHPOINT_READY)) { // the other buffer is free
+            // swap to the other buffer in the double-buffer pair
+            watchpoint_events_buf_idx ^= 1;
+            watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
+            main_loop_flags |= FLAG_WATCHPOINT_READY;
+
+            // clear error indicator
+            GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
+        } else { // both buffers are full
+            // indicate error on LED
+            GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED);
+
+            // drop the watchpoints on the floor
+        }
+    } else {
+        // clear error indicator
+        GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
     }
 }
 
