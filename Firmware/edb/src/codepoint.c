@@ -252,6 +252,14 @@ out:
     return rc;
 }
 
+static void swap_buffers()
+{
+    // swap to the other buffer in the double-buffer pair
+    watchpoint_events_buf_idx ^= 1;
+    watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
+    main_loop_flags |= FLAG_WATCHPOINT_READY;
+}
+
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 void init_watchpoint_event_bufs()
 {
@@ -296,11 +304,7 @@ static void append_watchpoint_event(unsigned index)
     if (watchpoint_events_count[watchpoint_events_buf_idx] ==
             NUM_WATCHPOINT_EVENTS_BUFFERED) {// buffer full
         if (!(main_loop_flags & FLAG_WATCHPOINT_READY)) { // the other buffer is free
-            // swap to the other buffer in the double-buffer pair
-            watchpoint_events_buf_idx ^= 1;
-            watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
-            main_loop_flags |= FLAG_WATCHPOINT_READY;
-
+            swap_buffers();
             // clear error indicator
             GPIO(PORT_LED, OUT) &= ~BIT(PIN_LED_RED);
         } else { // both buffers are full
@@ -322,11 +326,12 @@ void send_watchpoint_events()
 
     ready_events_count = watchpoint_events_count[ready_events_buf_idx];
 
+    LOG("wpts: send buf %u cnt %u\r\n", ready_events_buf_idx, ready_events_count);
+
     UART_begin_transmission();
 
     // Must use a blocking call in order to mark buffer as free once transfer completes
     UART_send_msg_to_host(USB_RSP_STREAM_EVENTS,
-            // TODO: the event count is == NUM_BUFFERED_EVENTS, except for the flush case
             STREAM_DATA_MSG_HEADER_LEN + ready_events_count * sizeof(watchpoint_event_t),
             (uint8_t *)&watchpoint_events_msg_bufs[ready_events_buf_idx][0] +
             WATCHPOINT_EVENT_BUF_HEADER_OFFSET);
@@ -339,10 +344,6 @@ void send_watchpoint_events()
 
 void enable_watchpoints()
 {
-#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
-    init_watchpoint_event_bufs(); // need to clear count
-#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
-
     // enable rising-edge interrupt on enabled codepoint pins (harmless to do every time)
     uint8_t enabled_pins = 0;
     for (int i = 0; i < NUM_CODEPOINT_PINS; ++i) {
@@ -359,10 +360,22 @@ void enable_watchpoints()
 void disable_watchpoints()
 {
     GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
+}
 
-#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
-    main_loop_flags &= ~FLAG_WATCHPOINT_READY;
-#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
+void watchpoints_start_stream()
+{
+    LOG("wpts: start stream: wpts 0x%04x\r\n", watchpoints);
+
+    init_watchpoint_event_bufs(); // need to clear count
+    enable_watchpoints();
+}
+
+void watchpoints_stop_stream()
+{
+    LOG("wpts: stop stream\r\n");
+
+    disable_watchpoints();
+    swap_buffers();
 }
 
 void handle_codepoint(unsigned index)

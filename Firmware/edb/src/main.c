@@ -775,7 +775,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
             RFID_start_event_stream();
 #endif
         if (streams & STREAM_WATCHPOINTS)
-            enable_watchpoints();
+            watchpoints_start_stream();
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         // actions common to all adc streams
@@ -795,7 +795,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
             RFID_stop_event_stream();
 #endif
         if (streams & STREAM_WATCHPOINTS)
-            disable_watchpoints();
+            watchpoints_stop_stream();
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
         // actions common to all adc streams

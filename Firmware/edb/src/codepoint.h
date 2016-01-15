@@ -18,6 +18,9 @@ unsigned toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot);
 void enable_watchpoints();
 void disable_watchpoints();
 
+void watchpoints_start_stream();
+void watchpoints_stop_stream();
+
 void init_watchpoint_event_bufs();
 void send_watchpoint_events();
 
