@@ -53,12 +53,20 @@ typedef enum {
 /* @brief Report and handle error */
 void error(error_t num);
 
-#define ASSERT(idx, cond) \
-    if (!(cond)) { \
-        GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
+#if VERBOSE > 0
+#define LOG_ASSERT(idx) do { \
         __bis_SR_register(GIE); \
         LOG("ASSERT: %u\r\n", idx); \
         __bic_SR_register(GIE); \
+    } while (0);
+#else // !VERBOSE
+#define LOG_ASSERT(idx)
+#endif // !VERBOSE
+
+#define ASSERT(idx, cond) \
+    if (!(cond)) { \
+        GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
+        LOG_ASSERT(idx); \
         BLINK_LOOP(PIN_LED_GREEN, (CONFIG_MCLK_FREQ >> 1) >> (idx)); \
     }
 
