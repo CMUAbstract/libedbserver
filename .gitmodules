@@ -1,3 +1,6 @@
 [submodule "Firmware/edb/lib/libmspsoftuart"]
 	path = Firmware/edb/lib/libmspsoftuart
 	url = /afs/ece.cmu.edu/project/abstract/repos/msp430-softuart
+[submodule "ext/maker"]
+	path = ext/maker
+	url = /afs/ece.cmu.edu/project/abstract/repos/maker
