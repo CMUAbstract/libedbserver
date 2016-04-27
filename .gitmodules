@@ -10,3 +10,6 @@
 [submodule "ext/libio"]
 	path = ext/libio
 	url = /afs/ece.cmu.edu/project/abstract/repos/libio
+[submodule "ext/libmspprintf"]
+	path = ext/libmspprintf
+	url = /afs/ece.cmu.edu/project/abstract/repos/libmspprintf
