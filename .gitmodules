@@ -13,3 +13,6 @@
 [submodule "ext/libmspprintf"]
 	path = ext/libmspprintf
 	url = /afs/ece.cmu.edu/project/abstract/repos/libmspprintf
+[submodule "ext/libmspsoftuart"]
+	path = ext/libmspsoftuart
+	url = /afs/ece.cmu.edu/project/abstract/repos/msp430-softuart
