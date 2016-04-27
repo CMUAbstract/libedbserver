@@ -16,3 +16,6 @@
 [submodule "ext/libmspsoftuart"]
 	path = ext/libmspsoftuart
 	url = /afs/ece.cmu.edu/project/abstract/repos/msp430-softuart
+[submodule "ext/libedb"]
+	path = ext/libedb
+	url = /afs/ece.cmu.edu/project/abstract/repos/edb/libedb
