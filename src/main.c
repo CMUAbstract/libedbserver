@@ -64,15 +64,15 @@ typedef enum {
 
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 static uint16_t debug_mode_flags = 0; // TODO: set these by decoding serial bits on signal line
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static int sig_serial_bit_index; // debug mode flags are serially encoded on the signal line
 #endif
 
-#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
 static bool target_powered = false; // user requested continuous power
-#endif
 
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static unsigned sig_serial_echo_value = 0;
@@ -119,6 +119,7 @@ static void trigger_scope()
 }
 #endif // CONFIG_SCOPE_TRIGGER_SIGNAL
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 /**
  * @brief	Send an interrupt to the target device
  */
@@ -151,8 +152,8 @@ static void mask_target_signal()
 {
     GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
 }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
-#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
 static void continuous_power_on()
 {
     // The output level was configured high on boot up
@@ -163,7 +164,6 @@ static void continuous_power_off()
 {
     GPIO(PORT_CONT_POWER, DIR) &= ~BIT(PIN_CONT_POWER); // to high-z state
 }
-#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static inline void reset_serial_decoder()
@@ -238,6 +238,7 @@ static sched_cmd_t on_target_comm_timeout()
 #endif // CONFIG_COLLECT_APP_OUTPUT
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
     interrupt_context.type = int_type;
@@ -380,7 +381,9 @@ static void finish_exit_debug_mode()
     unmask_target_signal(); // target may request to enter active debug mode
 #endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 /**
  * @brief	Handle an interrupt from the target device
  */
@@ -407,8 +410,10 @@ static void handle_target_signal()
 
                 // clear the bits we are about to read from target
                 debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
                 if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
                     continuous_power_on();
+#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
             } else if (sig_serial_bit_index >= 0) {
                 debug_mode_flags |= 1 << sig_serial_bit_index;
             } else { // bitstream over (there is a terminating edge)
@@ -490,6 +495,7 @@ static void handle_target_signal()
 
 	GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
 }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
@@ -609,6 +615,7 @@ static inline void pin_setup()
 #endif
 }
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 /**
  * @brief	Interrupt WISP and enter active debug mode when Vcap reaches the given level
  * @param   level   Vcap level to interrupt at
@@ -650,6 +657,7 @@ void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
                    COMP_CHAN_VCAP);
     // expect comparator interrupt
 }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
 #ifdef CONFIG_COLLECT_APP_OUTPUT
 void get_app_output()
@@ -711,8 +719,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 {
     uint16_t adc12Result;
     uint16_t target_vcap, actual_vcap;
-    uint32_t address;
-    unsigned len;
 
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     trigger_scope();
@@ -739,6 +745,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
 #endif
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
         enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
@@ -759,6 +766,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         forward_msg_to_host(USB_RSP_ADDRESS, wispRxPkt.data, wispRxPkt.length);
     	wispRxPkt.processed = 1;
     	break;
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
     case USB_CMD_STREAM_BEGIN: {
         uint16_t streams = pkt->data[0];
@@ -884,6 +892,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         // DEPRECATED
         break;
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
     case USB_CMD_BREAK_AT_VCAP_LEVEL: {
         target_vcap = *((uint16_t *)(&pkt->data[0]));
         energy_breakpoint_impl_t impl = (energy_breakpoint_impl_t)pkt->data[2];
@@ -901,8 +910,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
     }
 
     case USB_CMD_READ_MEM:
-        address = *((uint32_t *)(&pkt->data[0]));
-        len = pkt->data[4];
+    {
+        uint32_t address = *((uint32_t *)(&pkt->data[0]));
+        unsigned len = pkt->data[4];
 
         target_comm_send_read_mem(address, len);
         while((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
@@ -910,11 +920,12 @@ static void executeUSBCmd(uartPkt_t *pkt)
         forward_msg_to_host(USB_RSP_WISP_MEMORY, wispRxPkt.data, wispRxPkt.length);
         wispRxPkt.processed = 1;
         break;
+    }
 
     case USB_CMD_WRITE_MEM:
     {
-        address = *((uint32_t *)(&pkt->data[0]));
-        len = pkt->data[4];
+        uint32_t address = *((uint32_t *)(&pkt->data[0]));
+        unsigned len = pkt->data[4];
         uint8_t *value = &pkt->data[5];
 
         if (len > WISP_CMD_MAX_LEN - sizeof(uint32_t) - sizeof(uint8_t)) {
@@ -930,6 +941,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         send_return_code(RETURN_CODE_SUCCESS); // TODO: have WISP return a code
         break;
     }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
     case USB_CMD_CONT_POWER:
     {
@@ -968,6 +980,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
     }
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
     case USB_CMD_GET_INTERRUPT_CONTEXT: {
         interrupt_context_t target_int_context;
         interrupt_source_t source = (interrupt_source_t)pkt->data[0];
@@ -986,7 +999,9 @@ static void executeUSBCmd(uartPkt_t *pkt)
         }
         break;
     }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
     case USB_CMD_SERIAL_ECHO: {
         unsigned value = pkt->data[0];
 
@@ -1013,6 +1028,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         send_echo(value);
         break;
     }
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
     case USB_CMD_DMA_ECHO: {
         unsigned value = pkt->data[0];
@@ -1372,11 +1388,13 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         break;
 #endif // CONFIG_ENABLE_RF_PROTOCOL_MONITORING
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE
 #if PORT_SIG == 1
 	case INTFLAG(PORT_SIG, PIN_SIG):
 		handle_target_signal();
 		break;
 #endif // PORT_SIG
+#endif // CONFIG_ENABLE_DEBUG_MODE
 
 #if PORT_CODEPOINT == 1
 #ifdef PIN_CODEPOINT_0
@@ -1456,6 +1474,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
+#ifdef CONFIG_ENABLE_DEBUG_MODE
         case CMP_OP_ENERGY_BREAKPOINT:
             enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
             // TODO: should the interrupt be re-enabled upon exit from debug mode?
@@ -1472,6 +1491,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             CBCTL1 ^= CBIES; // reverse the edge direction of the interrupt
             CBINT &= ~CBIFG; // clear the flag, leave interrupt enabled
             break;
+#endif // CONFIG_ENABLE_DEBUG_MODE
         case CMP_OP_RESET_STATE_ON_BOOT:
             reset_state();
             CBINT &= ~CBIFG;   // clear Interrupt flag, leave interrupt enabled
