@@ -1,2 +1,4 @@
 1. Add timestamping to breakpoints
 2. Stop timer at the wisp's end at a breakpoint
+
+CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE seems to be broken. Simply turning on the energy source causes EDB to crash. The target causes some signaling on the pins. Possibly a libedb issue.
