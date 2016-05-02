@@ -1,18 +1,18 @@
 [submodule "ext/maker"]
 	path = ext/maker
-	url = /afs/ece.cmu.edu/project/abstract/repos/maker
+	url = https://github.com/CMUAbstract/maker
 [submodule "ext/libmsp"]
 	path = ext/libmsp
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmsp
+	url = https://github.com/CMUAbstract/libmsp
 [submodule "ext/libio"]
 	path = ext/libio
-	url = /afs/ece.cmu.edu/project/abstract/repos/libio
+	url = https://github.com/CMUAbstract/libio
 [submodule "ext/libmspprintf"]
 	path = ext/libmspprintf
-	url = /afs/ece.cmu.edu/project/abstract/repos/libmspprintf
+	url = https://github.com/CMUAbstract/libmspprintf
 [submodule "ext/libmspsoftuart"]
 	path = ext/libmspsoftuart
-	url = /afs/ece.cmu.edu/project/abstract/repos/msp430-softuart
+	url = https://github.com/CMUAbstract/msp430-softuart
 [submodule "ext/libedb"]
 	path = ext/libedb
-	url = /afs/ece.cmu.edu/project/abstract/repos/edb/libedb
+	url = https://github.com/CMUAbstract/libedb
