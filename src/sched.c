@@ -9,6 +9,9 @@
 
 #include "sched.h"
 
+#define TIMER_SCHED CONCAT(TIMER_SCHED_TYPE, TIMER_SCHED_IDX)
+#define TMRCC_SCHED TIMER_SCHED_CCR // legacy naming scheme
+
 /** @brief Most-recently scheduled action */
 static action_t *sched_action;
 static unsigned sched_action_interval;
@@ -62,10 +65,11 @@ void abort_action(action_t *action)
 }
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A1_VECTOR
-__interrupt void TIMER1_A1_ISR (void)
+#pragma vector=TIMER_VECTOR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TMRCC_SCHED)
+__interrupt void TIMER_ISR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TIMER_SCHED_CCR)(void)
 #elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER1_A1_VECTOR))) TIMER1_A1_ISR (void)
+__attribute__ ((interrupt(TIMER_VECTOR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TIMER_SCHED_CCR))))
+void TIMER_ISR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TIMER_SCHED_CCR)(void)
 #else
 #error Compiler not supported!
 #endif
