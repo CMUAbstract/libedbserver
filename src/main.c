@@ -216,6 +216,7 @@ static void reset_state()
 }
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 static sched_cmd_t on_enter_debug_mode_timeout()
 {
     reset_state();
@@ -226,6 +227,7 @@ static sched_cmd_t on_exit_debug_mode_timeout()
     reset_state();
     return SCHED_CMD_WAKEUP;
 }
+#endif// CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
@@ -260,7 +262,9 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 
     debug_mode_flags = flags;
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     schedule_action(on_enter_debug_mode_timeout, CONFIG_ENTER_DEBUG_MODE_TIMEOUT);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     mask_target_signal();
     signal_target();
@@ -273,7 +277,9 @@ void exit_debug_mode()
 
     // interrupt_context cleared after the target acks the exit request
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     schedule_action(on_exit_debug_mode_timeout, CONFIG_EXIT_DEBUG_MODE_TIMEOUT);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     unmask_target_signal();
     target_comm_send_exit_debug_mode();
@@ -313,7 +319,9 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
 
 static void finish_enter_debug_mode()
 {
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     abort_action(on_enter_debug_mode_timeout);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     // WISP has entered debug main loop
     set_state(STATE_DEBUG);
@@ -342,7 +350,9 @@ static void finish_enter_debug_mode()
 
 static void finish_exit_debug_mode()
 {
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     abort_action(on_exit_debug_mode_timeout);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     // WISP has shutdown UART and is asleep waiting for int to resume
 #if 0 // TODO: this breaks edb after a few printfs, the only danger of not tearing UART down
