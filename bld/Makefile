@@ -1,4 +1,4 @@
-EXEC = edb.out
+EXEC = edb
 
 SRC_ROOT = ../../src
 export LIB_ROOT = $(abspath ../../ext)
