@@ -29,8 +29,8 @@
 #define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
 #define PIN_UART_USB_RX                         4 //!< RX pin for UART to host USB
 
-#define PORT_UART_TARGET                        1  //!< GPIO port with UART connected to target device
-#define PIN_UART_TARGET_TX                      6 //!< TX pin for UART to target device
+#define PORT_UART_TARGET                        4  //!< GPIO port with UART connected to target device
+#define PIN_UART_TARGET_TX                      4 //!< TX pin for UART to target device
 #define PIN_UART_TARGET_RX                      5 //!< RX pin for UART to target device
 
 #define PORT_VSENSE                             6 //!< GPIO port for voltage sense lines
