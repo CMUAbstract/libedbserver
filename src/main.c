@@ -37,6 +37,11 @@
 #include "pwm.h"
 #endif
 
+/* @brief State-keeping flags used by debug mode implementation
+ * @details These flags are stored in the MSB of the bitmask word that also
+ * stores debug mode feature flags (defined in libedb/target_comm.h).
+ * */
+#define DEBUG_MODE_NESTED           0x10 //!< debug mode within an active debug mode (e.g. assert in energy guard)
 
 /**
  * @defgroup    LOG_DEFINES     Logging flags
