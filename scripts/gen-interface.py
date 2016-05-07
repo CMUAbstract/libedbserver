@@ -15,9 +15,9 @@ args = parser.parse_args()
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
 CONFIG_HEADER = script_dir + '/../src/config.h'
-CLOCK_CONFIG_HEADER = script_dir + '/../lib/libmsp/src/include/libmsp/clock-config.h'
+CLOCK_CONFIG_HEADER = script_dir + '/../ext/libmsp/src/include/libmsp/clock-config.h'
 HOST_COMM_HEADER = script_dir + '/../src/host_comm.h'
-TARGET_COMM_HEADER = script_dir + '/../../libedb/src/include/libedb/target_comm.h'
+TARGET_COMM_HEADER = script_dir + '/../ext/libedb/src/include/libedb/target_comm.h'
 
 host_comm_header = Header(HOST_COMM_HEADER,
     enums=[
