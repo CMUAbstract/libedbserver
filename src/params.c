@@ -1,6 +1,8 @@
 #include "params.h"
 
 uint16_t param_test = 0xbeef;
+uint16_t param_target_boot_voltage_dl = 2745; // = 2.0v * (4096 / EDB_VDD)
+uint16_t param_target_boot_latency_kcycles = 24; // = 24 MHz * 1ms
 
 static unsigned serialize_uint16(uint8_t *buf, uint16_t value)
 {
@@ -48,6 +50,10 @@ unsigned set_param(param_t param, uint8_t *buf)
     switch (param) {
         case PARAM_TEST:
             return deserialize_uint16(&param_test, buf);
+        case PARAM_TARGET_BOOT_VOLTAGE_DL:
+            return deserialize_uint16(&param_target_boot_voltage_dl, buf);
+        case PARAM_TARGET_BOOT_LATENCY_KCYCLES:
+            return deserialize_uint16(&param_target_boot_latency_kcycles, buf);
         default:
             return 0;
     }
@@ -58,6 +64,10 @@ unsigned get_param(param_t param, uint8_t *buf)
     switch (param) {
         case PARAM_TEST:
             return serialize_uint16(buf, param_test);
+        case PARAM_TARGET_BOOT_VOLTAGE_DL:
+            return serialize_uint16(buf, param_target_boot_voltage_dl);
+        case PARAM_TARGET_BOOT_LATENCY_KCYCLES:
+            return serialize_uint16(buf, param_target_boot_latency_kcycles);
         default:
             return 0;
     }

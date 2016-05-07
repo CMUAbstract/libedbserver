@@ -1,11 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#define MCU_ON_THRES 2730ull /* 2.0 V */ // int(math.ceil(voltage * 4096 / self.VDD))
-#define MCU_BOOT_LATENCY_MS 5ull // measured: from Vreg = 2.2V to GPIO high at end of debug_setup()
-                                 // 3 ms for 4 MHz, 5 ms for 8 Mhz (there's a fixed time component)
-#define MCU_BOOT_LATENCY_CYCLES (MCU_BOOT_LATENCY_MS * CONFIG_MCLK_FREQ / 1000)
-
 /** @brief Lower boundary in the histogram of watchpoint energies in the profile
  *  @details V to raw ADC value conversion:
  *      Vmin/Vref * 2^12, where Vref = 2.5 (see adc.c), and 12 is for 12-bit ADC

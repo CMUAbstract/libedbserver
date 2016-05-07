@@ -31,6 +31,7 @@
 #include "interrupt.h"
 #include "payload.h"
 #include "sched.h"
+#include "delay.h"
 
 #ifdef CONFIG_PWM_CHARGING
 #include "pwm.h"
@@ -285,22 +286,34 @@ void exit_debug_mode()
     target_comm_send_exit_debug_mode();
 }
 
+void wait_until_target_is_on()
+{
+    LOG("wait for target: v = %u dl, latency = %u kcycles\r\n",
+        param_target_boot_voltage_dl, param_target_boot_latency_kcycles);
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+
+    uint16_t cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
+    if (cur_vreg < param_target_boot_voltage_dl) {
+        do {
+            cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
+        } while (cur_vreg < param_target_boot_voltage_dl);
+
+        // Wait for target MCU to boot and starts listening for EDB signals
+        delay_kcycles(param_target_boot_latency_kcycles);
+    }
+}
+
+
 void interrupt_target()
 {
     uint16_t cur_vreg;
 
     LOG("int: wait for target on\r\n");
-
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-    do {
-        cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
-    } while (cur_vreg < MCU_ON_THRES);
-
-    __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
+    wait_until_target_is_on();
 
     LOG("int: enter dbg\r\n");
-
     enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
 }
 
@@ -643,18 +656,7 @@ void break_at_vcap_level_adc(uint16_t level)
 {
     uint16_t cur_vcap, cur_vreg;
 
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-
-    cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
-    if (cur_vreg < MCU_ON_THRES) { // MCU is off, wait for MCU to turn on
-        do {
-            cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
-        } while (cur_vreg < MCU_ON_THRES);
-        // TODO: MCU boot delay
-        __delay_cycles(35000);
-        __delay_cycles(35000);
-    } // else: MCU is already on, go on to check Vcap right away
+    wait_until_target_is_on();
 
     do {
         cur_vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
