@@ -432,35 +432,50 @@ static void handle_target_signal()
 
         case STATE_ENTERING:
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
-#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
-            GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
-            GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
-#endif
-            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
-                --sig_serial_bit_index;
-                start_serial_decoder();
+            if  (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ) {
 
-                // clear the bits we are about to read from target
-                debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+                GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
+                GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
+#endif
+                if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
+                    --sig_serial_bit_index;
+                    start_serial_decoder();
+
+                    // clear the bits we are about to read from target
+                    debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
 #ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
-                if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
+                    if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
+                        continuous_power_on();
+#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
+                } else if (sig_serial_bit_index >= 0) {
+                    debug_mode_flags |= 1 << sig_serial_bit_index;
+                } else { // bitstream over (there is a terminating edge)
+                    stop_serial_decoder();
+
+                    mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+                    finish_enter_debug_mode();
+                }
+            } else { // debug request came from EDB side
+
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
+                if (!target_powered)
                     continuous_power_on();
 #endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
-            } else if (sig_serial_bit_index >= 0) {
-                debug_mode_flags |= 1 << sig_serial_bit_index;
-            } else { // bitstream over (there is a terminating edge)
-                stop_serial_decoder();
 
-                mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+                mask_target_signal();
                 finish_enter_debug_mode();
             }
+
 #else // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+
 #ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
             if (!target_powered)
                 continuous_power_on();
 #endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
             mask_target_signal();
             finish_enter_debug_mode();
+
 #endif // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
             break;
 
