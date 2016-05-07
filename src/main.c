@@ -1281,12 +1281,15 @@ int main(void)
         if (main_loop_flags & FLAG_INTERRUPTED) {
             main_loop_flags &= ~FLAG_INTERRUPTED;
 
+            LOG("target interrupted\r\n");
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+            LOG("requesting int context\r\n");
             if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
                 debug_mode_flags & DEBUG_MODE_WITH_UART)
                 get_target_interrupt_context(&interrupt_context);
 #endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 #ifdef CONFIG_HOST_UART
+            LOG("sending int context to host\r\n");
             // do it here: reply marks completion of enter sequence
             send_interrupt_context(&interrupt_context);
 #endif // CONFIG_HOST_UART
