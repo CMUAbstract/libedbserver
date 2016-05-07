@@ -283,6 +283,8 @@ void interrupt_target()
 {
     uint16_t cur_vreg;
 
+    LOG("int: wait for target on\r\n");
+
     /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
      * of 200kHz that the ADC can theoretically do). */
     do {
@@ -290,6 +292,8 @@ void interrupt_target()
     } while (cur_vreg < MCU_ON_THRES);
 
     __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
+
+    LOG("int: enter dbg\r\n");
 
     enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
 }
@@ -1096,7 +1100,7 @@ int main(void)
 
     __enable_interrupt();                   // enable all interrupts
 
-    LOG("EDB booted\r\n");
+    LOG("\r\nEDB\r\n");
 
     // Seed the random number generator
     uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
