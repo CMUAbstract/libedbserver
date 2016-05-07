@@ -431,6 +431,16 @@ static void handle_target_signal()
             break;
 
         case STATE_ENTERING:
+
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
+            // NOTE: in the code path which involves decoding the serial bits, we will
+            // check this if multiple times, but that's ok (the condition will fail
+            // after the first time around). Pulling this if out to the top here, keeps
+            // the following code simpler.
+            if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
+                continuous_power_on();
+#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
+
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
             if  (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ) {
 
@@ -444,10 +454,6 @@ static void handle_target_signal()
 
                     // clear the bits we are about to read from target
                     debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
-#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
-                    if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
-                        continuous_power_on();
-#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
                 } else if (sig_serial_bit_index >= 0) {
                     debug_mode_flags |= 1 << sig_serial_bit_index;
                 } else { // bitstream over (there is a terminating edge)
@@ -457,25 +463,12 @@ static void handle_target_signal()
                     finish_enter_debug_mode();
                 }
             } else { // debug request came from EDB side
-
-#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
-                if (!target_powered)
-                    continuous_power_on();
-#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
-
                 mask_target_signal();
                 finish_enter_debug_mode();
             }
-
 #else // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
-
-#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
-            if (!target_powered)
-                continuous_power_on();
-#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
             mask_target_signal();
             finish_enter_debug_mode();
-
 #endif // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
             break;
 
