@@ -437,6 +437,10 @@ static void handle_target_signal()
                 finish_enter_debug_mode();
             }
 #else // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+#ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
+            if (!target_powered)
+                continuous_power_on();
+#endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
             mask_target_signal();
             finish_enter_debug_mode();
 #endif // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
