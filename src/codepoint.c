@@ -217,6 +217,9 @@ unsigned toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
 {
     unsigned rc = RETURN_CODE_SUCCESS;
 
+    LOG("toggle watchpt: idx %u e %u en %u\r\n",
+        index, vcap_snapshot, enable);
+
     if (index >= MAX_WATCHPOINTS) {
         rc = RETURN_CODE_INVALID_ARGS;
         goto out;
