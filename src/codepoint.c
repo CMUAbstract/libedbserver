@@ -91,6 +91,9 @@ unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
     uint16_t prev_breakpoints_mask;
     bool breakpoint_active;
 
+    LOG("toggle bkpt: type %u idx %u e %u en %u\r\n",
+        type, index, energy_level, enable);
+
     switch (type) {
         case BREAKPOINT_TYPE_PASSIVE:
             if (index >= MAX_PASSIVE_BREAKPOINTS) {
