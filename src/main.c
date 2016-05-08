@@ -31,11 +31,17 @@
 #include "interrupt.h"
 #include "payload.h"
 #include "sched.h"
+#include "delay.h"
 
 #ifdef CONFIG_PWM_CHARGING
 #include "pwm.h"
 #endif
 
+/* @brief State-keeping flags used by debug mode implementation
+ * @details These flags are stored in the MSB of the bitmask word that also
+ * stores debug mode feature flags (defined in libedb/target_comm.h).
+ * */
+#define DEBUG_MODE_NESTED           0x10 //!< debug mode within an active debug mode (e.g. assert in energy guard)
 
 /**
  * @defgroup    LOG_DEFINES     Logging flags
@@ -216,6 +222,7 @@ static void reset_state()
 }
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 static sched_cmd_t on_enter_debug_mode_timeout()
 {
     reset_state();
@@ -226,6 +233,7 @@ static sched_cmd_t on_exit_debug_mode_timeout()
     reset_state();
     return SCHED_CMD_WAKEUP;
 }
+#endif// CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
@@ -260,7 +268,9 @@ static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 
     debug_mode_flags = flags;
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     schedule_action(on_enter_debug_mode_timeout, CONFIG_ENTER_DEBUG_MODE_TIMEOUT);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     mask_target_signal();
     signal_target();
@@ -273,24 +283,42 @@ void exit_debug_mode()
 
     // interrupt_context cleared after the target acks the exit request
 
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     schedule_action(on_exit_debug_mode_timeout, CONFIG_EXIT_DEBUG_MODE_TIMEOUT);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     unmask_target_signal();
     target_comm_send_exit_debug_mode();
 }
 
+void wait_until_target_is_on()
+{
+    LOG("wait for target: v = %u dl, latency = %u kcycles\r\n",
+        param_target_boot_voltage_dl, param_target_boot_latency_kcycles);
+
+    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
+     * of 200kHz that the ADC can theoretically do). */
+
+    uint16_t cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
+    if (cur_vreg < param_target_boot_voltage_dl) {
+        do {
+            cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
+        } while (cur_vreg < param_target_boot_voltage_dl);
+
+        // Wait for target MCU to boot and starts listening for EDB signals
+        delay_kcycles(param_target_boot_latency_kcycles);
+    }
+}
+
+
 void interrupt_target()
 {
     uint16_t cur_vreg;
 
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-    do {
-        cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
-    } while (cur_vreg < MCU_ON_THRES);
+    LOG("int: wait for target on\r\n");
+    wait_until_target_is_on();
 
-    __delay_cycles(MCU_BOOT_LATENCY_CYCLES);
-
+    LOG("int: enter dbg\r\n");
     enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
 }
 
@@ -309,7 +337,9 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
 
 static void finish_enter_debug_mode()
 {
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     abort_action(on_enter_debug_mode_timeout);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     // WISP has entered debug main loop
     set_state(STATE_DEBUG);
@@ -338,7 +368,9 @@ static void finish_enter_debug_mode()
 
 static void finish_exit_debug_mode()
 {
+#ifdef CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
     abort_action(on_exit_debug_mode_timeout);
+#endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     // WISP has shutdown UART and is asleep waiting for int to resume
 #if 0 // TODO: this breaks edb after a few printfs, the only danger of not tearing UART down
@@ -399,27 +431,39 @@ static void handle_target_signal()
             break;
 
         case STATE_ENTERING:
-#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
-#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
-            GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
-            GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
-#endif
-            if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
-                --sig_serial_bit_index;
-                start_serial_decoder();
 
-                // clear the bits we are about to read from target
-                debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
 #ifdef CONFIG_POWER_TARGET_IN_DEBUG_MODE
-                if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
-                    continuous_power_on();
+            // NOTE: in the code path which involves decoding the serial bits, we will
+            // check this if multiple times, but that's ok (the condition will fail
+            // after the first time around). Pulling this if out to the top here, keeps
+            // the following code simpler.
+            if (!target_powered && !(debug_mode_flags & DEBUG_MODE_NESTED))
+                continuous_power_on();
 #endif // CONFIG_POWER_TARGET_IN_DEBUG_MODE
-            } else if (sig_serial_bit_index >= 0) {
-                debug_mode_flags |= 1 << sig_serial_bit_index;
-            } else { // bitstream over (there is a terminating edge)
-                stop_serial_decoder();
 
-                mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+            if  (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ) {
+
+#ifdef CONFIG_SIG_SERIAL_DECODE_PINS
+                GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_PULSE);
+                GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_PULSE);
+#endif
+                if (sig_serial_bit_index == SIG_SERIAL_NUM_BITS) {
+                    --sig_serial_bit_index;
+                    start_serial_decoder();
+
+                    // clear the bits we are about to read from target
+                    debug_mode_flags &= ~DEBUG_MODE_FULL_FEATURES;
+                } else if (sig_serial_bit_index >= 0) {
+                    debug_mode_flags |= 1 << sig_serial_bit_index;
+                } else { // bitstream over (there is a terminating edge)
+                    stop_serial_decoder();
+
+                    mask_target_signal(); // TODO: incorporate this cleaner, remember that int flag is set
+                    finish_enter_debug_mode();
+                }
+            } else { // debug request came from EDB side
+                mask_target_signal();
                 finish_enter_debug_mode();
             }
 #else // !CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
@@ -625,18 +669,7 @@ void break_at_vcap_level_adc(uint16_t level)
 {
     uint16_t cur_vcap, cur_vreg;
 
-    /* The measured effective period of this loop is roughly 30us ~ 33kHz (out
-     * of 200kHz that the ADC can theoretically do). */
-
-    cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
-    if (cur_vreg < MCU_ON_THRES) { // MCU is off, wait for MCU to turn on
-        do {
-            cur_vreg = ADC_read(ADC_CHAN_INDEX_VREG);
-        } while (cur_vreg < MCU_ON_THRES);
-        // TODO: MCU boot delay
-        __delay_cycles(35000);
-        __delay_cycles(35000);
-    } // else: MCU is already on, go on to check Vcap right away
+    wait_until_target_is_on();
 
     do {
         cur_vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
@@ -1096,7 +1129,7 @@ int main(void)
 
     __enable_interrupt();                   // enable all interrupts
 
-    LOG("EDB booted\r\n");
+    LOG("\r\nEDB\r\n");
 
     // Seed the random number generator
     uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
@@ -1241,12 +1274,15 @@ int main(void)
         if (main_loop_flags & FLAG_INTERRUPTED) {
             main_loop_flags &= ~FLAG_INTERRUPTED;
 
+            LOG("target interrupted\r\n");
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+            LOG("requesting int context\r\n");
             if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
                 debug_mode_flags & DEBUG_MODE_WITH_UART)
                 get_target_interrupt_context(&interrupt_context);
 #endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 #ifdef CONFIG_HOST_UART
+            LOG("sending int context to host\r\n");
             // do it here: reply marks completion of enter sequence
             send_interrupt_context(&interrupt_context);
 #endif // CONFIG_HOST_UART

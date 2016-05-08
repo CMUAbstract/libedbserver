@@ -29,8 +29,8 @@
 #define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
 #define PIN_UART_USB_RX                         4 //!< RX pin for UART to host USB
 
-#define PORT_UART_TARGET                        1  //!< GPIO port with UART connected to target device
-#define PIN_UART_TARGET_TX                      6 //!< TX pin for UART to target device
+#define PORT_UART_TARGET                        4  //!< GPIO port with UART connected to target device
+#define PIN_UART_TARGET_TX                      4 //!< TX pin for UART to target device
 #define PIN_UART_TARGET_RX                      5 //!< RX pin for UART to target device
 
 #define PORT_VSENSE                             6 //!< GPIO port for voltage sense lines
@@ -122,8 +122,9 @@
 #define TIMER_RF_TX_DECODE                      A1
 
 // !< general-purpose timer for scheduling pre-defined actions
-#define TIMER_SCHED                             A1
-#define TMRCC_SCHED                             0 //!< timer capture-compare register index
+#define TIMER_SCHED_TYPE                        A
+#define TIMER_SCHED_IDX                         1
+#define TIMER_SCHED_CCR                         1 //!< timer capture-compare register index
 
 #define TMRMOD_ADC_TRIGGER                      B //!< timer module for ADC trigger in stream mode
 #define TMRIDX_ADC_TRIGGER                      0 //!< timer index for ADC trigger in stream mode

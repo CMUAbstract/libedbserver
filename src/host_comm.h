@@ -115,6 +115,8 @@ typedef enum {
 
 typedef enum {
     PARAM_TEST                              = 0,
+    PARAM_TARGET_BOOT_VOLTAGE_DL            = 1, //!< regulated voltage threshold for determinining target is on
+    PARAM_TARGET_BOOT_LATENCY_KCYCLES       = 2, //!< time for target to start listening for EDB signals after voltage reaches on threshold
 } param_t;
 
 /**

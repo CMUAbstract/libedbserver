@@ -77,13 +77,6 @@ static unsigned watchpoint_events_buf_idx;
 
 void set_external_breakpoint_pin_state(uint16_t bitmask, bool state)
 {
-#ifdef BOARD_EDB // flip order of codepoint pins
-    if (bitmask == 0x1)
-        bitmask = 0x2;
-    else if (bitmask == 0x2)
-        bitmask = 0x1;
-#endif // BOARD_EDB
-
     if (state)
         GPIO(PORT_CODEPOINT, OUT) |= bitmask << PIN_CODEPOINT_0;
     else
@@ -97,6 +90,9 @@ unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
     unsigned rc = RETURN_CODE_SUCCESS;
     uint16_t prev_breakpoints_mask;
     bool breakpoint_active;
+
+    LOG("toggle bkpt: type %u idx %u e %u en %u\r\n",
+        type, index, energy_level, enable);
 
     switch (type) {
         case BREAKPOINT_TYPE_PASSIVE:
