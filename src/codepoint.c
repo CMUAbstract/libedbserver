@@ -186,7 +186,17 @@ unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
                 set_external_breakpoint_pin_state((1 << index), false);
 
                 if (!external_breakpoints) {
+                    GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT;
                     GPIO(PORT_CODEPOINT, DIR) &= ~BITS_CODEPOINT;
+
+                    // TODO: there is a problem: once we go into high-Z, level-shifter
+                    // thinks it's being driven high, so target detects an enabled breakpoint.
+                    // Pull-downs are only enabled on our side. Also tried to set REN
+                    // here again (in addition to on boot) -- no difference. Pull-downs
+                    // on target side won't do anything because level-shifter drives
+                    // target-side high (but did try pull-downs on on target-side anyway).
+                    // Perhaps a pull down on EDB side on the board would fix this? But,
+                    // then, the built-in pull-down should should also fix it.
                 }
             }
 
