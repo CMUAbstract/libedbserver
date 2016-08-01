@@ -117,7 +117,11 @@ typedef enum {
     PARAM_TEST                              = 0,
     PARAM_TARGET_BOOT_VOLTAGE_DL            = 1, //!< regulated voltage threshold for determinining target is on
     PARAM_TARGET_BOOT_LATENCY_KCYCLES       = 2, //!< time for target to start listening for EDB signals after voltage reaches on threshold
+    PARAM_NUM_WATCHPOINT_EVENTS_BUFFERED    = 3, //!< number of watchpoint events to buffer before sending to host
 } param_t;
+
+/* @brief Max supported value of PARAM_NUM_WATCHPOINT_EVENTS_BUFFERED */
+#define MAX_WATCHPOINT_EVENTS_BUFFERED 16
 
 /**
  * @brief Specifies the type of breakpoint among ones supported

@@ -17,6 +17,7 @@
 #include "main_loop.h"
 #include "tether.h"
 #include "payload.h"
+#include "params.h"
 
 #include "codepoint.h"
 
@@ -45,10 +46,9 @@ static uint16_t watchpoints_vcap_snapshot = 0;
 #define MAX_WATCHPOINTS          NUM_CODEPOINT_VALUES
 
 #define NUM_WATCHPOINT_BUFFERS 2
-#define NUM_WATCHPOINT_EVENTS_BUFFERED 16
 
 #define WATCHPOINT_EVENT_BUF_HEADER_SPACE 1 // units of sizeof(watchpoint_event_t)
-#define WATCHPOINT_EVENT_BUF_PAYLOAD_SPACE NUM_WATCHPOINT_EVENTS_BUFFERED // units of sizeof(watchpoint_event_t)
+#define WATCHPOINT_EVENT_BUF_PAYLOAD_SPACE MAX_WATCHPOINT_EVENTS_BUFFERED // units of sizeof(watchpoint_event_t)
 #define WATCHPOINT_EVENT_BUF_SIZE \
     (WATCHPOINT_EVENT_BUF_HEADER_SPACE + WATCHPOINT_EVENT_BUF_PAYLOAD_SPACE) // units of sizeof(watchpoint_event_t)
 
@@ -275,6 +275,9 @@ void init_watchpoint_event_bufs()
     unsigned i, offset;
     uint8_t *header;
 
+    ASSERT(ASSERT_INVALID_PARAM,
+        param_num_watchpoint_events_buffered <= MAX_WATCHPOINT_EVENTS_BUFFERED);
+
     for (i = 0; i < NUM_WATCHPOINT_BUFFERS; ++i) {
         watchpoint_events_count[i] = 0;
 
@@ -287,7 +290,7 @@ void init_watchpoint_event_bufs()
 
         // Just for easier diagnostics of problems in the data stream
         memset(watchpoint_events_bufs[i], 0,
-               NUM_WATCHPOINT_EVENTS_BUFFERED * sizeof(watchpoint_event_t));
+               MAX_WATCHPOINT_EVENTS_BUFFERED * sizeof(watchpoint_event_t));
     }
     watchpoint_events_buf_idx = 0;
     watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
@@ -296,7 +299,7 @@ void init_watchpoint_event_bufs()
 static void append_watchpoint_event(unsigned index)
 {
     if (watchpoint_events_count[watchpoint_events_buf_idx] <
-            NUM_WATCHPOINT_EVENTS_BUFFERED) {
+            param_num_watchpoint_events_buffered) {
 
         watchpoint_event_t *watchpoint_event =
             &watchpoint_events_buf[watchpoint_events_count[watchpoint_events_buf_idx]++];
@@ -311,7 +314,7 @@ static void append_watchpoint_event(unsigned index)
     }
 
     if (watchpoint_events_count[watchpoint_events_buf_idx] ==
-            NUM_WATCHPOINT_EVENTS_BUFFERED) {// buffer full
+            param_num_watchpoint_events_buffered) {// buffer full
         if (!(main_loop_flags & FLAG_WATCHPOINT_READY)) { // the other buffer is free
             swap_buffers();
             // clear error indicator

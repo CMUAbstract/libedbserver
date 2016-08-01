@@ -39,6 +39,7 @@ typedef enum {
     ASSERT_APP_OUTPUT_BUF_OVERFLOW                = 16,
     ASSERT_SCHED_ACTION_MISMATCH                  = 17,
     ASSERT_NESTED_SCHED_ACTION                    = 18,
+    ASSERT_INVALID_PARAM                          = 19,
 } assert_t;
 
 /* @brief Blink led at a given rate indefinitely
