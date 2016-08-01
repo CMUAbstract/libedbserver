@@ -1082,8 +1082,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
     case USB_CMD_SET_PARAM: {
         param_t param = (pkt->data[1] << 8) | pkt->data[0];
-        set_param(param, &pkt->data[2]);
-        send_param(param);
+        return_code_t rc = set_param(param, &pkt->data[2]);
+        send_return_code(rc);
         break;
     }
 

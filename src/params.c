@@ -45,18 +45,23 @@ static unsigned deserialize_frac(float *frac, uint8_t *buf)
 }
 #endif
 
-unsigned set_param(param_t param, uint8_t *buf)
+return_code_t set_param(param_t param, uint8_t *buf)
 {
     switch (param) {
         case PARAM_TEST:
-            return deserialize_uint16(&param_test, buf);
+            deserialize_uint16(&param_test, buf);
+            break;
         case PARAM_TARGET_BOOT_VOLTAGE_DL:
-            return deserialize_uint16(&param_target_boot_voltage_dl, buf);
+            deserialize_uint16(&param_target_boot_voltage_dl, buf);
+            break;
         case PARAM_TARGET_BOOT_LATENCY_KCYCLES:
-            return deserialize_uint16(&param_target_boot_latency_kcycles, buf);
+            deserialize_uint16(&param_target_boot_latency_kcycles, buf);
+            break;
         default:
-            return 0;
+            return RETURN_CODE_INVALID_ARGS;
     }
+
+    return RETURN_CODE_SUCCESS;
 }
 
 unsigned get_param(param_t param, uint8_t *buf)
