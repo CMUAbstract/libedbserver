@@ -338,7 +338,10 @@ void send_watchpoint_events()
 
     ready_events_count = watchpoint_events_count[ready_events_buf_idx];
 
-    LOG("wpts: send buf %u cnt %u\r\n", ready_events_buf_idx, ready_events_count);
+    // NOTE: this log statement causes event buffer to overflow
+    // when event buffer is of size 1 (and watchpoints are generated
+    // fairly close to each other).
+    //LOG("wpts: send buf %u cnt %u\r\n", ready_events_buf_idx, ready_events_count);
 
     UART_begin_transmission();
 
