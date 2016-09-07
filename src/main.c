@@ -311,15 +311,20 @@ void wait_until_target_is_on()
 }
 
 
-void interrupt_target()
+return_code_t interrupt_target()
 {
     uint16_t cur_vreg;
+
+    if (state != STATE_IDLE)
+        return RETURN_CODE_BUSY;
 
     LOG("int: wait for target on\r\n");
     wait_until_target_is_on();
 
     LOG("int: enter dbg\r\n");
     enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
+
+    return RETURN_CODE_SUCCESS;
 }
 
 #ifdef CONFIG_FETCH_INTERRUPT_CONTEXT
@@ -788,9 +793,13 @@ static void executeUSBCmd(uartPkt_t *pkt)
         exit_debug_mode();
         break;
 
-    case USB_CMD_INTERRUPT:
-        interrupt_target();
+    case USB_CMD_INTERRUPT: {
+        return_code_t rc = interrupt_target();
+        if (rc != RETURN_CODE_SUCCESS)
+            send_return_code(rc);
+        // otherwise, we send an INTERRUPTED response (with the context)
         break;
+    }
 
     case USB_CMD_GET_WISP_PC:
         target_comm_send_get_pc();

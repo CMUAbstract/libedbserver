@@ -109,6 +109,7 @@ typedef enum {
     RETURN_CODE_BUFFER_TOO_SMALL            = 2,
     RETURN_CODE_COMM_ERROR                  = 3,
     RETURN_CODE_UNSUPPORTED                 = 4,
+    RETURN_CODE_BUSY                        = 5,
 } return_code_t;
 
 /** @} End UART_PROTOCOL */
