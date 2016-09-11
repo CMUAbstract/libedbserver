@@ -628,7 +628,7 @@ static inline void pin_setup()
     GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);
     GPIO(PORT_SIG, REN) |= BIT(PIN_SIG);
     GPIO(PORT_CODEPOINT, OUT) &= ~BITS_CODEPOINT;
-    GPIO(PORT_SIG, REN) |= BITS_CODEPOINT;
+    GPIO(PORT_CODEPOINT, REN) |= BITS_CODEPOINT;
 #endif
 
     // Configure the output level for continous power pin ahead of time
