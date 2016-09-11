@@ -113,6 +113,24 @@ static void set_state(state_t new_state)
 #endif
 }
 
+/**
+ * @brief	Enable interrupt line between the debugger and the target device
+ */
+static void unmask_target_signal()
+{
+    GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
+    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
+}
+
+/**
+ * @brief	Disable interrupt line between the debugger and the target device
+ */
+static void mask_target_signal()
+{
+    GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
+}
+
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
 /**
  * @brief       Pulse a designated pin for triggering an oscilloscope
@@ -142,22 +160,29 @@ static void signal_target()
 }
 
 /**
- * @brief	Enable interrupt line between the debugger and the target device
+ * @brief	Request target to enter debug mode when next boots
  */
-static void unmask_target_signal()
+static void signal_target_by_level()
 {
-    GPIO(PORT_SIG, IES) &= ~BIT(PIN_SIG); // rising edge
-    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG); // clear interrupt flag (might have been set by the above)
-    GPIO(PORT_SIG, IE) |= BIT(PIN_SIG);   // enable interrupt
+    mask_target_signal();
+
+    // set signal line high
+
+    // target signal line starts in high imedence state
+    GPIO(PORT_SIG, IFG) &= ~BIT(PIN_SIG);
+    GPIO(PORT_SIG, OUT) |= BIT(PIN_SIG);		// output high
+    GPIO(PORT_SIG, DIR) |= BIT(PIN_SIG);		// output enable
 }
 
 /**
- * @brief	Disable interrupt line between the debugger and the target device
+ * @brief	Stop driving the signal line
  */
-static void mask_target_signal()
+static void complete_signal_target_by_level()
 {
-    GPIO(PORT_SIG, IE) &= ~BIT(PIN_SIG); // disable interrupt
+    GPIO(PORT_SIG, OUT) &= ~BIT(PIN_SIG);		// output low
+    GPIO(PORT_SIG, DIR) &= ~BIT(PIN_SIG);		// high-impedance
 }
+
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
 static void continuous_power_on()
@@ -310,7 +335,6 @@ void wait_until_target_is_on()
     }
 }
 
-
 return_code_t interrupt_target()
 {
     uint16_t cur_vreg;
@@ -318,11 +342,10 @@ return_code_t interrupt_target()
     if (state != STATE_IDLE)
         return RETURN_CODE_BUSY;
 
-    LOG("int: wait for target on\r\n");
-    wait_until_target_is_on();
+    LOG("int: interrupting target\r\n");
 
-    LOG("int: enter dbg\r\n");
-    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
+    UART_setup(UART_INTERFACE_WISP);
+    signal_target_by_level();
 
     return RETURN_CODE_SUCCESS;
 }
@@ -1357,6 +1380,14 @@ int main(void)
             // we've received a byte over UART from the WISP
             if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
                 switch (wispRxPkt.descriptor) {
+                    case WISP_RSP_INTERRUPTED:
+                        UART_teardown(UART_INTERFACE_WISP); // for symmetry; setup in ISR
+                        complete_signal_target_by_level();
+
+                        // wait for target to go to sleep and start listening
+                        __delay_cycles(INTERRUPT_ON_BOOT_LATENCY);
+                        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
+                        break;
                     case WISP_RSP_STDIO:
 #ifdef CONFIG_HOST_UART
                         forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
