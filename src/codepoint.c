@@ -261,6 +261,7 @@ out:
     return rc;
 }
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 static void swap_buffers()
 {
     // swap to the other buffer in the double-buffer pair
@@ -269,7 +270,6 @@ static void swap_buffers()
     main_loop_flags |= FLAG_WATCHPOINT_READY;
 }
 
-#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 void init_watchpoint_event_bufs()
 {
     unsigned i, offset;
