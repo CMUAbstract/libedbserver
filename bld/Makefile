@@ -28,7 +28,7 @@ CONFIG_ERROR_LED = 1
 CONFIG_CHARGE_MANIP = 1
 CONFIG_TARGET_UART_PUSH = 1
 
-else ifeq ($(BOARD),sprite-edb-socket-rgz)
+else ifeq ($(words $(filter sprite-edb sprite-edb-socket-rgz,$(BOARD))),1)
 CONFIG_ENABLE_PAYLOAD = 1
 CONFIG_COLLECT_ENERGY_PROFILE = 1
 CONFIG_COLLECT_APP_OUTPUT = 1
