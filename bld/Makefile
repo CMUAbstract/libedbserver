@@ -49,6 +49,16 @@ export LIBMSPSOFTUART_TIMER = A.0.0
 CONFIG_STATE_PINS = 0
 CONFIG_EVENT_PINS = 1
 
+export LIBSPRITE_CLOCK_FREQ = 8000000
+
+# Select a pair of indexes of PRN arrays for Gold code communication
+# export LIBSPRITE_PRN_0 = 266
+# export LIBSPRITE_PRN_1 = 267
+
+# Second board
+#export LIBSPRITE_PRN_0 = 268
+#export LIBSPRITE_PRN_1 = 269
+
 endif # BOARD
 
 CONFIG_DEV_CONSOLE = 1
@@ -100,9 +110,7 @@ ifeq ($(CONFIG_CHARGE_MANIP),1)
 endif
 
 ifeq ($(CONFIG_RADIO_TRANSMIT_PAYLOAD),1)
-	LIBS += -lsprite
-	override LFLAGS += -L$(LIBSPRITE_ROOT)/bld/gcc
-	override CFLAGS += -I$(LIBSPRITE_ROOT)/src/include
+override DEPS += libsprite
 endif
 
 include ../Makefile.config

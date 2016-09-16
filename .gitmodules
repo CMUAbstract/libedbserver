@@ -16,3 +16,6 @@
 [submodule "ext/libedb"]
 	path = ext/libedb
 	url = /afs/ece.cmu.edu/project/abstract/repos/edb/libedb
+[submodule "ext/libsprite"]
+	path = ext/libsprite
+	url = /afs/ece.cmu.edu/project/abstract/repos/libsprite
