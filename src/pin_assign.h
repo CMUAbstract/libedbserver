@@ -1,10 +1,6 @@
 #ifndef PIN_ASSIGN_H
 #define PIN_ASSIGN_H
 
-#ifdef CONFIG_LIBMSPSOFTUART_PRINTF
-#include <libmspsoftuart/pins.h>
-#endif // CONFIG_LIBMSPSOFTUART_PRINTF
-
 /**
  * @defgroup    PORTS   Pin assignments
  * @{
