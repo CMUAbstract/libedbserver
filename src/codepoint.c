@@ -377,6 +377,7 @@ void disable_watchpoints()
     GPIO(PORT_CODEPOINT, IE) &= ~BITS_CODEPOINT;
 }
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
 void watchpoints_start_stream()
 {
     LOG("wpts: start stream: wpts 0x%04x\r\n", watchpoints);
@@ -392,6 +393,7 @@ void watchpoints_stop_stream()
     disable_watchpoints();
     swap_buffers();
 }
+#endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
 void handle_codepoint(unsigned index)
 {
