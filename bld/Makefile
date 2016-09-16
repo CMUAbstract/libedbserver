@@ -28,6 +28,16 @@ CONFIG_ERROR_LED = 1
 CONFIG_CHARGE_MANIP = 1
 CONFIG_TARGET_UART_PUSH = 1
 
+export LIBMSP_XT1_FREQ = 32678ull
+export LIBMSP_XT1_CAP = 12
+export LIBMSP_XT2_FREQ = 12000000ull
+export LIBMSP_CLOCK_SOURCE = DCO
+export LIBMSP_DCO_REF_CLOCK_SOURCE = XT2
+export LIBMSP_DCO_REF_CLOCK_DIV = 4
+export LIBMSP_DCO_FREQ = 24000000ull
+
+export LIBMSP_STARTUP_VOLTAGE_WORKAROUNDS = disable-pmm
+
 else ifeq ($(words $(filter sprite-edb sprite-edb-socket-rgz,$(BOARD))),1)
 CONFIG_ENABLE_PAYLOAD = 1
 CONFIG_COLLECT_ENERGY_PROFILE = 1
@@ -39,6 +49,11 @@ CONFIG_SLEEP_IN_MAIN_LOOP = 1
 CONFIG_WATCHDOG = 1
 CONFIG_TASK_DRIVEN = 1
 CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS = 1
+
+export LIBMSP_CLOCK_SOURCE = DCO
+export LIBMSP_DCO_REF_CLOCK_SOURCE = REFO
+export LIBMSP_DCO_REF_CLOCK_DIV = 1
+export LIBMSP_DCO_FREQ = 8192000ull
 
 export LIBMSPSOFTUART_PORT_TX = 3.1
 export LIBMSPSOFTUART_BAUDRATE = 115200
@@ -114,6 +129,9 @@ override DEPS += libsprite
 endif
 
 include ../Makefile.config
+
+# To build the dependee that uses the headers, we need the config macros here
+include $(LIB_ROOT)/libmsp/bld/Makefile.config
 
 override DEPS += \
 	libmsp \
