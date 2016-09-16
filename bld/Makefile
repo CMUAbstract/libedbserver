@@ -101,28 +101,26 @@ endif
 
 ifeq ($(CONFIG_RADIO_TRANSMIT_PAYLOAD),1)
 	LIBS += -lsprite
-	LFLAGS += -L$(LIBSPRITE_ROOT)/bld/gcc
-	CFLAGS += -I$(LIBSPRITE_ROOT)/src/include
+	override LFLAGS += -L$(LIBSPRITE_ROOT)/bld/gcc
+	override CFLAGS += -I$(LIBSPRITE_ROOT)/src/include
 endif
 
 include ../Makefile.config
 
-DEPS += \
+override DEPS += \
 	libmsp \
 
 # libedb is not a regular dependency: we only need headers (for
 # debugger<->target protocol)
-CFLAGS += -I$(LIBEDB_ROOT)/src/include
+override CFLAGS += -I$(LIBEDB_ROOT)/src/include
 
 ifeq ($(CONFIG_DEV_CONSOLE),1)
-CFLAGS += -DCONFIG_DEV_CONSOLE
+override CFLAGS += -DCONFIG_DEV_CONSOLE
 CONFIG_PRINTF_LIB = libmspsoftuart
 include $(MAKER_ROOT)/Makefile.console
 endif
 
-CFLAGS += \
+override CFLAGS += \
 	-I$(SRC_ROOT) \
 	-I$(SRC_ROOT)/rfid \
 	-I$(LIBEDB_ROOT)/src/include \
-
-SRC_ROOT = ../../src
