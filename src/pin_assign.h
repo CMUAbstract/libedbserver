@@ -232,8 +232,9 @@
 #define TMRCC_SIG_SERIAL                        0
 
 // !< general-purpose timer for scheduling pre-defined actions
-#define TIMER_SCHED                             A1
-#define TMRCC_SCHED                             0 //!< timer capture-compare register index
+#define TIMER_SCHED_TYPE                        A
+#define TIMER_SCHED_IDX                         1
+#define TIMER_SCHED_CCR                         0 //!< timer capture-compare register index
 
 /** @} End PORTS */
 
