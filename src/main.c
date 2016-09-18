@@ -574,53 +574,6 @@ static void handle_target_signal()
  */
 static inline void pin_setup()
 {
-    // Set unconnected pins to output low (note: OUT value is undefined on reset)
-#if defined(BOARD_EDB)
-    P1DIR |= BIT7;
-    P1OUT &= ~(BIT7);
-    P2DIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
-    P2OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
-    P3DIR |= BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7;
-    P3OUT &= ~(BIT0 | BIT1 | BIT2 | BIT5 | BIT6 | BIT7);
-    P4DIR |= BIT0 | BIT3 | BIT7;
-    P4OUT &= ~(BIT0 | BIT3 | BIT7);
-    P5DIR |= BIT0 | BIT1 | BIT6;
-    P5OUT &= ~(BIT0 | BIT1 | BIT6);
-    P6DIR |= BIT0 | BIT6 | BIT7;
-    P6OUT &= ~(BIT0 | BIT6 | BIT7);
-#elif defined(BOARD_SPRITE_EDB) || defined(BOARD_SPRITE_EDB_SOCKET_RGZ)
-    P1DIR |= BIT7;
-    P1OUT &= ~(BIT7);
-    P2DIR |= BIT1 | BIT3 | BIT6 | BIT7;
-    P2OUT &= ~(BIT1 | BIT3 | BIT6 | BIT7);
-    P3DIR |= BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7;
-    P3OUT &= ~(BIT0 | BIT1 | BIT2 | BIT3 | BIT4 | BIT5 | BIT6 | BIT7);
-    // no P4
-    P5DIR |= BIT0 | BIT1;
-    P5OUT &= ~(BIT0 | BIT1);
-    PJOUT &= ~(BIT0 | BIT1 | BIT2 | BIT3);
-    PJDIR &= BIT0 | BIT1 | BIT2 | BIT3;
-#endif
-
-    // Uncomment this if R3 is not populated since in that case pin is unconnected
-    // GPIO(PORT_CONT_POWER, DIR) |= BIT(PIN_CONT_POWER);
-    // GPIO(PORT_CONT_POWER, OUT) &= ~BIT(PIN_CONT_POWER);
-
-#ifdef CONFIG_DEBUG_MODE_LED
-    GPIO(PORT_LED_DEBUG_MODE, OUT) &= ~BIT(PIN_LED_DEBUG_MODE);
-    GPIO(PORT_LED_DEBUG_MODE, DIR) |= BIT(PIN_LED_DEBUG_MODE);
-#endif // CONFIG_DEBUG_MODE_LED
-
-#ifdef CONFIG_MAIN_LOOP_LED
-    GPIO(PORT_LED_MAIN_LOOP, OUT) &= ~BIT(PIN_LED_MAIN_LOOP);
-    GPIO(PORT_LED_MAIN_LOOP, DIR) |= BIT(PIN_LED_MAIN_LOOP);
-#endif // CONFIG_MAIN_LOOP_LED
-
-#ifdef CONFIG_BOOT_LED
-    GPIO(PORT_LED_BOOT, OUT) &= ~BIT(PIN_LED_BOOT);
-    GPIO(PORT_LED_BOOT, DIR) |= BIT(PIN_LED_BOOT);
-#endif // CONFIG_BOOT_LED
-
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
     GPIO(PORT_TRIGGER, DIR) |= BIT(PIN_TRIGGER);
@@ -1133,40 +1086,11 @@ static void executeUSBCmd(uartPkt_t *pkt)
 }
 #endif // CONFIG_HOST_UART
 
-int main(void)
+int edb_server_init()
 {
-#ifdef CONFIG_WATCHDOG
-	msp_watchdog_enable(CONFIG_WDT_BITS);
-#else // !CONFIG_WATCHDOG
-	msp_watchdog_disable();
-#endif // !CONFIG_WATCHDOG
-
     pin_setup();
 
-#ifdef CONFIG_BOOT_LED
-    GPIO(PORT_LED_BOOT, OUT) |= BIT(PIN_LED_BOOT);
-#endif // CONFIG_BOOT_LED
-
-    msp_clock_setup(); // set up unified clock system
-
-#ifdef CONFIG_CLOCK_TEST_MODE
-    GPIO(PORT_LED, OUT) &= ~(BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED));
-    GPIO(PORT_LED, DIR) |= BIT(PIN_LED_GREEN) | BIT(PIN_LED_RED);
-    BLINK_LOOP(PIN_LED_GREEN, 1000000); // to check clock configuration
-#endif
-
-#ifdef CONFIG_DEV_CONSOLE
-    INIT_CONSOLE();
-#endif // CONFIG_DEV_CONSOLE
-
-    __enable_interrupt();                   // enable all interrupts
-
-    LOG("\r\nEDB\r\n");
-
-    // Seed the random number generator
-    uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
-    srand(seed);
-    LOG("seed: %u\r\n", seed);
+    LOG("EDB init\r\n");
 
 #ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
@@ -1183,10 +1107,6 @@ int main(void)
 
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
     init_watchpoint_event_bufs();
-#endif
-
-#ifdef CONFIG_ENABLE_PAYLOAD
-    payload_init();
 #endif
 
 #ifdef CONFIG_RESET_STATE_ON_BOOT
@@ -1206,239 +1126,159 @@ int main(void)
         toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
-#ifdef CONFIG_BOOT_LED
-    GPIO(PORT_LED_BOOT, OUT) &= ~BIT(PIN_LED_BOOT);
-#endif // CONFIG_BOOT_LED
-
     LOG("init done\r\n");
+
+#ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
+    unsigned i;
+    for (i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
+        toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
+#endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
 #if CONFIG_TARGET_POWER_SWITCH
     // Setup target's "power switch" pin
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) &= ~BIT(PIN_TARGET_PWR_SWITCH);
     GPIO(PORT_TARGET_PWR_SWITCH, DIR) |= BIT(PIN_TARGET_PWR_SWITCH);
 
+    LOG("turn on target\r\n");
+
     // turn on target's "power switch"
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) |= BIT(PIN_TARGET_PWR_SWITCH);
 #endif // CONFIG_TARGET_POWER_SWITCH
+}
 
-#ifdef CONFIG_TASK_DRIVEN
-    // Randomly choose which action to perform (EDB does not keep state across reboots)
-    // NOTE: this is outside the loop, because within the loop we manually chain the tasks.
-    task_t task = rand() % NUM_TASKS;
-    LOG("task: %u\r\n", task);
-
-    switch (task) {
-#ifdef CONFIG_COLLECT_ENERGY_PROFILE
-        case TASK_ENERGY_PROFILE:
-            main_loop_flags |= FLAG_COLLECT_WATCHPOINTS;
-            break;
-#endif // CONFIG_COLLECT_ENERGY_PROFILE
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-        case TASK_APP_OUTPUT:
-            main_loop_flags |= FLAG_APP_OUTPUT;
-            break;
-#endif // CONFIG_COLLECT_APP_OUTPUT
-        case TASK_BEACON:
-        default:
-            main_loop_flags |= FLAG_SEND_BEACON;
-            break;
-    }
-#endif // CONFIG_TASK_DRIVEN
-
-    LOG("main loop\r\n");
-
-    unsigned main_loop_count = 0;
-
-    while(1) {
-
-#ifdef CONFIG_WATCHDOG
-        msp_watchdog_kick();
-#endif // !CONFIG_WATCHDOG
-
-        if (main_loop_flags & FLAG_SEND_BEACON) {
-            LOG("sb\r\n");
-            payload_send_beacon();
-            main_loop_flags &= ~FLAG_SEND_BEACON;
-
-            // next action
-            main_loop_flags |= FLAG_COLLECT_WATCHPOINTS;
-            //main_loop_flags |= FLAG_APP_OUTPUT;
-            //main_loop_flags |= FLAG_SEND_BEACON;
-            continue;
-        }
-
-        if (main_loop_flags & FLAG_COLLECT_WATCHPOINTS) {
-            LOG("cw\r\n");
-            schedule_action(on_watchpoint_collection_complete, CONFIG_WATCHPOINT_COLLECTION_TIME);
-            enable_watchpoints();
-            main_loop_flags &= ~FLAG_COLLECT_WATCHPOINTS;
-        }
-
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-        if (main_loop_flags & FLAG_APP_OUTPUT) {
-            LOG("ao\r\n");
-            get_app_output();
-            payload_send_app_output();
-            main_loop_flags &= ~FLAG_APP_OUTPUT;
-
-            // next action
-            //main_loop_flags |= FLAG_COLLECT_WATCHPOINTS;
-            main_loop_flags |= FLAG_SEND_BEACON;
-            continue;
-        }
-#endif
-
-#ifdef CONFIG_COLLECT_ENERGY_PROFILE
-        if (main_loop_flags & FLAG_ENERGY_PROFILE_READY) {
-            LOG("sw\r\n");
-            payload_send_profile();
-            main_loop_flags &= ~FLAG_ENERGY_PROFILE_READY;
-
-            // next action
-            main_loop_flags |= FLAG_APP_OUTPUT;
-            //main_loop_flags |= FLAG_SEND_BEACON;
-            continue;
-        }
-#endif
-
+int edb_service(void)
+{
+    LOG("EDB service\r\n");
 
 #ifdef CONFIG_FETCH_INTERRUPT_CONTEXT 
-        if (main_loop_flags & FLAG_INTERRUPTED) {
-            main_loop_flags &= ~FLAG_INTERRUPTED;
+    if (main_loop_flags & FLAG_INTERRUPTED) {
+        main_loop_flags &= ~FLAG_INTERRUPTED;
 
-            LOG("target interrupted\r\n");
+        LOG("target interrupted\r\n");
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
-            LOG("requesting int context\r\n");
-            if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
-                debug_mode_flags & DEBUG_MODE_WITH_UART)
-                get_target_interrupt_context(&interrupt_context);
+        LOG("requesting int context\r\n");
+        if (interrupt_context.type == INTERRUPT_TYPE_TARGET_REQ &&
+            debug_mode_flags & DEBUG_MODE_WITH_UART)
+            get_target_interrupt_context(&interrupt_context);
 #endif // CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 #ifdef CONFIG_HOST_UART
-            LOG("sending int context to host\r\n");
-            // do it here: reply marks completion of enter sequence
-            send_interrupt_context(&interrupt_context);
+        LOG("sending int context to host\r\n");
+        // do it here: reply marks completion of enter sequence
+        send_interrupt_context(&interrupt_context);
 #endif // CONFIG_HOST_UART
-        }
+    }
 #endif // CONFIG_FETCH_INTERRUPT_CONTEXT 
 
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
-        if (main_loop_flags & FLAG_WATCHPOINT_READY) {
-            send_watchpoint_events();
-            main_loop_flags &= ~FLAG_WATCHPOINT_READY;
-        }
+    if (main_loop_flags & FLAG_WATCHPOINT_READY) {
+        send_watchpoint_events();
+        main_loop_flags &= ~FLAG_WATCHPOINT_READY;
+    }
 #endif // CONFIG_WATCHPOINT_STREAM
 
 #ifdef CONFIG_HOST_UART
-        if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
-            main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
+    if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
+        main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
 
-            send_voltage(interrupt_context.restored_vcap);
-        }
+        send_voltage(interrupt_context.restored_vcap);
+    }
 #endif
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
-        if((main_loop_flags & FLAG_ADC_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
-            // ADC12 has completed conversion on all active channels
-            ADC_send_samples_to_host();
-            main_loop_flags &= ~FLAG_ADC_COMPLETE;
-        }
+    if((main_loop_flags & FLAG_ADC_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
+        // ADC12 has completed conversion on all active channels
+        ADC_send_samples_to_host();
+        main_loop_flags &= ~FLAG_ADC_COMPLETE;
+    }
 #endif // CONFIG_ENABLE_VOLTAGE_STREAM
 
 #ifdef CONFIG_HOST_UART
-        if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
-            main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
-            send_return_code(RETURN_CODE_SUCCESS);
-        }
+    if (main_loop_flags & FLAG_CHARGER_COMPLETE) { // comparator triggered after charge/discharge op
+        main_loop_flags &= ~FLAG_CHARGER_COMPLETE;
+        send_return_code(RETURN_CODE_SUCCESS);
+    }
 #endif
 
 #ifdef CONFIG_HOST_UART
-        if(main_loop_flags & FLAG_UART_USB_RX) {
-            // we've received a byte from USB
-            if(UART_buildRxPkt(UART_INTERFACE_USB, &usbRxPkt) == 0) {
-                // packet is complete
-                executeUSBCmd(&usbRxPkt);
-            }
-
-            // check if we're done for now
-            UART_DISABLE_USB_RX; // disable interrupt so new bytes don't come in
-            if(UART_RxBufEmpty(UART_INTERFACE_USB)) {
-                main_loop_flags &= ~FLAG_UART_USB_RX; // clear USB Rx flag
-            }
-            UART_ENABLE_USB_RX; // enable interrupt
+    if(main_loop_flags & FLAG_UART_USB_RX) {
+        // we've received a byte from USB
+        if(UART_buildRxPkt(UART_INTERFACE_USB, &usbRxPkt) == 0) {
+            // packet is complete
+            executeUSBCmd(&usbRxPkt);
         }
+
+        // check if we're done for now
+        UART_DISABLE_USB_RX; // disable interrupt so new bytes don't come in
+        if(UART_RxBufEmpty(UART_INTERFACE_USB)) {
+            main_loop_flags &= ~FLAG_UART_USB_RX; // clear USB Rx flag
+        }
+        UART_ENABLE_USB_RX; // enable interrupt
+    }
 #endif // CONFIG_HOST_UART
 
 /*
-        if(main_loop_flags & FLAG_UART_USB_TX) {
-            // USB UART Tx byte
-            main_loop_flags &= ~FLAG_UART_USB_TX;
-        }
+    if(main_loop_flags & FLAG_UART_USB_TX) {
+        // USB UART Tx byte
+        main_loop_flags &= ~FLAG_UART_USB_TX;
+    }
 */
 
 #if defined(CONFIG_TARGET_UART) && defined(CONFIG_TARGET_UART_PUSH)
-        if(main_loop_flags & FLAG_UART_WISP_RX) {
-            // we've received a byte over UART from the WISP
-            if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
-                switch (wispRxPkt.descriptor) {
-                    case WISP_RSP_INTERRUPTED:
-                        UART_teardown(UART_INTERFACE_WISP); // for symmetry; setup in ISR
-                        complete_signal_target_by_level();
+    if(main_loop_flags & FLAG_UART_WISP_RX) {
+        // we've received a byte over UART from the WISP
+        if(UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) == 0) {
+            switch (wispRxPkt.descriptor) {
+                case WISP_RSP_INTERRUPTED:
+                    UART_teardown(UART_INTERFACE_WISP); // for symmetry; setup in ISR
+                    complete_signal_target_by_level();
 
-                        // wait for target to go to sleep and start listening
-                        __delay_cycles(INTERRUPT_ON_BOOT_LATENCY);
-                        enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
-                        break;
-                    case WISP_RSP_STDIO:
+                    // wait for target to go to sleep and start listening
+                    __delay_cycles(INTERRUPT_ON_BOOT_LATENCY);
+                    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
+                    break;
+                case WISP_RSP_STDIO:
 #ifdef CONFIG_HOST_UART
-                        forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
+                    forward_msg_to_host(USB_RSP_STDIO, wispRxPkt.data, wispRxPkt.length);
 #endif
-                        break;
+                    break;
 #ifdef CONFIG_COLLECT_APP_OUTPUT
-                    case WISP_RSP_APP_OUTPUT:
-                        payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
-                        break;
+                case WISP_RSP_APP_OUTPUT:
+                    payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
+                    break;
 #endif
-                }
-            	wispRxPkt.processed = 1;
             }
-
-            if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
-            	main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
-            }
+            wispRxPkt.processed = 1;
         }
+
+        if(UART_RxBufEmpty(UART_INTERFACE_WISP)) {
+            main_loop_flags &= ~FLAG_UART_WISP_RX; // clear WISP Rx flag
+        }
+    }
 #endif // defined(CONFIG_TARGET_UART) && defined(CONFIG_TARGET_UART_PUSH)
 
 /*
-        if(main_loop_flags & FLAG_UART_WISP_TX) {
-            // WISP UART Tx byte
-            main_loop_flags &= ~FLAG_UART_WISP_TX;
-        }
+    if(main_loop_flags & FLAG_UART_WISP_TX) {
+        // WISP UART Tx byte
+        main_loop_flags &= ~FLAG_UART_WISP_TX;
+    }
 */
 
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
-        if(main_loop_flags & FLAG_RF_DATA) {
-        	main_loop_flags &= ~FLAG_RF_DATA;
-            RFID_send_rf_events_to_host();
-        }
+    if(main_loop_flags & FLAG_RF_DATA) {
+        main_loop_flags &= ~FLAG_RF_DATA;
+        RFID_send_rf_events_to_host();
+    }
 #endif
 
 #ifdef CONFIG_MAIN_LOOP_LED
-        // This LED toggle is unnecessary, and probably a huge waste of processing time.
-        // The LED blinking will slow down when the monitor is performing more tasks.
-        if (state == STATE_IDLE) {
-            if (main_loop_count++ == ~0) {
-                GPIO(PORT_LED_MAIN_LOOP, OUT) ^= BIT(PIN_LED_MAIN_LOOP);
-            }
+    // This LED toggle is unnecessary, and probably a huge waste of processing time.
+    // The LED blinking will slow down when the monitor is performing more tasks.
+    if (state == STATE_IDLE) {
+        if (main_loop_count++ == ~0) {
+            GPIO(PORT_LED_MAIN_LOOP, OUT) ^= BIT(PIN_LED_MAIN_LOOP);
         }
-#endif
-
-#ifdef CONFIG_SLEEP_IN_MAIN_LOOP
-        LOG("sleep\r\n");
-        // sleep, wait for event flag to be set, then handle it in loop
-        __bis_SR_register(CONFIG_MAIN_LOOP_SLEEP_STATE + GIE);
-        LOG("woke up\r\n");
-#endif // CONFIG_SLEEP_IN_MAIN_LOOP
     }
+#endif
 }
 
 #if PORT_RF == 1 || PORT_SIG == 1 || PORT_CODEPOINT == 1

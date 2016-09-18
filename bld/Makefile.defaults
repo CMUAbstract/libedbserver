@@ -6,13 +6,6 @@
 #    Currently watchdog is never kicked, so reset is unconditional.
 CONFIG_WATCHDOG ?= 0
 
-# Go to sleep at the end of the main loop (interrupt-driven operation)
-CONFIG_SLEEP_IN_MAIN_LOOP ?= 0
-
-# Task-driven main-loop
-#    On each boot randomly select a task to perform.
-CONFIG_TASK_DRIVEN ?= 0
-
 # Enable a time-keeping timer (systick)
 CONFIG_SYSTICK ?= 1
 
@@ -41,23 +34,6 @@ CONFIG_ENABLE_PASSIVE_BREAKPOINTS ?= 0
 
 # Enable feature to deliver watchpoint events to host via 'stream' cmd
 CONFIG_ENABLE_WATCHPOINT_STREAM ?= 0
-
-# Collect and send to host/ground a packet with energy profile and/or app output
-CONFIG_ENABLE_PAYLOAD ?= 0
-
-# Turn on periodic payload sending automatically
-CONFIG_PERIODIC_PAYLOAD ?= 0
-
-# Collect an energy profile using watchpoints
-# 	An energy profile is a distribution of energy at each watchpoint
-# 	event, where the distribution is given by the count in each
-# 	quantized energy level.
-CONFIG_COLLECT_ENERGY_PROFILE ?= 0
-
-# Collect a data packet from the app on the target
-CONFIG_COLLECT_APP_OUTPUT ?= 0
-
-CONFIG_RADIO_TRANSMIT_PAYLOAD ?= 0
 
 # Support entering and exiting active debug mode
 # 		   The reason we have a switch are the limited resources
@@ -182,13 +158,6 @@ CONFIG_EVENT_PINS ?= 0
 
 # Encode RFID decoder state onto pins for debugging purposes
 CONFIG_RFID_DECODER_STATE_PINS ?= 0
-
-# Clock testing mode: enter a blinker loop after configuring clocks
-CONFIG_CLOCK_TEST_MODE ?= 0
-
-# Configure MCU to output ACLK to a pin
-# 		On edb board must "unplug" op amp buffers by disconnecting JP1
-CONFIG_ROUTE_ACLK_TO_PIN ?= 0
 
 # TODO: convert into a bitmask with all LEDs
 

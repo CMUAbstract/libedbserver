@@ -1,88 +1,11 @@
-EXEC = edb
+LIB = libedbserver
 
 SRC_ROOT = ../../src
 export LIB_ROOT = $(abspath ../../ext)
 
 export LIBEDB_ROOT = $(LIB_ROOT)/libedb
 
-# Expects BOARD env var to be set to one supported by 'maker' (see Maker.board)
-
-# Configure the build here (see Makefile.config, by default all flags are unset)
-CONFIG_ENABLE_WATCHPOINTS = 1
-CONFIG_TARGET_UART = 1
-CONFIG_ENABLE_DEBUG_MODE = 1
-CONFIG_PULL_DOWN_ON_COMM_LINES = 1
-
-ifeq ($(BOARD),edb)
-CONFIG_HOST_UART = 1
-CONFIG_SYSTICK = 1
-CONFIG_ENABLE_WATCHPOINT_STREAM = 1
-CONFIG_ENABLE_VOLTAGE_STREAM = 1
-CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE = 1
-CONFIG_POWER_TARGET_IN_DEBUG_MODE = 1
-CONFIG_FETCH_INTERRUPT_CONTEXT = 1
-CONFIG_BOOT_LED = 1
-CONFIG_MAIN_LOOP_LED = 1
-CONFIG_DEBUG_MODE_LED = 1
-CONFIG_ERROR_LED = 1
-CONFIG_CHARGE_MANIP = 1
-CONFIG_TARGET_UART_PUSH = 1
-
-export LIBMSP_XT1_FREQ = 32678ull
-export LIBMSP_XT1_CAP = 12
-export LIBMSP_XT2_FREQ = 12000000ull
-export LIBMSP_CLOCK_SOURCE = DCO
-export LIBMSP_DCO_REF_SOURCE = XT2
-export LIBMSP_DCO_REF_CLOCK_DIV = 4
-export LIBMSP_DCO_FREQ = 24000000ull
-
-export LIBMSP_STARTUP_VOLTAGE_WORKAROUNDS = disable-pmm
-
-export LIBMSPSOFTUART_PORT_TX = 1.1
-export LIBMSPSOFTUART_BAUDRATE = 115200
-export LIBMSPSOFTUART_CLOCK_FREQ = $(LIBMSP_DCO_FREQ)
-export LIBMSPSOFTUART_TIMER = A.0.0
-
-else ifeq ($(words $(filter sprite-edb sprite-edb-socket-rgz,$(BOARD))),1)
-CONFIG_ENABLE_PAYLOAD = 1
-CONFIG_COLLECT_ENERGY_PROFILE = 1
-CONFIG_COLLECT_APP_OUTPUT = 1
-CONFIG_AUTO_ENABLED_WATCHPOINTS = 4
-CONFIG_RADIO_TRANSMIT_PAYLOAD = 1
-CONFIG_TARGET_POWER_SWITCH = 0
-CONFIG_SLEEP_IN_MAIN_LOOP = 1
-CONFIG_WATCHDOG = 1
-CONFIG_TASK_DRIVEN = 1
-CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS = 1
-
-export LIBMSP_CLOCK_SOURCE = DCO
-export LIBMSP_DCO_REF_SOURCE = REFO
-export LIBMSP_DCO_REF_CLOCK_DIV = 1
-export LIBMSP_DCO_FREQ = 8192000ull
-
-export LIBMSPSOFTUART_PORT_TX = 3.1
-export LIBMSPSOFTUART_BAUDRATE = 115200
-export LIBMSPSOFTUART_CLOCK_FREQ = 8192000
-export LIBMSPSOFTUART_TIMER = A.0.0
-
-# TEMPORARY: for debugging
-CONFIG_STATE_PINS = 0
-CONFIG_EVENT_PINS = 1
-
-export LIBSPRITE_CLOCK_FREQ = 8000000
-
-# Select a pair of indexes of PRN arrays for Gold code communication
-# export LIBSPRITE_PRN_0 = 266
-# export LIBSPRITE_PRN_1 = 267
-
-# Second board
-#export LIBSPRITE_PRN_0 = 268
-#export LIBSPRITE_PRN_1 = 269
-
-endif # BOARD
-
-CONFIG_DEV_CONSOLE = 1
-
+include ../Makefile.config
 
 OBJECTS = \
 	catchall.o \
@@ -128,12 +51,6 @@ endif
 ifeq ($(CONFIG_CHARGE_MANIP),1)
 	OBJECTS += charge.o
 endif
-
-ifeq ($(CONFIG_RADIO_TRANSMIT_PAYLOAD),1)
-override DEPS += libsprite
-endif
-
-include ../Makefile.config
 
 # To build the dependee that uses the headers, we need the config macros here
 include $(LIB_ROOT)/libmsp/bld/Makefile.config
