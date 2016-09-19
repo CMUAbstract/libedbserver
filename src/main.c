@@ -1086,7 +1086,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
 }
 #endif // CONFIG_HOST_UART
 
-int edb_server_init()
+void edb_server_init()
 {
     pin_setup();
 
@@ -1112,6 +1112,13 @@ int edb_server_init()
 #ifdef CONFIG_RESET_STATE_ON_BOOT
     arm_comparator(CMP_OP_RESET_STATE_ON_BOOT, MCU_ON_THRES,
                    CMP_REF_VREF_2_5, CMP_EDGE_RISING, COMP_CHAN_VCAP);
+#endif
+
+#ifdef CONFIG_SEED_RNG_FROM_VCAP
+    // Seed the random number generator
+    uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
+    srand(seed);
+    LOG("seed: %u\r\n", seed);
 #endif
 
     reset_state();
@@ -1146,7 +1153,7 @@ int edb_server_init()
 #endif // CONFIG_TARGET_POWER_SWITCH
 }
 
-int edb_service(void)
+void edb_service(void)
 {
     LOG("EDB service\r\n");
 
@@ -1267,16 +1274,6 @@ int edb_service(void)
     if(main_loop_flags & FLAG_RF_DATA) {
         main_loop_flags &= ~FLAG_RF_DATA;
         RFID_send_rf_events_to_host();
-    }
-#endif
-
-#ifdef CONFIG_MAIN_LOOP_LED
-    // This LED toggle is unnecessary, and probably a huge waste of processing time.
-    // The LED blinking will slow down when the monitor is performing more tasks.
-    if (state == STATE_IDLE) {
-        if (main_loop_count++ == ~0) {
-            GPIO(PORT_LED_MAIN_LOOP, OUT) ^= BIT(PIN_LED_MAIN_LOOP);
-        }
     }
 #endif
 }

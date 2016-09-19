@@ -5,6 +5,6 @@
 
 #include <stdint.h>
 
-void delay_cycles(uint16_t delay_cycles);
+void delay_kcycles(uint16_t delay_kcycles);
 
 #endif // DELAY_H
