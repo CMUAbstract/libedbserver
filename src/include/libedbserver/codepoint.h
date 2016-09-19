@@ -26,4 +26,7 @@ void send_watchpoint_events();
 
 void handle_codepoint(unsigned index);
 
+typedef void (watchpoint_callback_t)(unsigned index, uint16_t vcap);
+void edb_set_watchpoint_callback(watchpoint_callback_t *cb);
+
 #endif // CODEPOINT_H

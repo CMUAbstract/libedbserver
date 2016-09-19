@@ -1,22 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/** @brief Lower boundary in the histogram of watchpoint energies in the profile
- *  @details V to raw ADC value conversion:
- *      Vmin/Vref * 2^12, where Vref = 2.5 (see adc.c), and 12 is for 12-bit ADC
- */
-//#define CONFIG_ENERGY_PROFILE_MIN_VOLTAGE 2949 // Vmin = 1.8v
-#define CONFIG_ENERGY_PROFILE_MIN_VOLTAGE 3276 // Vmin = 2.0v
-
-
-/** @brief Energy profile buckets that are smaller than one byte
- *  @details NOTE: does not work!
- */
-// #define CONFIG_PROFILE_SUB_BYTE_BUCKET_SIZES
-
-
-#define CONFIG_MAIN_LOOP_SLEEP_STATE LPM0_bits
-
 /** @brief Watchdog configuration */
 #define CONFIG_WDT_BITS (WDTSSEL__ACLK | WDTIS__8192K) // 4 minutes
 
@@ -82,8 +66,5 @@
 // Intervals for schedulable actions: time source fixed at ACLK
 #define CONFIG_ENTER_DEBUG_MODE_TIMEOUT   0xff
 #define CONFIG_EXIT_DEBUG_MODE_TIMEOUT    0xff
-#define CONFIG_TARGET_COMM_TIMEOUT        0xff
-
-#define CONFIG_WATCHPOINT_COLLECTION_TIME 0x1fff
 
 #endif // CONFIG_H

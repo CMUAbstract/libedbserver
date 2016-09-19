@@ -16,7 +16,6 @@
 #include "systick.h"
 #include "main_loop.h"
 #include "tether.h"
-#include "payload.h"
 #include "params.h"
 
 #include "codepoint.h"
@@ -36,6 +35,8 @@ static bool boot_breakpoint = false;
 
 uint16_t watchpoints = 0;
 static uint16_t watchpoints_vcap_snapshot = 0;
+
+static watchpoint_callback_t *watchpoint_callback = NULL;
 
 // See libedb/edb.h for description
 #define NUM_CODEPOINT_VALUES     NUM_CODEPOINT_PINS
@@ -395,6 +396,13 @@ void watchpoints_stop_stream()
 }
 #endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
+#ifdef CONFIG_ENABLE_WATCHPOINT_CALLBACK
+void edb_set_watchpoint_callback(watchpoint_callback_t *cb)
+{
+    watchpoint_callback = cb;
+}
+#endif // CONFIG_ENABLE_WATCHPOINT_CALLBACK
+
 void handle_codepoint(unsigned index)
 {
 #if defined(CONFIG_ENABLE_WATCHPOINTS)
@@ -402,11 +410,12 @@ void handle_codepoint(unsigned index)
         // NOTE: can't encode a zero-based index, because the pulse must
         // trigger the interrupt
         if (watchpoints & (1 << index)) {
-#ifdef CONFIG_COLLECT_ENERGY_PROFILE
-            // TODO: set and use the flag in watchpoints_vcap_snapshot in sprite-mode too
-            uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-            payload_record_profile_event(index, vcap);
-#endif
+#ifdef CONFIG_ENABLE_WATCHPOINT_CALLBACK
+            if (watchpoint_callback) {
+                uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+                watchpoint_callback(index, vcap);
+            }
+#endif // CONFIG_ENABLE_WATCHPOINT_CALLBACK
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
             append_watchpoint_event(index);
 #endif

@@ -29,7 +29,6 @@
 #include "codepoint.h"
 #include "tether.h"
 #include "interrupt.h"
-#include "payload.h"
 #include "sched.h"
 #include "delay.h"
 
@@ -57,17 +56,6 @@
 
 #define STREAM_REPLY_MAX_LEN (1 /* num chans */ + ADC_MAX_CHANNELS * sizeof(uint16_t))
 
-typedef enum {
-    TASK_BEACON = 0,
-#ifdef CONFIG_COLLECT_ENERGY_PROFILE
-    TASK_ENERGY_PROFILE,
-#endif // CONFIG_COLLECT_ENERGY_PROFILE
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-    TASK_APP_OUTPUT,
-#endif // CONFIG_COLLECT_APP_OUTPUT
-    NUM_TASKS,
-} task_t;
-
 volatile uint16_t main_loop_flags = 0; // bit mask containing bit flags to check in the main loop
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
@@ -88,13 +76,6 @@ static state_t saved_sig_serial_echo_state;
 #ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
 static sig_cmd_t target_sig_cmd;
 #endif
-
-#ifdef CONFIG_ENABLE_DEBUG_MODE
-#ifdef CONFIG_COLLECT_APP_OUTPUT // TODO: a timeout should be applied to all target comms
-/* Whether timed out while communicating with target over UART */
-static bool target_comm_timeout;
-#endif // CONFIG_COLLECT_APP_OUTPUT
-#endif // CONFIG_ENABLE_DEBUG_MODE
 
 static interrupt_context_t interrupt_context;
 
@@ -262,17 +243,7 @@ static sched_cmd_t on_exit_debug_mode_timeout()
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
 #ifdef CONFIG_ENABLE_DEBUG_MODE
-#ifdef CONFIG_COLLECT_APP_OUTPUT // TODO: a timeout should be applied to all target comms
-static sched_cmd_t on_target_comm_timeout()
-{
-    target_comm_timeout = true;
-    return SCHED_CMD_WAKEUP;
-}
-#endif // CONFIG_COLLECT_APP_OUTPUT
-#endif // CONFIG_ENABLE_DEBUG_MODE
-
-#ifdef CONFIG_ENABLE_DEBUG_MODE
-static void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
+void enter_debug_mode(interrupt_type_t int_type, unsigned flags)
 {
     interrupt_context.type = int_type;
     interrupt_context.id = 0;
@@ -572,7 +543,7 @@ static void handle_target_signal()
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
  */
-static inline void pin_setup()
+void edb_pin_setup()
 {
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
@@ -672,57 +643,6 @@ void break_at_vcap_level_cmp(uint16_t level, comparator_ref_t ref)
     // expect comparator interrupt
 }
 #endif // CONFIG_ENABLE_DEBUG_MODE
-
-#ifdef CONFIG_COLLECT_APP_OUTPUT
-void get_app_output()
-{
-    LOG("interrupting target\r\n");
-    enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_WITH_UART);
-
-    // TODO: sleep
-    while (state != STATE_DEBUG && state != STATE_IDLE);
-
-    if (state == STATE_IDLE) {
-        LOG("timed out while interrupting target\r\n");
-        return;
-    }
-
-    LOG("requesting data from target\r\n");
-    target_comm_send_get_app_output();
-
-    LOG("waiting for reply\r\n");
-    target_comm_timeout = false;
-    schedule_action(on_target_comm_timeout, CONFIG_TARGET_COMM_TIMEOUT);
-
-    // TODO: sleep
-    while(!target_comm_timeout &&
-          ((UART_buildRxPkt(UART_INTERFACE_WISP, &wispRxPkt) != 0) ||
-           (wispRxPkt.descriptor != WISP_RSP_APP_OUTPUT)));
-
-    if (target_comm_timeout) {
-        LOG("timed out while waiting for target reply\r\n");
-        return;
-    } else {
-        abort_action(on_target_comm_timeout);
-    }
-
-    LOG("received reply: msg %02x len %u data %02x...\r\n",
-        wispRxPkt.descriptor, wispRxPkt.length, wispRxPkt.data[0]);
-
-    payload_record_app_output(wispRxPkt.data, wispRxPkt.length);
-    wispRxPkt.processed = 1;
-
-    LOG("exiting debug mode\r\n");
-    exit_debug_mode();
-}
-#endif // CONFIG_COLLECT_APP_OUTPUT
-
-sched_cmd_t on_watchpoint_collection_complete()
-{
-    disable_watchpoints();
-    main_loop_flags |= FLAG_ENERGY_PROFILE_READY;
-    return SCHED_CMD_WAKEUP;
-}
 
 #ifdef CONFIG_HOST_UART
 /**
@@ -1088,8 +1008,6 @@ static void executeUSBCmd(uartPkt_t *pkt)
 
 void edb_server_init()
 {
-    pin_setup();
-
     LOG("EDB init\r\n");
 
 #ifdef CONFIG_PWM_CHARGING
@@ -1114,13 +1032,6 @@ void edb_server_init()
                    CMP_REF_VREF_2_5, CMP_EDGE_RISING, COMP_CHAN_VCAP);
 #endif
 
-#ifdef CONFIG_SEED_RNG_FROM_VCAP
-    // Seed the random number generator
-    uint16_t seed = ADC_read(ADC_CHAN_INDEX_VCAP);
-    srand(seed);
-    LOG("seed: %u\r\n", seed);
-#endif
-
     reset_state();
 
 #ifdef CONFIG_SYSTICK
@@ -1128,16 +1039,14 @@ void edb_server_init()
 #endif
 
 #ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
-    unsigned i;
-    for (i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
+    for (unsigned i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
         toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
     LOG("init done\r\n");
 
 #ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
-    unsigned i;
-    for (i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
+    for (unsigned i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
         toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
 #endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
 
