@@ -1,9 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-/** @brief Watchdog configuration */
-#define CONFIG_WDT_BITS (WDTSSEL__ACLK | WDTIS__8192K) // 4 minutes
-
 // TODO: Each config should be on a separate branch (and branches should
 // differ only by the value of the config item).
 #ifdef BOARD_EDB
