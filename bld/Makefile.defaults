@@ -175,6 +175,3 @@ CONFIG_ERROR_LED ?= 0
 
 # Enable debug output to the console configured from the top-level app makefile
 CONFIG_DEV_CONSOLE ?= 0
-
-# Read VCAP from ADC and use the value to seed random number generator via srand
-CONFIG_SEED_RNG_FROM_VCAP ?= 0

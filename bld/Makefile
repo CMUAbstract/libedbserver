@@ -15,7 +15,6 @@ OBJECTS = \
 	codepoint.o \
 	tether.o \
 	profile.o \
-	payload.o \
 	sched.o \
 	delay.o \
 
