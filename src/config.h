@@ -20,10 +20,6 @@
 /** @brief Watchdog configuration */
 #define CONFIG_WDT_BITS (WDTSSEL__ACLK | WDTIS__8192K) // 4 minutes
 
-// TODO: Each config should be on a separate branch (and branches should
-// differ only by the value of the config item).
-#ifdef BOARD_EDB
-
 #define CONFIG_USB_UART_BAUDRATE 2000000ull
 // #define CONFIG_USB_UART_BAUDRATE 1500000ull
 // #define CONFIG_USB_UART_BAUDRATE 1000000ull
@@ -40,14 +36,6 @@
 
 // #define CONFIG_USB_UART_UCOS16
 // #define CONFIG_TARGET_UART_UCOS16
-
-
-#elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ) || defined(BOARD_SPRITE_EDB)
-
-// no host baud rate
-#define CONFIG_TARGET_UART_BAUDRATE 115200ull
-
-#endif // BOARD_*
 
 // #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__ACLK
 #define CONFIG_TIMELOG_TIMER_SOURCE TASSEL__SMCLK

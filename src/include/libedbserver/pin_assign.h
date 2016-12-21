@@ -6,20 +6,32 @@
  * @{
  */
 
-#ifdef BOARD_EDB
+#if defined(BOARD_EDB) || defined(BOARD_EDB_1_1)
 
 #define PORT_LED                                J //!< GPIO port for LEDs
+#ifdef BOARD_EDB_1_1
+#define PIN_LED_ORANGE                          0
+#define PIN_LED_YELLOW                          1
+#endif // BOARD_EDB_1_1
 #define PIN_LED_GREEN                           2
 #define PIN_LED_RED                             3
 
-#define PORT_LED_MAIN_LOOP                      J
-#define PIN_LED_MAIN_LOOP                       2
+#define PORT_LED_MAIN_LOOP                      PORT_LED
+#define PIN_LED_MAIN_LOOP                       PIN_LED_GREEN
 
-#define PORT_LED_DEBUG_MODE                     J
-#define PIN_LED_DEBUG_MODE                      3
+#define PORT_LED_DEBUG_MODE                     PORT_LED
+#ifdef BOARD_EDB_1_1
+#define PIN_LED_DEBUG_MODE                      PIN_LED_ORANGE
+#else // !BOARD_EDB_1_1
+#define PIN_LED_DEBUG_MODE                      PIN_LED_RED
+#endif // !BOARD_EDB_1_1
 
-#define PORT_LED_BOOT							J
-#define PIN_LED_BOOT							3
+#define PORT_LED_BOOT							PORT_LED
+#ifdef BOARD_EDB_1_1
+#define PIN_LED_BOOT							PIN_LED_YELLOW
+#else // !BOARD_EDB_1_1
+#define PIN_LED_BOOT							PIN_LED_RED
+#endif // !BOARD_EDB_1_1
 
 #define PORT_UART_USB                           3  //!< GPIO port with UART connected to FTDI FT232R USB
 #define PIN_UART_USB_TX                         3 //!< TX pin for UART to host USB
@@ -36,6 +48,8 @@
 #define PIN_VRECT                               4 //!< P6.4: ADC input Vrect
 #define PIN_VINJ                           	    5 //!< P6.5: ADC input PWM LPF
 
+#ifdef BOARD_EDB_1_1
+
 #define PORT_CHARGE                             5 //!< GPIO port for target capacitor charge pin
 #define PIN_CHARGE                              7 //!< target capacitor charge pin
 
@@ -48,12 +62,65 @@
 #define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
 #define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable
 
+#else // !BOARD_EDB_1_1
+
+#define PORT_CHARGE                             4 //!< GPIO port for target capacitor charge pin
+#define PIN_CHARGE                              6 //!< target capacitor charge pin
+
+#define PORT_DISCHARGE                          4 //!< GPIO port for target capacitor discharge pin
+#define PIN_DISCHARGE                           7 //!< target capacitor discharge pin
+
+#define PORT_CONT_POWER                         6 //!< GPIO port with PWM bypass power supply line
+#define PIN_CONT_POWER                          5 //!< pin for supplying continuous power
+
+#define PORT_LS_AUX_ENABLE                      5 //!< GPIO port for level shifter enable signal
+#define PIN_LS_AUX_ENABLE                       0 //!< level shifter enable pin - output low to disable
+
+#define PORT_LS_I2C_ENABLE                      5 //!< GPIO port for level shifter enable signal
+#define PIN_LS_I2C_ENABLE                       1 //!< level shifter enable pin - output low to disable
+
+#define PORT_LS_ENABLE                          PORT_LS_AUX_ENABLE
+#define PIN_LS_ENABLE                           PIN_LS_AUX_ENABLE
+
+#endif // !BOARD_EDB_1_1
+
 #define PORT_SIG                                1 //!< GPIO port for signal line to target
 #define PIN_SIG                                 3 //!< target signal pin
 
 #define PORT_STATE                              4 //!< GPIO port for debugger state pins
 #define PIN_STATE_0                             1 //!< debugger state lsb bit
 #define PIN_STATE_1                             2 //!< debugger state msb bit
+
+#ifdef BOARD_EDB_1_1
+
+// NOTE: on EDBv1.1 there are general-purpose debug pads for 3.2 and 1.7
+
+#define PORT_EVENT                              3 //!< GPIO port for debugger state pins
+#define PIN_EVENT_0                             2 //!< general-purpose debug pin
+#define PIN_EVENT_1                             1 //!< general-purpose debug pin
+
+#define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
+#define PIN_TRIGGER                             7 //!< scope trigger pin
+
+// Code point pins must be on same port and consecutive
+// NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
+#define PORT_CODEPOINT                          1
+#define PIN_CODEPOINT_0                         4 // lsb
+#define PIN_CODEPOINT_1                         5 // msb
+#if 0 // TODO: disable for now, because need to make sure pull-down is enabled,
+      // since when using EDB with WISP this line floats
+#define PIN_CODEPOINT_2                         6 // msb
+#define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
+                                                 BIT(PIN_CODEPOINT_1) | \
+                                                 BIT(PIN_CODEPOINT_2) |)
+#define NUM_CODEPOINT_PINS                      3
+#else
+#define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
+                                                 BIT(PIN_CODEPOINT_1))
+#define NUM_CODEPOINT_PINS                      2
+#endif
+
+#else // !BOARD_EDB_1_1
 
 #define PORT_EVENT                              1 //!< GPIO port for debugger state pins
 #define PIN_EVENT_0                             5 //!< debugger state lsb bit
@@ -69,6 +136,8 @@
 #define PIN_CODEPOINT_1                         5 // msb
 #define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | BIT(PIN_CODEPOINT_1))
 #define NUM_CODEPOINT_PINS                      2
+
+#endif // !BOARD_EDB_1_1
 
 #define PORT_SERIAL_DECODE                      4 //!< GPIO port for serial decoder state
 #define PIN_SERIAL_DECODE_PULSE                 1 //!< input pulse trigged decoder interrupt
@@ -94,6 +163,7 @@
 #define PRXIES P1IES
 #define PRXIFG P1IFG
 
+// TODO: are these used?
 #define PORT_AUX                                1 //!< GPIO port for AUX lines to target device
 #define PIN_AUX_1                               3 //!< AUX1 line
 #define PIN_AUX_2                               3 //!< AUX2 line
