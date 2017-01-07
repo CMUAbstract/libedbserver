@@ -6,11 +6,6 @@
 /* @brief Initialize hardware and state for EDB functionality */
 void edb_server_init();
 
-/* @brief Configure pins used for EDB functionality
- * @details TODO: roll into edb_server_init?
- */
-void edb_pin_setup();
-
 /* @brief The app must call this periodically from the main loop */
 void edb_service();
 
