@@ -57,3 +57,5 @@ override CFLAGS += \
 	-I$(SRC_ROOT) \
 	-I$(SRC_ROOT)/rfid \
 	-I$(SRC_ROOT)/include/$(LIB) \
+
+include $(MAKER_ROOT)/Makefile.console
