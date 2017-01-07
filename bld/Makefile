@@ -17,16 +17,12 @@ OBJECTS = \
 	sched.o \
 	delay.o \
 
-ifeq ($(filter 1,$(CONFIG_HOST_UART) $(CONFIG_TARGET_UART)),1)
-	OBJECTS += uart.o
-endif
-
 ifeq ($(CONFIG_HOST_UART),1)
-	OBJECTS += host_comm_impl.o
+	OBJECTS += uart.o host_comm_impl.o
 endif
 
 ifeq ($(CONFIG_TARGET_UART),1)
-	OBJECTS += target_comm_impl.o
+	OBJECTS += uart.o target_comm_impl.o
 endif
 
 ifeq ($(CONFIG_ENABLE_RF_PROTOCOL_MONITORING),1)
