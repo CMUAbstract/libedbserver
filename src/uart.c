@@ -333,6 +333,8 @@ void UART_send_msg_to_target(unsigned descriptor, unsigned payload_len, uint8_t 
     unsigned uartBufLen, copyLen;
     uint8_t *byte_ptr;
 
+    LOG("send tgt: desc 0x%x len %u\r\n", descriptor, payload_len);
+
     len = write_header(buf, UART_IDENTIFIER_WISP, descriptor, payload_len);
 
 	// loop until we have copied all of buf into the UART TX buffer
@@ -347,6 +349,8 @@ void UART_send_msg_to_target(unsigned descriptor, unsigned payload_len, uint8_t 
 
     // enable the correct interrupt to start sending data
     UART(UART_TARGET, IE) |= UCTXIE;
+
+    LOG("sent tgt: desc 0x%x len %u\r\n", descriptor, payload_len);
 }
 
 #ifdef UART_HOST

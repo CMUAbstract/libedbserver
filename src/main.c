@@ -658,6 +658,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
     trigger_scope();
 #endif
 
+    LOG("cmd: 0x%x\r\n", pkt->descriptor);
+
     switch(pkt->descriptor)
     {
     case USB_CMD_SENSE:
@@ -1066,8 +1068,6 @@ void edb_server_init()
 
 void edb_service(void)
 {
-    LOG("EDB service\r\n");
-
 #ifdef CONFIG_FETCH_INTERRUPT_CONTEXT 
     if (main_loop_flags & FLAG_INTERRUPTED) {
         main_loop_flags &= ~FLAG_INTERRUPTED;
