@@ -1,6 +1,8 @@
 #ifndef UART_H
 #define UART_H
 
+#include <stdint.h>
+
 #include <libedb/target_comm.h>
 #include <libmsp/clock.h>
 

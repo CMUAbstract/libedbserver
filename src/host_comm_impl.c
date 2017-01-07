@@ -15,8 +15,6 @@
 
 #include "host_comm_impl.h"
 
-#define HOST_MSG_BUF_SIZE       64 // buffer for UART messages (to host) for main loop
-
 /**
  * @brief Message payload pointer in a buffer for messages to host
  * @details This buffer is used exclusively by main loop, so it is
@@ -92,21 +90,6 @@ void send_echo(uint8_t value)
     UART_begin_transmission();
     host_msg_payload[payload_len++] = value;
     send_msg_to_host(USB_RSP_ECHO, payload_len);
-}
-
-void send_payload(payload_t *payload)
-{
-    // The '*payload*' variables here refer to the payload of the message that
-    // is being sent to host.  The argument 'payload' is just happens to be
-    // also called payload.
-
-    unsigned payload_len = 0;
-    UART_begin_transmission();
-
-    memcpy(host_msg_payload, payload, sizeof(payload_t));
-    payload_len += sizeof(payload_t);
-
-    send_msg_to_host(USB_RSP_ENERGY_PROFILE, payload_len);
 }
 
 void forward_msg_to_host(unsigned descriptor, uint8_t *buf, unsigned len)

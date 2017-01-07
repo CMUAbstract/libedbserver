@@ -14,11 +14,10 @@ OBJECTS = \
 	comparator.o \
 	codepoint.o \
 	tether.o \
-	profile.o \
 	sched.o \
 	delay.o \
 
-ifeq ($(or $(CONFIG_HOST_UART),$(CONFIG_TARGET_UART)),1)
+ifeq ($(filter 1,$(CONFIG_HOST_UART) $(CONFIG_TARGET_UART)),1)
 	OBJECTS += uart.o
 endif
 

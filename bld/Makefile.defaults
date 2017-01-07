@@ -7,7 +7,7 @@
 CONFIG_WATCHDOG ?= 0
 
 # Enable a time-keeping timer (systick)
-CONFIG_SYSTICK ?= 1
+CONFIG_SYSTICK ?= 0
 
 # Maintain 32-bit system time (systick)
 # 		Handle overflow in system timer and increment a 32-bit timestamp.
@@ -175,3 +175,6 @@ CONFIG_ERROR_LED ?= 0
 
 # Enable debug output to the console configured from the top-level app makefile
 CONFIG_DEV_CONSOLE ?= 0
+
+# Enable setting a callback function that will be called on each watchpoint
+CONFIG_ENABLE_WATCHPOINT_CALLBACK ?= 0
