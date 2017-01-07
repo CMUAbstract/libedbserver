@@ -46,23 +46,11 @@
 #define PIN_VBOOST                              2 //!< P6.2: ADC input Vboost
 #define PIN_VREG                                3 //!< P6.3: ADC input Vreg
 #define PIN_VRECT                               4 //!< P6.4: ADC input Vrect
+#ifndef BOARD_EDB_1_1
 #define PIN_VINJ                           	    5 //!< P6.5: ADC input PWM LPF
+#endif // !BOARD_EDB_1_1
 
 #ifdef BOARD_EDB_1_1
-
-#define PORT_CHARGE                             5 //!< GPIO port for target capacitor charge pin
-#define PIN_CHARGE                              7 //!< target capacitor charge pin
-
-#define PORT_DISCHARGE                          J //!< GPIO port for target capacitor discharge pin
-#define PIN_DISCHARGE                           0 //!< target capacitor discharge pin
-
-#define PORT_CONT_POWER                         4 //!< GPIO port with PWM bypass power supply line
-#define PIN_CONT_POWER                          6 //!< pin for supplying continuous power
-
-#define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
-#define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable
-
-#else // !BOARD_EDB_1_1
 
 #define PORT_CHARGE                             4 //!< GPIO port for target capacitor charge pin
 #define PIN_CHARGE                              6 //!< target capacitor charge pin
@@ -82,10 +70,21 @@
 #define PORT_LS_ENABLE                          PORT_LS_AUX_ENABLE
 #define PIN_LS_ENABLE                           PIN_LS_AUX_ENABLE
 
-#endif // !BOARD_EDB_1_1
+#else // !BOARD_EDB_1_1
 
-#define PORT_SIG                                1 //!< GPIO port for signal line to target
-#define PIN_SIG                                 3 //!< target signal pin
+#define PORT_CHARGE                             5 //!< GPIO port for target capacitor charge pin
+#define PIN_CHARGE                              7 //!< target capacitor charge pin
+
+#define PORT_DISCHARGE                          J //!< GPIO port for target capacitor discharge pin
+#define PIN_DISCHARGE                           0 //!< target capacitor discharge pin
+
+#define PORT_CONT_POWER                         4 //!< GPIO port with PWM bypass power supply line
+#define PIN_CONT_POWER                          6 //!< pin for supplying continuous power
+
+#define PORT_LS_ENABLE                          J //!< GPIO port for level shifter enable signal
+#define PIN_LS_ENABLE                           1 //!< level shifter enable pin - output low to disable
+
+#endif // !BOARD_EDB_1_1
 
 #define PORT_STATE                              4 //!< GPIO port for debugger state pins
 #define PIN_STATE_0                             1 //!< debugger state lsb bit
@@ -102,13 +101,20 @@
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             7 //!< scope trigger pin
 
+#define PORT_SIG                                1 //!< GPIO port for signal line to target
+#define PIN_SIG                                 5 //!< target signal pin
+
 // Code point pins must be on same port and consecutive
 // NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
 #define PORT_CODEPOINT                          1
-#define PIN_CODEPOINT_0                         4 // lsb
-#define PIN_CODEPOINT_1                         5 // msb
+#define PIN_CODEPOINT_0                         3 // lsb
+#define PIN_CODEPOINT_1                         4 // msb
 #if 0 // TODO: disable for now, because need to make sure pull-down is enabled,
-      // since when using EDB with WISP this line floats
+      // since when using EDB with WISP this line floats. Also, with WISP, we
+      // use AUX 3 as the signal line, so AUX4 is not consecutive. In summary,
+      // with WISP, we have to either use only 2 watchpoints or not use AUX3
+      // as the signal line (would also need to hack on libedb side to make use
+      // of non-consecutive pins).
 #define PIN_CODEPOINT_2                         6 // msb
 #define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
                                                  BIT(PIN_CODEPOINT_1) | \
@@ -128,6 +134,9 @@
 
 #define PORT_TRIGGER                            1 //!< GPIO port for scope trigger line
 #define PIN_TRIGGER                             1 //!< scope trigger pin
+
+#define PORT_SIG                                1 //!< GPIO port for signal line to target
+#define PIN_SIG                                 3 //!< target signal pin
 
 // Code point pins must be on same port and consecutive
 // NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
