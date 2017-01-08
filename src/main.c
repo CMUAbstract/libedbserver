@@ -1068,6 +1068,19 @@ void edb_server_init()
 
 void edb_service(void)
 {
+    // NOTE: the order somewhat matters, because the host waits for responses,
+    // e.g. on continuing from breakpoint the host needs to get the restored
+    // voltage packet before it can get the next interrupted packet (when
+    // breakpoint is hit again, since execution has already resumed).
+
+#ifdef CONFIG_HOST_UART
+    if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
+        main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
+
+        send_voltage(interrupt_context.restored_vcap);
+    }
+#endif
+
 #ifdef CONFIG_FETCH_INTERRUPT_CONTEXT 
     if (main_loop_flags & FLAG_INTERRUPTED) {
         main_loop_flags &= ~FLAG_INTERRUPTED;
@@ -1093,14 +1106,6 @@ void edb_service(void)
         main_loop_flags &= ~FLAG_WATCHPOINT_READY;
     }
 #endif // CONFIG_WATCHPOINT_STREAM
-
-#ifdef CONFIG_HOST_UART
-    if (main_loop_flags & FLAG_EXITED_DEBUG_MODE) {
-        main_loop_flags &= ~FLAG_EXITED_DEBUG_MODE;
-
-        send_voltage(interrupt_context.restored_vcap);
-    }
-#endif
 
 #ifdef CONFIG_ENABLE_VOLTAGE_STREAM
     if((main_loop_flags & FLAG_ADC_COMPLETE) && (main_loop_flags & FLAG_LOGGING)) {
