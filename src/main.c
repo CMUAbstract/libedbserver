@@ -1332,14 +1332,14 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
 }
 
 #if defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE)
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=TIMER1_A0_VECTOR
-__interrupt void TIMER1_A0_ISR (void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
+#if defined(__GNUC__)
+__attribute__ ((interrupt(TIMER_VECTOR(TIMER_SIG_SERIAL_DECODE_TYPE, TIMER_SIG_SERIAL_DECODE_IDX,
+                                       TIMER_SIG_SERIAL_DECODE_CC))))
 #else
 #error Compiler not supported!
 #endif
+void TIMER_ISR(TIMER_SIG_SERIAL_DECODE_TYPE, TIMER_SIG_SERIAL_DECODE_IDX,
+               TIMER_SIG_SERIAL_DECODE_CC)(void)
 {
     // Timed out: at zero we are still waiting for terminator pulse, but if it
     // never comes in one bit slot, then we get here with negative index.
@@ -1353,7 +1353,7 @@ void __attribute__ ((interrupt(TIMER1_A0_VECTOR))) TIMER1_A0_ISR (void)
     GPIO(PORT_SERIAL_DECODE, OUT) |= BIT(PIN_SERIAL_DECODE_TIMER);
     GPIO(PORT_SERIAL_DECODE, OUT) &= ~BIT(PIN_SERIAL_DECODE_TIMER);
 #endif
-    TIMER_CC(TIMER_SIG_SERIAL_DECODE, TMRCC_SIG_SERIAL, CCTL) &= ~CCIFG;
+    TIMER_CC(TIMER_SIG_SERIAL_DECODE, TIMER_SIG_SERIAL_DECODE_CC, CCTL) &= ~CCIFG;
 }
 #endif // defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE)
 

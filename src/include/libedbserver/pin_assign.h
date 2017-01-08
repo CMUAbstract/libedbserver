@@ -187,10 +187,23 @@
 
 #define DMA_HOST_UART_TX                        0 //!< DMA channel for UART TX to host
 
-// TODO: warning: timer shared with voltage logging code
-// NOTE: if changed, the ISR in main.c must also be changed
-#define TIMER_SIG_SERIAL_DECODE                 A1
-#define TMRCC_SIG_SERIAL                        0
+#if BOARD_EDB_1_1
+
+// TODO: warning: timer shared with RFID decoder
+#define TIMER_SIG_SERIAL_DECODE_TYPE            A
+#define TIMER_SIG_SERIAL_DECODE_IDX             0
+#define TIMER_SIG_SERIAL_DECODE_CC              0
+#define TIMER_SIG_SERIAL_DECODE                 CONCAT(TIMER_SIG_SERIAL_DECODE_TYPE, TIMER_SIG_SERIAL_DECODE_IDX)
+
+#else // !BOARD_EDB_1_1
+
+// TODO: warning: timer shared with RFID decoder
+#define TIMER_SIG_SERIAL_DECODE_TYPE            A
+#define TIMER_SIG_SERIAL_DECODE_IDX             1
+#define TIMER_SIG_SERIAL_DECODE_CC              0
+#define TIMER_SIG_SERIAL_DECODE                 CONCAT(TIMER_SIG_SERIAL_DECODE_TYPE, TIMER_SIG_SERIAL_DECODE_IDX)
+
+#endif // !BOARD_EDB_1_1
 
 // NOTE: if changed, the ISR definition in rfid_decoder.c must be also changed
 #define TIMER_RF_RX_DECODE                      A0
@@ -302,9 +315,10 @@
 #define UART_TARGET                             0
 
 // TODO: warning: timer shared with voltage logging code
-// NOTE: if changed, the ISR in main.c must also be changed
-#define TIMER_SIG_SERIAL_DECODE                 A1
-#define TMRCC_SIG_SERIAL                        0
+#define TIMER_SIG_SERIAL_DECODE_TYPE            A
+#define TIMER_SIG_SERIAL_DECODE_IDX             1
+#define TIMER_SIG_SERIAL_DECODE_CC              0
+#define TIMER_SIG_SERIAL_DECODE                 CONCAT(TIMER_SIG_SERIAL_DECODE_TYPE, TIMER_SIG_SERIAL_DECODE_TYPE)
 
 // !< general-purpose timer for scheduling pre-defined actions
 #define TIMER_SCHED_TYPE                        A
