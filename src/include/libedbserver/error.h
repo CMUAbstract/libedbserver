@@ -67,11 +67,21 @@ void error(error_t num);
 #define LOG_ASSERT(idx)
 #endif // !VERBOSE
 
+// If there are LED's on the board, then encode error code as freq,
+// otherwise output to console (if configured) and loop forever.
+#if defined(PORT_LED) && defined(PIN_LED_RED) && defined(PIN_LED_GREEN)
 #define ASSERT(idx, cond) \
     if (!(cond)) { \
         GPIO(PORT_LED, OUT) |= BIT(PIN_LED_RED); \
         LOG_ASSERT(idx); \
         BLINK_LOOP(PIN_LED_GREEN, (CONFIG_MCLK_FREQ >> 1) >> (idx)); \
     }
+#else
+#define ASSERT(idx, cond) \
+    if (!(cond)) { \
+        LOG_ASSERT(idx); \
+        while (1); \
+    }
+#endif
 
 #endif
