@@ -23,7 +23,7 @@
 // #define CONFIG_TARGET_UART_UCOS16
 
 
-#elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ) || defined(BOARD_SPRITE_EDB)
+#elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ) || defined(BOARD_SPRITE_EDB) || defined(BOARD_SPRITE_EDB_1_1) || defined(BOARD_SPRITE_EDB_1_2)
 
 // no host baud rate
 #define CONFIG_TARGET_UART_BAUDRATE 115200ull

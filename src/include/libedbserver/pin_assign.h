@@ -151,7 +151,7 @@
 #define COMP_CHAN_VINJ                          5
 /** @} End COMP_CHAN */
 
-#elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ) || defined(BOARD_SPRITE_EDB)
+#elif defined(BOARD_SPRITE_EDB_SOCKET_RGZ) || defined(BOARD_SPRITE_EDB) || defined(BOARD_SPRITE_EDB_1_1) || defined(BOARD_SPRITE_EDB_1_2)
 
 #define PORT_LED                                3 //!< GPIO port for LEDs
 #define PIN_LED_GREEN                           3
