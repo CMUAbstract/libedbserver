@@ -19,6 +19,9 @@ CONFIG_CHARGE_MANIP ?= 0
 # Enable a GPIO pin that controls the power supply to the target
 CONFIG_TARGET_POWER_SWITCH ?= 0
 
+# Enable charge/discharge commands
+CONFIG_CHARGE_CMDS ?= 1
+
 # Enable handling of watchpoint (streaming to host and/or collecting a profile)
 CONFIG_ENABLE_WATCHPOINTS ?= 0
 
@@ -31,6 +34,9 @@ CONFIG_AUTO_ENABLED_WATCHPOINTS ?=
 # 		the target must be interrupted first to enter interactive debugging
 # 		mode and run the enable command in the console.
 CONFIG_ENABLE_PASSIVE_BREAKPOINTS ?= 0
+
+# Enable functionality for setting energy breakpoints
+CONFIG_ENERGY_BREAKPOINTS ?= 1
 
 # Enable feature to deliver watchpoint events to host via 'stream' cmd
 CONFIG_ENABLE_WATCHPOINT_STREAM ?= 0

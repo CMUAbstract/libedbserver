@@ -1279,6 +1279,8 @@ void __attribute__ ((interrupt(PORT2_VECTOR))) Port_2 (void)
 }
 #endif // Port 2 ISR users
 
+#if defined(CONFIG_CHARGE_CMDS) || (defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_ENERGY_BREAKPOINTS)) || defined(CONFIG_RESET_STATE_ON_BOOT)
+
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=COMP_B_VECTOR
 __interrupt void Comp_B_ISR (void)
@@ -1289,6 +1291,7 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
 #endif
 {
     switch (comparator_op) {
+#ifdef CONFIG_CHARGE_CMDS
         case CMP_OP_CHARGE:
             GPIO(PORT_CHARGE, OUT) &= ~BIT(PIN_CHARGE); // cut the power supply
             main_loop_flags |= FLAG_CHARGER_COMPLETE;
@@ -1301,7 +1304,8 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             comparator_op = CMP_OP_NONE;
             CBINT &= ~(CBIFG | CBIE);   // clear Interrupt flag and disable interrupt
             break;
-#ifdef CONFIG_ENABLE_DEBUG_MODE
+#endif // CONFIG_CHARGE_CMDS
+#if defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_ENERGY_BREAKPOINTS)
         case CMP_OP_ENERGY_BREAKPOINT:
             enter_debug_mode(INTERRUPT_TYPE_ENERGY_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
             // TODO: should the interrupt be re-enabled upon exit from debug mode?
@@ -1318,16 +1322,19 @@ void __attribute__ ((interrupt(COMP_B_VECTOR))) Comp_B_ISR (void)
             CBCTL1 ^= CBIES; // reverse the edge direction of the interrupt
             CBINT &= ~CBIFG; // clear the flag, leave interrupt enabled
             break;
-#endif // CONFIG_ENABLE_DEBUG_MODE
+#endif // CONFIG_ENABLE_DEBUG_MODE && CONFIG_ENERGY_BREAKPOINTS
+#ifdef CONFIG_RESET_STATE_ON_BOOT
         case CMP_OP_RESET_STATE_ON_BOOT:
             reset_state();
             CBINT &= ~CBIFG;   // clear Interrupt flag, leave interrupt enabled
             break;
+#endif // CONFIG_RESET_STATE_ON_BOOT
         default:
             error(ERROR_UNEXPECTED_INTERRUPT);
             break;
     }
 }
+#endif // defined [users of comparator]
 
 #if defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE)
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
