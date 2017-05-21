@@ -188,7 +188,7 @@
 #define PIN_LS_ENABLE                           2 //!< level shifter enable pin - output low to disable
 
 #define PORT_SIG                                1 //!< GPIO port for signal line to target
-#define PIN_SIG                                 0 //!< target signal pin
+#define PIN_SIG                                 7 //!< target signal pin
 
 #define PORT_STATE                              3 //!< GPIO port for debugger state pins
 #define PIN_STATE_0                             4 //!< debugger state lsb bit
@@ -204,13 +204,17 @@
 // Code point pins must be on same port and consecutive and in order
 // NOTE: When using the same pins as PIN_STATE, must disable CONFIG_STATE_PINS
 #define PORT_CODEPOINT                          1
-#define PIN_CODEPOINT_0                         1 // lsb
-#define PIN_CODEPOINT_1                         2
-#define PIN_CODEPOINT_2                         3
+#define PIN_CODEPOINT_0                         0
+#define PIN_CODEPOINT_1                         1
+#define PIN_CODEPOINT_2                         2
+#define PIN_CODEPOINT_3                         3
+#define PIN_CODEPOINT_4                         4
 #define BITS_CODEPOINT                          (BIT(PIN_CODEPOINT_0) | \
                                                  BIT(PIN_CODEPOINT_1) | \
-                                                 BIT(PIN_CODEPOINT_2))
-#define NUM_CODEPOINT_PINS                      3 // remember to add cases to ISR
+                                                 BIT(PIN_CODEPOINT_2) | \
+                                                 BIT(PIN_CODEPOINT_3) | \
+                                                 BIT(PIN_CODEPOINT_4))
+#define NUM_CODEPOINT_PINS                      5 // remember to add cases to ISR
 
 #define PORT_SERIAL_DECODE                      3 //!< GPIO port for serial decoder state
 #define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt
