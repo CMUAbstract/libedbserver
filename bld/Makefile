@@ -48,6 +48,7 @@ endif
 
 # To build the dependee that uses the headers, we need the config macros here
 include $(LIB_ROOT)/libmsp/bld/Makefile.config
+include $(MAKER_ROOT)/Makefile.console
 
 override DEPS += \
 	libmsp \
