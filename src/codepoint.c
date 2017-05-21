@@ -371,6 +371,7 @@ void enable_watchpoints()
     GPIO(PORT_CODEPOINT, IFG) &= ~BITS_CODEPOINT;
 
     GPIO(PORT_CODEPOINT, IE) |= enabled_pins;
+    LOG("codepoint IE <- 0x%x\r\n", enabled_pins);
 }
 
 void disable_watchpoints()
