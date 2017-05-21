@@ -1239,6 +1239,11 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
         handle_codepoint(3);
         break;
 #endif // PIN_CODEPOINT_3
+#ifdef PIN_CODEPOINT_4
+    case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_4):
+        handle_codepoint(4);
+        break;
+#endif // PIN_CODEPOINT_4
 #endif // PORT_CODEPOINT
 
 	default:
