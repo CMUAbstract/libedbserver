@@ -404,8 +404,9 @@ void edb_set_watchpoint_callback(watchpoint_callback_t *cb)
 }
 #endif // CONFIG_ENABLE_WATCHPOINT_CALLBACK
 
-void handle_codepoint(unsigned index)
+bool handle_codepoint(unsigned index)
 {
+    bool wakeup = false;
 #if defined(CONFIG_ENABLE_WATCHPOINTS)
 
         // NOTE: can't encode a zero-based index, because the pulse must
@@ -414,7 +415,7 @@ void handle_codepoint(unsigned index)
 #ifdef CONFIG_ENABLE_WATCHPOINT_CALLBACK
             if (watchpoint_callback) {
                 uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-                watchpoint_callback(index, vcap);
+                wakeup |= watchpoint_callback(index, vcap);
             }
 #endif // CONFIG_ENABLE_WATCHPOINT_CALLBACK
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
@@ -447,4 +448,6 @@ void handle_codepoint(unsigned index)
             enter_debug_mode(INTERRUPT_TYPE_BREAKPOINT, DEBUG_MODE_FULL_FEATURES);
         }
 #endif // CONFIG_ENABLE_PASSIVE_BREAKPOINTS
+
+        return wakeup;
 }

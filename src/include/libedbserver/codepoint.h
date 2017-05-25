@@ -24,9 +24,11 @@ void watchpoints_stop_stream();
 void init_watchpoint_event_bufs();
 void send_watchpoint_events();
 
-void handle_codepoint(unsigned index);
+// Process watchpoint and return whether to wake up MCU afterwards
+bool handle_codepoint(unsigned index);
 
-typedef void (watchpoint_callback_t)(unsigned index, uint16_t vcap);
+// Custom handler for a watchpoint, must return whether to wakeup MCU
+typedef bool (watchpoint_callback_t)(unsigned index, uint16_t vcap);
 void edb_set_watchpoint_callback(watchpoint_callback_t *cb);
 
 #endif // CODEPOINT_H

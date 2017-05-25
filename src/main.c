@@ -1201,6 +1201,7 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #error Compiler not supported!
 #endif
 {
+	bool wakeup = false;
 	switch(__even_in_range(P1IV, 16))
 	{
 #ifdef CONFIG_ENABLE_RF_PROTOCOL_MONITORING
@@ -1223,27 +1224,27 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 #if PORT_CODEPOINT == 1
 #ifdef PIN_CODEPOINT_0
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_0):
-        handle_codepoint(0);
+        wakeup = handle_codepoint(0);
         break;
 #endif // PIN_CODEPOINT_0
 #ifdef PIN_CODEPOINT_1
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_1):
-        handle_codepoint(1);
+        wakeup = handle_codepoint(1);
         break;
 #endif // PIN_CODEPOINT_1
 #ifdef PIN_CODEPOINT_2
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_2):
-        handle_codepoint(2);
+        wakeup = handle_codepoint(2);
         break;
 #endif // PIN_CODEPOINT_2
 #ifdef PIN_CODEPOINT_3
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_3):
-        handle_codepoint(3);
+        wakeup = handle_codepoint(3);
         break;
 #endif // PIN_CODEPOINT_3
 #ifdef PIN_CODEPOINT_4
     case INTFLAG(PORT_CODEPOINT, PIN_CODEPOINT_4):
-        handle_codepoint(4);
+        wakeup = handle_codepoint(4);
         break;
 #endif // PIN_CODEPOINT_4
 #endif // PORT_CODEPOINT
@@ -1251,6 +1252,9 @@ void __attribute__ ((interrupt(PORT1_VECTOR))) Port_1 (void)
 	default:
 		break;
 	}
+
+    if (wakeup)
+        __bic_SR_register_on_exit(LPM4_bits);
 }
 
 #endif // Port 1 ISR users
