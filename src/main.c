@@ -7,6 +7,8 @@
 #include <libmsp/clock.h>
 #include <libmsp/watchdog.h>
 #include <libedb/target_comm.h>
+#include <libio/log.h>
+#include <libio/printf.h>
 
 #include "pin_assign.h"
 #include "dev_console.h"
