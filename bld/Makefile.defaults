@@ -25,9 +25,6 @@ CONFIG_CHARGE_CMDS ?= 1
 # Enable handling of watchpoint (streaming to host and/or collecting a profile)
 CONFIG_ENABLE_WATCHPOINTS ?= 0
 
-# Enable this many consecutive watchpoints automatically when EDB starts
-CONFIG_AUTO_ENABLED_WATCHPOINTS ?=
-
 # Enable breakpoints stored on the target-side
 # 		The number of such breakpoints is not limited by the number of
 # 		codepoints pins. The downside is that to enable a passive breakpoint,

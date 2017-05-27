@@ -1040,11 +1040,6 @@ void edb_server_init()
     systick_start();
 #endif
 
-#ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
-    for (unsigned i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
-        toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
-#endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
-
     LOG("init done\r\n");
 
 #ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
