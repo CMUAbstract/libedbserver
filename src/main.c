@@ -1042,11 +1042,6 @@ void edb_server_init()
 
     LOG("init done\r\n");
 
-#ifdef CONFIG_AUTO_ENABLED_WATCHPOINTS
-    for (unsigned i = 0; i < CONFIG_AUTO_ENABLED_WATCHPOINTS; ++i)
-        toggle_watchpoint(i, /* enable */ true, /* vcap snapshot */ true);
-#endif // CONFIG_AUTO_ENABLED_WATCHPOINTS
-
 #if CONFIG_TARGET_POWER_SWITCH
     // Setup target's "power switch" pin
     GPIO(PORT_TARGET_PWR_SWITCH, OUT) &= ~BIT(PIN_TARGET_PWR_SWITCH);
