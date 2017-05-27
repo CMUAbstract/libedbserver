@@ -64,6 +64,7 @@ void abort_action(action_t *action)
     reschedule_preempted_action();
 }
 
+#if 0
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
 #pragma vector=TIMER_VECTOR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TMRCC_SCHED)
 __interrupt void TIMER_ISR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TIMER_SCHED_CCR)(void)
@@ -98,3 +99,4 @@ void TIMER_ISR(TIMER_SCHED_TYPE, TIMER_SCHED_IDX, TIMER_SCHED_CCR)(void)
     // TODO: Does this clear IFG mess up any possible timer starts above?
     TIMER_CC(TIMER_SCHED, TMRCC_SCHED, CCTL) &= ~CCIFG;
 }
+#endif
