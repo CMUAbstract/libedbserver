@@ -544,7 +544,7 @@ static void handle_target_signal()
 /**
  * @brief   Set up all pins.  Default to GPIO output low for unused pins.
  */
-void edb_pin_setup()
+static void edb_pin_setup()
 {
 #ifdef CONFIG_SCOPE_TRIGGER_SIGNAL
     GPIO(PORT_TRIGGER, OUT) &= ~BIT(PIN_TRIGGER);
@@ -1010,6 +1010,8 @@ static void executeUSBCmd(uartPkt_t *pkt)
 void edb_server_init()
 {
     LOG("EDB init\r\n");
+
+    edb_pin_setup();
 
 #ifdef CONFIG_PWM_CHARGING
     PWM_setup(1024-1, 512); // dummy default values
