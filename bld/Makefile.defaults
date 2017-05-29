@@ -2,10 +2,6 @@
 # instead define vars in the top-level makefile of the application that links
 # against this library.
 
-# Enable a watchdog timer to issue a reset on hang
-#    Currently watchdog is never kicked, so reset is unconditional.
-CONFIG_WATCHDOG ?= 0
-
 # Enable a time-keeping timer (systick)
 CONFIG_SYSTICK ?= 0
 
@@ -15,9 +11,6 @@ CONFIG_SYSTICK_32BIT ?= 0
 
 # Enable functionality for manipulating charge on target capacitor
 CONFIG_CHARGE_MANIP ?= 0
-
-# Enable a GPIO pin that controls the power supply to the target
-CONFIG_TARGET_POWER_SWITCH ?= 0
 
 # Enable charge/discharge commands
 CONFIG_CHARGE_CMDS ?= 1
