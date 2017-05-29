@@ -176,8 +176,5 @@ CONFIG_DEBUG_MODE_LED ?= 0
 # Turn on an LED when errors are encountered
 CONFIG_ERROR_LED ?= 0
 
-# Enable debug output to the console configured from the top-level app makefile
-CONFIG_DEV_CONSOLE ?= 0
-
 # Enable setting a callback function that will be called on each watchpoint
 CONFIG_ENABLE_WATCHPOINT_CALLBACK ?= 0

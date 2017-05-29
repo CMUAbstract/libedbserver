@@ -2,10 +2,7 @@
 #define ERROR_H
 
 #include <libmsp/clock.h>
-
-#ifdef CONFIG_DEV_CONSOLE
 #include <libio/log.h>
-#endif // CONFIG_DEV_CONSOLE
 
 /* @brief A number that identifies an error condition
  * @details The handling of each error is defined in the source file.

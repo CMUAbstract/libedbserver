@@ -11,7 +11,6 @@
 #include <libio/printf.h>
 
 #include "pin_assign.h"
-#include "dev_console.h"
 #include "host_comm.h"
 #include "host_comm_impl.h"
 #include "target_comm_impl.h"
