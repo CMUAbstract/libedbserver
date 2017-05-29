@@ -288,7 +288,8 @@ void init_watchpoint_event_bufs()
     watchpoint_events_buf = watchpoint_events_bufs[watchpoint_events_buf_idx];
 }
 
-static void append_watchpoint_event(unsigned index)
+// TODO: don't stream vcap at all if snapshot is not enabled?
+static void append_watchpoint_event(unsigned index, uint16_t vcap)
 {
     if (watchpoint_events_count[watchpoint_events_buf_idx] <
             param_num_watchpoint_events_buffered) {
@@ -298,11 +299,7 @@ static void append_watchpoint_event(unsigned index)
 
         watchpoint_event->timestamp = SYSTICK_CURRENT_TIME;
         watchpoint_event->index = index;
-        if (watchpoints_vcap_snapshot & (1 << index))
-            watchpoint_event->vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
-        else // TODO: don't stream vcap at all if snapshot is not enabled
-            watchpoint_event->vcap = 0;
-
+        watchpoint_event->vcap = vcap;
     }
 
     if (watchpoint_events_count[watchpoint_events_buf_idx] ==
@@ -388,12 +385,10 @@ void watchpoints_stop_stream()
 }
 #endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
-#ifdef CONFIG_ENABLE_WATCHPOINT_CALLBACK
 void edb_set_watchpoint_callback(watchpoint_callback_t *cb)
 {
     watchpoint_callback = cb;
 }
-#endif // CONFIG_ENABLE_WATCHPOINT_CALLBACK
 
 bool handle_codepoint(unsigned index)
 {
@@ -403,14 +398,11 @@ bool handle_codepoint(unsigned index)
         // NOTE: can't encode a zero-based index, because the pulse must
         // trigger the interrupt
         if (watchpoints & (1 << index)) {
-#ifdef CONFIG_ENABLE_WATCHPOINT_CALLBACK
-            if (watchpoint_callback) {
-                uint16_t vcap = ADC_read(ADC_CHAN_INDEX_VCAP);
+            uint16_t vcap = (watchpoints_vcap_snapshot & (1 << index)) ?  ADC_read(ADC_CHAN_INDEX_VCAP) : 0;
+            if (watchpoint_callback)
                 wakeup |= watchpoint_callback(index, vcap);
-            }
-#endif // CONFIG_ENABLE_WATCHPOINT_CALLBACK
 #ifdef CONFIG_ENABLE_WATCHPOINT_STREAM
-            append_watchpoint_event(index);
+            append_watchpoint_event(index, vcap);
 #endif
         }
 
