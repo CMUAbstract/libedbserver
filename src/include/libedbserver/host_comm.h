@@ -69,7 +69,6 @@ typedef enum {
     USB_CMD_WATCHPOINT                      = 0x43, //!< enable/disable a watchpoint
     USB_CMD_SET_PARAM                       = 0x44, //!< set a parameter value
     USB_CMD_GET_PARAM                       = 0x45, //!< get a parameter value
-    USB_CMD_PERIODIC_PAYLOAD                = 0x46, //!< enable periodic sending of EDB+App data
 } usb_cmd_t;
 
 /**
