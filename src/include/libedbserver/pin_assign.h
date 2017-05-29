@@ -220,9 +220,6 @@
 #define PIN_SERIAL_DECODE_PULSE                 0 //!< input pulse trigged decoder interrupt
 #define PIN_SERIAL_DECODE_TIMER                 1 //!< decoder timer started, rolled over, or stopped
 
-#define PORT_TARGET_PWR_SWITCH                  2
-#define PIN_TARGET_PWR_SWITCH                   0
-
 // no host UART on this board
 #define UART_TARGET                             0
 

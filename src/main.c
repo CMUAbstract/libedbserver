@@ -1041,17 +1041,6 @@ void edb_server_init()
 #endif
 
     LOG("init done\r\n");
-
-#if CONFIG_TARGET_POWER_SWITCH
-    // Setup target's "power switch" pin
-    GPIO(PORT_TARGET_PWR_SWITCH, OUT) &= ~BIT(PIN_TARGET_PWR_SWITCH);
-    GPIO(PORT_TARGET_PWR_SWITCH, DIR) |= BIT(PIN_TARGET_PWR_SWITCH);
-
-    LOG("turn on target\r\n");
-
-    // turn on target's "power switch"
-    GPIO(PORT_TARGET_PWR_SWITCH, OUT) |= BIT(PIN_TARGET_PWR_SWITCH);
-#endif // CONFIG_TARGET_POWER_SWITCH
 }
 
 void edb_service(void)
