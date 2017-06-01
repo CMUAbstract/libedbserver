@@ -125,6 +125,7 @@ unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
             }
             break;
 
+#if defined(CONFIG_TARGET_UART)
         case BREAKPOINT_TYPE_INTERNAL:
             if (index >= MAX_INTERNAL_BREAKPOINTS) {
                 rc = RETURN_CODE_INVALID_ARGS;
@@ -145,6 +146,7 @@ unsigned toggle_breakpoint(breakpoint_type_t type, unsigned index,
                     (wispRxPkt.descriptor != WISP_RSP_BREAKPOINT)); // wait for response
             wispRxPkt.processed = 1;
             break;
+#endif // CONFIG_TARGET_UART
 
         case BREAKPOINT_TYPE_EXTERNAL:
             if (index >= MAX_EXTERNAL_BREAKPOINTS) {

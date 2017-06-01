@@ -285,7 +285,9 @@ void exit_debug_mode()
 #endif // CONFIG_ENABLE_DEBUG_MODE_TIMEOUTS
 
     unmask_target_signal();
+#ifdef CONFIG_TARGET_UART
     target_comm_send_exit_debug_mode();
+#endif // CONFIG_TARGET_UART
 }
 
 void wait_until_target_is_on()
@@ -316,13 +318,15 @@ return_code_t interrupt_target()
 
     LOG("int: interrupting target\r\n");
 
+#ifdef CONFIG_TARGET_UART
     UART_setup(UART_INTERFACE_WISP);
+#endif // CONFIG_TARGET_UART
     signal_target_by_level();
 
     return RETURN_CODE_SUCCESS;
 }
 
-#ifdef CONFIG_FETCH_INTERRUPT_CONTEXT
+#if defined(CONFIG_FETCH_INTERRUPT_CONTEXT) && defined(CONFIG_TARGET_UART)
 static void get_target_interrupt_context(interrupt_context_t *int_context)
 {
     // In case target requested the interrupt, ask it for more details
@@ -333,7 +337,7 @@ static void get_target_interrupt_context(interrupt_context_t *int_context)
     int_context->id = ((uint16_t)wispRxPkt.data[2] << 8) | wispRxPkt.data[1];
     wispRxPkt.processed = 1;
 }
-#endif // CONFIG_FETCH_INTERRUPT_CONTEXT
+#endif // CONFIG_FETCH_INTERRUPT_CONTEXT && CONFIG_TARGET_UART
 
 static void finish_enter_debug_mode()
 {
@@ -348,8 +352,10 @@ static void finish_enter_debug_mode()
     GPIO(PORT_LED_DEBUG_MODE, OUT) |= BIT(PIN_LED_DEBUG_MODE);
 #endif // CONFIG_DEBUG_MODE_LED
 
+#ifdef CONFIG_TARGET_UART
     if (debug_mode_flags & DEBUG_MODE_WITH_UART)
         UART_setup(UART_INTERFACE_WISP);
+#endif // CONFIG_TARGET_UART
 
 #ifdef CONFIG_ENABLE_I2C_MONITORING
     if (debug_mode_flags & DEBUG_MODE_WITH_I2C)
@@ -680,7 +686,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
 #endif
 
-#ifdef CONFIG_ENABLE_DEBUG_MODE
+#if defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_TARGET_UART)
     case USB_CMD_ENTER_ACTIVE_DEBUG:
     	// todo: turn off all logging?
         enter_debug_mode(INTERRUPT_TYPE_DEBUGGER_REQ, DEBUG_MODE_FULL_FEATURES);
@@ -705,7 +711,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         forward_msg_to_host(USB_RSP_ADDRESS, wispRxPkt.data, wispRxPkt.length);
     	wispRxPkt.processed = 1;
     	break;
-#endif // CONFIG_ENABLE_DEBUG_MODE
+#endif // CONFIG_ENABLE_DEBUG_MODE && CONFIG_TARGET_UART
 
     case USB_CMD_STREAM_BEGIN: {
         uint16_t streams = pkt->data[0];
@@ -831,7 +837,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         // DEPRECATED
         break;
 
-#ifdef CONFIG_ENABLE_DEBUG_MODE
+#if defined(CONFIG_ENABLE_DEBUG_MODE) && defined(CONFIG_TARGET_UART)
     case USB_CMD_BREAK_AT_VCAP_LEVEL: {
         target_vcap = *((uint16_t *)(&pkt->data[0]));
         energy_breakpoint_impl_t impl = (energy_breakpoint_impl_t)pkt->data[2];
@@ -880,7 +886,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         send_return_code(RETURN_CODE_SUCCESS); // TODO: have WISP return a code
         break;
     }
-#endif // CONFIG_ENABLE_DEBUG_MODE
+#endif // CONFIG_ENABLE_DEBUG_MODE && CONFIG_TARGET_UART
 
     case USB_CMD_CONT_POWER:
     {
@@ -940,7 +946,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
     }
 #endif // CONFIG_ENABLE_DEBUG_MODE
 
-#ifdef CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE
+#if defined(CONFIG_ENABLE_TARGET_SIDE_DEBUG_MODE) && defined(CONFIG_TARGET_UART)
     case USB_CMD_SERIAL_ECHO: {
         unsigned value = pkt->data[0];
 
@@ -967,7 +973,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         send_echo(value);
         break;
     }
-#endif // CONFIG_ENABLE_DEBUG_MODE
+#endif // CONFIG_ENABLE_DEBUG_MODE && CONFIG_TARGET_UART
 
     case USB_CMD_DMA_ECHO: {
         unsigned value = pkt->data[0];
@@ -975,6 +981,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         break;
     }
 
+#ifdef CONFIG_TARGET_UART
     case USB_CMD_ENABLE_TARGET_UART: {
         bool enable = pkt->data[0];
         if (enable) {
@@ -985,6 +992,7 @@ static void executeUSBCmd(uartPkt_t *pkt)
         send_return_code(RETURN_CODE_SUCCESS);
         break;
     }
+#endif // CONFIG_TARGET_UART
 
     case USB_CMD_SET_PARAM: {
         param_t param = (pkt->data[1] << 8) | pkt->data[0];
