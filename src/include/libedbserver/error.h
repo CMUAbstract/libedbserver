@@ -2,7 +2,7 @@
 #define ERROR_H
 
 #include <libmsp/clock.h>
-#include <libio/log.h>
+#include <libio/console.h>
 
 /* @brief A number that identifies an error condition
  * @details The handling of each error is defined in the source file.

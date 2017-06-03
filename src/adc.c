@@ -3,7 +3,7 @@
 #include <msp430.h>
 
 #include <libmsp/periph.h>
-#include <libio/log.h>
+#include <libio/console.h>
 
 #include "adc.h"
 #include "pin_assign.h"

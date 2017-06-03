@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 #include <libmsp/periph.h>
-#include <libio/log.h>
+#include <libio/console.h>
 
 #include "config.h"
 #include "pin_assign.h"
