@@ -230,9 +230,6 @@ unsigned toggle_watchpoint(unsigned index, bool enable, bool vcap_snapshot)
 {
     unsigned rc = RETURN_CODE_SUCCESS;
 
-    LOG("toggle watchpt: idx %u e %u en %u\r\n",
-        index, vcap_snapshot, enable);
-
     if (index >= MAX_WATCHPOINTS) {
         rc = RETURN_CODE_INVALID_ARGS;
         goto out;
@@ -348,6 +345,7 @@ void send_watchpoint_events()
 }
 #endif // CONFIG_ENABLE_WATCHPOINT_STREAM
 
+// NOTE: called from ISR in profiling path, don't LOG from here
 void enable_watchpoints()
 {
     // enable rising-edge interrupt on enabled codepoint pins (harmless to do every time)
@@ -361,7 +359,6 @@ void enable_watchpoints()
     GPIO(PORT_CODEPOINT, IFG) &= ~BITS_CODEPOINT;
 
     GPIO(PORT_CODEPOINT, IE) |= enabled_pins;
-    LOG("codepoint IE <- 0x%x\r\n", enabled_pins);
 }
 
 void disable_watchpoints()
