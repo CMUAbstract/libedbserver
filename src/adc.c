@@ -189,7 +189,7 @@ uint16_t ADC_read(unsigned chan_index)
 {
     ADC12CTL0 &= ~ADC12ENC; // disable ADC
 
-    ADC12CTL0 = ADC12SHT0_2 + ADC12ON + ADC12REF2_5V + ADC12REFON; // sampling time, ADC12 on
+    ADC12CTL0 = ADC12SHT0_2 + ADC12ON + ADC12REFON; // sampling time, ADC12 on, 1.5v ref (an unset bit)
     ADC12CTL1 = ADC12SHP + ADC12CONSEQ_0; // use sampling timer, single-channel, single-conversion
     ADC12MCTL0 = stream_info[chan_index].chan; // set ADC memory control register
     ADC12IE = 0; // disable interrupt
